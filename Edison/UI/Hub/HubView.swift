@@ -8,10 +8,18 @@ private enum HubFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private enum HubLayoutMode: String, CaseIterable, Identifiable {
+    case list = "List"
+    case grid = "Grid"
+
+    var id: String { rawValue }
+}
+
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openWindow) private var openWindow
     @State private var filter: HubFilter = .all
+    @State private var layoutMode: HubLayoutMode = .list
     @State private var selectedItemID: UUID?
 
     private var items: [ClipboardItem] {
@@ -42,7 +50,7 @@ struct HubView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
-                    historyColumn
+                    contentColumn
                     Divider()
                     detailColumn
                 }
@@ -97,6 +105,15 @@ struct HubView: View {
             .pickerStyle(.segmented)
             .frame(width: 210)
 
+            Picker("Layout", selection: $layoutMode) {
+                ForEach(HubLayoutMode.allCases) { mode in
+                    Label(mode.rawValue, systemImage: mode == .list ? "list.bullet" : "square.grid.2x2")
+                        .tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 220)
+
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -112,28 +129,54 @@ struct HubView: View {
         }
     }
 
-    private var historyColumn: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                ForEach(items) { item in
-                    HubTileView(
-                        item: item,
-                        isSelected: item.id == selectedItem?.id,
-                        onSelect: {
-                            selectedItemID = item.id
-                        },
-                        onCopy: {
-                            appState.copyToClipboard(itemID: item.id)
-                        },
-                        onToggleFavorite: {
-                            appState.toggleFavorite(itemID: item.id)
+    private var contentColumn: some View {
+        Group {
+            switch layoutMode {
+            case .list:
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(items) { item in
+                            HubTileView(
+                                item: item,
+                                isSelected: item.id == selectedItem?.id,
+                                onSelect: {
+                                    selectedItemID = item.id
+                                },
+                                onCopy: {
+                                    appState.copyToClipboard(itemID: item.id)
+                                },
+                                onToggleFavorite: {
+                                    appState.toggleFavorite(itemID: item.id)
+                                }
+                            )
                         }
-                    )
+                    }
+                    .padding(10)
+                }
+            case .grid:
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], spacing: 10) {
+                        ForEach(items) { item in
+                            ClipboardGridItemView(
+                                item: item,
+                                isSelected: item.id == selectedItem?.id,
+                                onSelect: {
+                                    selectedItemID = item.id
+                                },
+                                onCopy: {
+                                    appState.copyToClipboard(itemID: item.id)
+                                },
+                                onToggleFavorite: {
+                                    appState.toggleFavorite(itemID: item.id)
+                                }
+                            )
+                        }
+                    }
+                    .padding(10)
                 }
             }
-            .padding(10)
         }
-        .frame(minWidth: 320, idealWidth: 340, maxWidth: 380)
+        .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
         .background(Color(nsColor: .underPageBackgroundColor))
     }
 
@@ -181,7 +224,7 @@ private struct HubTileView: View {
             previewView
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(primaryLabel)
+                Text(item.historyTitle)
                     .lineLimit(2)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Color.primary)
@@ -250,17 +293,91 @@ private struct HubTileView: View {
                 .foregroundStyle(.secondary)
         }
     }
+}
 
-    private var primaryLabel: String {
-        switch item.payload {
-        case let .text(text):
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? "Text item" : trimmed
-        case .image:
-            return "Image / Screenshot"
-        case let .fileURL(url):
-            return url.lastPathComponent
+private struct ClipboardGridItemView: View {
+    let item: ClipboardItem
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onCopy: () -> Void
+    let onToggleFavorite: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            preview
+
+            Text(item.historyTitle)
+                .font(.subheadline)
+                .lineLimit(3)
+
+            HStack {
+                Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    onToggleFavorite()
+                } label: {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(item.isFavorite ? Color.yellow : Color.secondary)
+                .help("Toggle favorite")
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.secondary.opacity(0.1), lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onTapGesture {
+            onSelect()
+        }
+        .onTapGesture(count: 2) {
+            onCopy()
+        }
+        .help("Select to copy back to clipboard")
+    }
+
+    @ViewBuilder
+    private var preview: some View {
+        switch item.payload {
+        case let .image(imageData):
+            if let image = NSImage(data: imageData.thumbnailData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 92)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else {
+                fallbackPreview(icon: "photo")
+            }
+        case .text:
+            fallbackPreview(icon: "text.quote")
+        case .fileURL:
+            fallbackPreview(icon: "doc")
+        }
+    }
+
+    private func fallbackPreview(icon: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.15))
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+        }
+        .frame(height: 92)
     }
 }
 
@@ -327,6 +444,20 @@ private struct HubDetailView: View {
             )
         }
         .padding(16)
+    }
+}
+
+private extension ClipboardItem {
+    var historyTitle: String {
+        switch payload {
+        case let .text(text):
+            let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return compact.isEmpty ? "Text item" : compact
+        case .image:
+            return "Image / Screenshot"
+        case let .fileURL(url):
+            return url.lastPathComponent
+        }
     }
 }
 
