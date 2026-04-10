@@ -37,15 +37,24 @@ struct HubView: View {
         return items.first
     }
 
+    private var isFilteringActive: Bool {
+        !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || appState.selectedTypeFilter != .all
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             topBar
 
             if items.isEmpty {
                 ContentUnavailableView(
-                    "No History Yet",
+                    isFilteringActive ? "No Matching Items" : "No History Yet",
                     systemImage: "doc.on.clipboard",
-                    description: Text("Copy text, image, or file to start building history.")
+                    description: Text(
+                        isFilteringActive
+                            ? "Try a different search query or filter."
+                            : "Copy text, image, or file to start building history."
+                    )
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -113,6 +122,14 @@ struct HubView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 220)
+
+            Picker("Type", selection: $appState.selectedTypeFilter) {
+                ForEach(HistoryItemTypeFilter.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 210)
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
