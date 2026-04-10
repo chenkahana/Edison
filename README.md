@@ -7,6 +7,7 @@ Edison is a native macOS menu bar app for clipboard history and screenshots.
 Use these docs as the source of truth for implementation:
 
 - `docs/product.md` — product definition, users, core flows, non-goals
+- `docs/ui-style-guide.md` — visual system, interaction spec, and glass UI guidance
 - `docs/plan.md` — phased roadmap and MVP scope
 - `docs/constraints.md` — hard constraints and boundaries
 - `docs/architecture.md` — architectural direction and simplicity rules
@@ -29,4 +30,3 @@ swift run Edison
 ```bash
 ./scripts/ci-local-macos.sh
 ```
-
