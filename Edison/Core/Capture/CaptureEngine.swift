@@ -5,31 +5,67 @@ final class CaptureEngine {
     static let imageDataUserInfoKey = "imageData"
 
     func captureArea() {
-        runScreencaptureFallback(arguments: ["-i", "-c"])
+        runScreencapture(mode: .area)
     }
 
     func captureWindow() {
-        runScreencaptureFallback(arguments: ["-i", "-w", "-c"])
+        runScreencapture(mode: .window)
     }
 
     func captureFullScreen() {
-        runScreencaptureFallback(arguments: ["-c"])
+        runScreencapture(mode: .fullScreen)
     }
 
-    private func runScreencaptureFallback(arguments: [String]) {
+    private enum CaptureMode {
+        case area
+        case window
+        case fullScreen
+
+        var arguments: [String] {
+            switch self {
+            case .area:
+                return ["-i", "-x"]
+            case .window:
+                return ["-i", "-w", "-x"]
+            case .fullScreen:
+                return ["-x"]
+            }
+        }
+    }
+
+    private func runScreencapture(mode: CaptureMode) {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("edison-screenshot-\(UUID().uuidString).png")
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = arguments
+        process.arguments = mode.arguments + [outputURL.path]
+
         process.terminationHandler = { _ in
             DispatchQueue.main.async {
-                let imageData = NSPasteboard.general.data(forType: .tiff)
+                defer {
+                    try? FileManager.default.removeItem(at: outputURL)
+                }
+
+                guard
+                    process.terminationStatus == 0,
+                    let imageData = try? Data(contentsOf: outputURL)
+                else {
+                    return
+                }
+
                 NotificationCenter.default.post(
                     name: .edisonScreenshotCaptured,
                     object: nil,
-                    userInfo: [Self.imageDataUserInfoKey: imageData as Any]
+                    userInfo: [Self.imageDataUserInfoKey: imageData]
                 )
             }
         }
-        try? process.run()
+
+        do {
+            try process.run()
+        } catch {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
     }
 }
