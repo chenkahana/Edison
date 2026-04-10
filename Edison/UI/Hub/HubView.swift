@@ -528,6 +528,14 @@ private struct HubShelfCardView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var accent: Color { HubTheme.accentColor(for: item) }
+    private var cardSize: CGSize { HubTheme.cardSize(for: item) }
+    private var previewWidth: CGFloat { max(0, cardSize.width - (HubTheme.Space.x4 * 2)) }
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
+    }
+    private var previewShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
@@ -559,19 +567,19 @@ private struct HubShelfCardView: View {
             }
         }
         .padding(HubTheme.Space.x4)
-        .frame(width: HubTheme.cardSize(for: item).width, alignment: .topLeading)
-        .frame(minHeight: HubTheme.cardSize(for: item).height, alignment: .topLeading)
+        .frame(width: cardSize.width, alignment: .topLeading)
+        .frame(minHeight: cardSize.height, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
+            cardShape
                 .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
+            cardShape
                 .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
         )
+        .clipShape(cardShape)
         .shadow(color: HubTheme.cardShadow(colorScheme: colorScheme), radius: 16, y: 8)
-        .contentShape(RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))
-        .scaleEffect(isSelected ? 1.01 : 1)
+        .contentShape(cardShape)
         .onTapGesture {
             onSelect()
         }
@@ -620,9 +628,9 @@ private struct HubShelfCardView: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: 102)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .frame(width: previewWidth, height: 102)
+                    .clipped()
+                    .clipShape(previewShape)
             } else {
                 fallbackPreview
             }
@@ -633,7 +641,7 @@ private struct HubShelfCardView: View {
 
     private var fallbackPreview: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            previewShape
                 .fill(HubTheme.cardFillMuted)
 
             VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
@@ -659,7 +667,8 @@ private struct HubShelfCardView: View {
             }
             .padding(HubTheme.Space.x3)
         }
-        .frame(height: 84)
+        .frame(width: previewWidth, height: 84, alignment: .topLeading)
+        .clipShape(previewShape)
     }
 }
 
