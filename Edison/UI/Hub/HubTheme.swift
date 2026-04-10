@@ -22,6 +22,14 @@ enum HubTheme {
     static let searchPillHeight: CGFloat = 36
     static let previewPaneWidth: CGFloat = 360
 
+    enum Anim {
+        static let fast: Double = 0.12
+        static let standard: Double = 0.20
+        static let emphasis: Double = 0.28
+        static let spring = Animation.spring(response: 0.32, dampingFraction: 0.82, blendDuration: 0)
+        static let fastSpring = Animation.spring(response: 0.22, dampingFraction: 0.80, blendDuration: 0)
+    }
+
     static func cardSize(for item: ClipboardItem) -> CGSize {
         switch item.payload {
         case .image:
@@ -61,15 +69,15 @@ enum HubTheme {
         dark: NSColor(white: 1, alpha: 0.45)
     ))
     static let glassBase = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.18),
-        dark: NSColor(calibratedWhite: 0.10, alpha: 0.22)
+        light: NSColor(calibratedWhite: 1, alpha: 0.52),
+        dark: NSColor(calibratedWhite: 0.13, alpha: 0.58)
     ))
     static let glassTintWarm = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedRed: 1, green: 180 / 255, blue: 90 / 255, alpha: 0.02),
-        dark: NSColor(calibratedRed: 1, green: 148 / 255, blue: 0, alpha: 0.02)
+        light: NSColor(calibratedRed: 1, green: 180 / 255, blue: 90 / 255, alpha: 0.10),
+        dark: NSColor(calibratedRed: 1, green: 148 / 255, blue: 0, alpha: 0.10)
     ))
     static let glassStroke = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.14),
+        light: NSColor(calibratedWhite: 1, alpha: 0.26),
         dark: NSColor(calibratedWhite: 1, alpha: 0.08)
     ))
     static let dividerOnGlass = Color(nsColor: dynamicColor(
@@ -93,10 +101,16 @@ enum HubTheme {
         dark: NSColor(calibratedWhite: 0.11, alpha: 1)
     ))
 
-    static func cardShadow(colorScheme: ColorScheme) -> Color {
+    static func cardShadowKey(colorScheme: ColorScheme) -> Color {
         colorScheme == .dark
-            ? Color.black.opacity(0.28)
-            : Color.black.opacity(0.12)
+            ? Color.black.opacity(0.55)
+            : Color.black.opacity(0.18)
+    }
+
+    static func cardShadowAmbient(colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark
+            ? Color.black.opacity(0.30)
+            : Color.black.opacity(0.08)
     }
 
     private static func dynamicColor(light: NSColor, dark: NSColor) -> NSColor {
@@ -190,7 +204,9 @@ enum HubShelfWindowStyle {
         guard let screen = window.screen ?? NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
         let width = visibleFrame.width
-        let height = min(HubTheme.shelfWindowSize.height, visibleFrame.height)
+        let stored = CGFloat(UserDefaults.standard.double(forKey: "edison.shelfHeight"))
+        let preferredHeight: CGFloat = stored >= 156 ? min(stored, 480) : HubTheme.shelfWindowSize.height
+        let height = min(preferredHeight, visibleFrame.height)
         let frame = NSRect(
             x: visibleFrame.minX,
             y: visibleFrame.minY,

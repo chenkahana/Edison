@@ -17,6 +17,8 @@ final class AppState: ObservableObject {
     @Published var selectedCollectionID: UUID?
     @Published var isEditorPresented = false
     @Published var editorImageData: Data?
+    @Published private(set) var deletedItemForUndo: ClipboardItem?
+    @Published private(set) var showDeleteUndoToast = false
 
     let shortcutStore = ShortcutStore()
     let hotKeyCenter = HotKeyCenter.shared
@@ -33,9 +35,12 @@ final class AppState: ObservableObject {
 
     private let historyLimit = 250
     private var suppressedClipboardPayloads = Set<ClipboardPayload>()
+    private var undoTimer: Timer?
 
     weak var windowRouter: WindowRouter?
     private var screenshotObserver: NSObjectProtocol?
+    private(set) var lastActiveApp: NSRunningApplication?
+    private var activeAppObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
         let searched = searchEngine.filter(
@@ -90,15 +95,31 @@ final class AppState: ObservableObject {
                 self.handleScreenshotCapture(capturedData)
             }
         }
+
+        activeAppObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+            MainActor.assumeIsolated {
+                self?.lastActiveApp = app
+            }
+        }
     }
 
     deinit {
         let clipboardMonitor = clipboardMonitor
         let screenshotObserver = screenshotObserver
+        let activeAppObserver = activeAppObserver
         Task { @MainActor in
             clipboardMonitor.stop()
             if let screenshotObserver {
                 NotificationCenter.default.removeObserver(screenshotObserver)
+            }
+            if let activeAppObserver {
+                NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
             }
         }
     }
@@ -106,7 +127,7 @@ final class AppState: ObservableObject {
     func handle(hotKeyAction: ShortcutAction) {
         switch hotKeyAction {
         case .openHub:
-            windowRouter?.openHub()
+            windowRouter?.toggleHub()
         case .captureArea:
             captureEngine.captureArea()
         case .captureWindow:
@@ -177,6 +198,37 @@ final class AppState: ObservableObject {
         persistHistory()
     }
 
+    func deleteItem(itemID: UUID) {
+        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
+        let item = historyItems[index]
+
+        historyItems.remove(at: index)
+        for idx in collections.indices {
+            collections[idx].itemIDs.removeAll { $0 == itemID }
+        }
+        persistHistory()
+
+        deletedItemForUndo = item
+        showDeleteUndoToast = true
+        undoTimer?.invalidate()
+        undoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.showDeleteUndoToast = false
+                self?.deletedItemForUndo = nil
+            }
+        }
+    }
+
+    func undoDelete() {
+        guard let item = deletedItemForUndo else { return }
+        undoTimer?.invalidate()
+        undoTimer = nil
+        historyItems.insert(item, at: 0)
+        persistHistory()
+        deletedItemForUndo = nil
+        showDeleteUndoToast = false
+    }
+
     func copyToClipboard(itemID: UUID) {
         guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
         suppressedClipboardPayloads.insert(item.payload)
@@ -192,6 +244,30 @@ final class AppState: ObservableObject {
         case let .fileURL(url):
             pasteboard.writeObjects([url as NSURL])
         }
+    }
+
+    func pasteItem(itemID: UUID) {
+        copyToClipboard(itemID: itemID)
+
+        guard AXIsProcessTrusted(),
+              let targetApp = lastActiveApp else {
+            // Fallback: item is already in clipboard, user pastes manually
+            return
+        }
+
+        let pid = targetApp.processIdentifier
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+            let vKeyCode: CGKeyCode = 9 // kVK_ANSI_V
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true)
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false)
+            keyDown?.flags = .maskCommand
+            keyUp?.flags = .maskCommand
+            keyDown?.postToPid(pid)
+            keyUp?.postToPid(pid)
+        }
+
+        windowRouter?.dismissHub()
     }
 
     func exportItem(itemID: UUID) {

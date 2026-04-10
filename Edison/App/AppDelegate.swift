@@ -9,4 +9,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         statusController = StatusBarController(windowRouter: windowRouter)
     }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !flag else { return false }
+        windowRouter.openHub()
+        return true
+    }
 }
