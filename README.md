@@ -16,7 +16,16 @@ Use these docs as the source of truth for implementation:
 
 ## Current status
 
-This branch contains the app shell + clipboard/screenshot foundations.
+This repository contains the Edison macOS app foundation (app shell, project skeleton, and CI baseline).
+
+## Project layout
+
+- `Edison/App` — app entry point and lifecycle shell
+- `Edison/Core` — core domain modules (models, persistence, capture, shortcuts)
+- `Edison/UI` — SwiftUI screens/components
+- `Edison/Tests` — package tests
+- `.github/workflows/ci.yml` — macOS CI build + test
+
 
 ## Run
 

@@ -2,18 +2,26 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]
   pull_request:
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  build:
+  build-and-test:
     runs-on: macos-14
+    timeout-minutes: 20
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate package manifest
+        run: swift package dump-package > /dev/null
+
       - name: Build
         run: swift build
+
       - name: Test
         run: swift test
