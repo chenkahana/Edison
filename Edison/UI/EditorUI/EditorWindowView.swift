@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum EditorTool: String, CaseIterable, Identifiable {
     case crop = "Crop"
