@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 enum ImageProcessing {
-    static func prepareImagePayload(from input: Data) -> ClipboardImageData? {
+    nonisolated static func prepareImagePayload(from input: Data) -> ClipboardImageData? {
         guard let image = NSImage(data: input) else { return nil }
 
         let optimized = image.resized(maxDimension: 2200)
@@ -16,7 +16,7 @@ enum ImageProcessing {
 }
 
 private extension NSImage {
-    func resized(maxDimension: CGFloat) -> NSImage {
+    nonisolated func resized(maxDimension: CGFloat) -> NSImage {
         let size = self.size
         let longest = max(size.width, size.height)
         guard longest > maxDimension, longest > 0 else { return self }
@@ -31,7 +31,7 @@ private extension NSImage {
         return output
     }
 
-    func pngData() -> Data? {
+    nonisolated func pngData() -> Data? {
         guard
             let tiffData = tiffRepresentation,
             let rep = NSBitmapImageRep(data: tiffData)

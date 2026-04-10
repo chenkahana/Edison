@@ -7,6 +7,7 @@ final class WindowRouter {
 
     func registerHubWindow(_ window: NSWindow?) {
         guard let window, window.canBecomeKey else { return }
+        HubShelfWindowStyle.apply(to: window)
         hubWindow = window
     }
 
@@ -17,6 +18,7 @@ final class WindowRouter {
     func openHub() {
         NSApp.activate(ignoringOtherApps: true)
         if let targetWindow = resolveHubWindow() {
+            HubShelfWindowStyle.apply(to: targetWindow)
             if targetWindow.isMiniaturized {
                 targetWindow.deminiaturize(nil)
             }
@@ -28,7 +30,9 @@ final class WindowRouter {
         openHubAction?()
 
         DispatchQueue.main.async {
-            NSApp.windows.first(where: { $0.identifier?.rawValue == "hub-window" })?.makeKeyAndOrderFront(nil)
+            guard let hubWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "hub-window" }) else { return }
+            HubShelfWindowStyle.apply(to: hubWindow)
+            hubWindow.makeKeyAndOrderFront(nil)
         }
 
         NSApp.unhide(nil)

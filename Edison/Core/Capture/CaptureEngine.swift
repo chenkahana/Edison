@@ -4,10 +4,11 @@ import Foundation
 final class CaptureEngine {
     static let imageDataUserInfoKey = "imageData"
 
+    @MainActor
     private var regionSelectionSession: RegionSelectionSession?
 
     func captureArea() {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.beginRegionSelectionCapture()
         }
     }
@@ -20,6 +21,7 @@ final class CaptureEngine {
         runScreencapture(arguments: ["-x"])
     }
 
+    @MainActor
     private func beginRegionSelectionCapture() {
         guard regionSelectionSession == nil else { return }
 
@@ -37,19 +39,16 @@ final class CaptureEngine {
     private func captureSelectedRegion(_ selectedRect: CGRect) {
         let standardized = selectedRect.standardized.integral
         guard standardized.width > 1, standardized.height > 1 else { return }
+        let rectArgument = [
+            Int(standardized.origin.x.rounded(.down)),
+            Int(standardized.origin.y.rounded(.down)),
+            Int(standardized.width.rounded(.up)),
+            Int(standardized.height.rounded(.up))
+        ]
+        .map(String.init)
+        .joined(separator: ",")
 
-        guard let cgImage = CGWindowListCreateImage(
-            standardized,
-            .optionOnScreenOnly,
-            kCGNullWindowID,
-            [.bestResolution]
-        ) else {
-            return
-        }
-
-        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
-        let imageData = bitmapRep.representation(using: .png, properties: [:]) ?? bitmapRep.tiffRepresentation
-        postCaptureNotification(imageData: imageData)
+        runScreencapture(arguments: ["-R", rectArgument, "-x"])
     }
 
     private func runScreencapture(arguments: [String]) {

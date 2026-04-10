@@ -1,11 +1,11 @@
 import Foundation
 
-final class HistoryStore {
-    private struct HistorySnapshot: Codable {
-        let items: [ClipboardItem]
-        let collections: [ItemCollection]
-    }
+private struct HistorySnapshot: Codable {
+    let items: [ClipboardItem]
+    let collections: [ItemCollection]
+}
 
+final class HistoryStore {
     private let fileURL: URL
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -38,8 +38,9 @@ final class HistoryStore {
 
     func save(items: [ClipboardItem], collections: [ItemCollection]) {
         let snapshot = HistorySnapshot(items: items, collections: collections)
-        ioQueue.async { [fileURL, encoder] in
-            guard let data = try? encoder.encode(snapshot) else { return }
+        guard let data = try? encoder.encode(snapshot) else { return }
+
+        ioQueue.async { [fileURL] in
             try? data.write(to: fileURL, options: [.atomic])
         }
     }

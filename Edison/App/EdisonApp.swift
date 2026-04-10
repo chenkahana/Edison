@@ -13,7 +13,7 @@ struct EdisonApp: App {
                     appState.windowRouter = appDelegate.windowRouter
                 }
         }
-        .defaultSize(width: 760, height: 540)
+        .defaultSize(width: HubTheme.shelfWindowSize.width, height: HubTheme.shelfWindowSize.height)
 
         Settings {
             SettingsView()

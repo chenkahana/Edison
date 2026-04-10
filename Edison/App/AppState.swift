@@ -93,9 +93,13 @@ final class AppState: ObservableObject {
     }
 
     deinit {
-        clipboardMonitor.stop()
-        if let screenshotObserver {
-            NotificationCenter.default.removeObserver(screenshotObserver)
+        let clipboardMonitor = clipboardMonitor
+        let screenshotObserver = screenshotObserver
+        Task { @MainActor in
+            clipboardMonitor.stop()
+            if let screenshotObserver {
+                NotificationCenter.default.removeObserver(screenshotObserver)
+            }
         }
     }
 

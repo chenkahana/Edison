@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(AppKit)
+import AppKit
+#endif
 
 #if canImport(Testing)
 import Testing
@@ -28,9 +31,51 @@ struct EdisonTests {
         let filtered = engine.filter(query: "contract", in: items)
         #expect(filtered.count == 1)
     }
+
+    @Test("Clipboard monitor skips transient pasteboard content")
+    func clipboardMonitorSkipsTransientType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType("org.nspasteboard.TransientType")]
+
+        #expect(monitor.shouldSkipStorage(for: types))
+    }
+
+    @Test("Clipboard monitor skips concealed pasteboard content")
+    func clipboardMonitorSkipsConcealedType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")]
+
+        #expect(monitor.shouldSkipStorage(for: types))
+    }
+
+    @Test("Type filter returns only text items")
+    func typeFilterReturnsOnlyTextItems() {
+        let engine = HistorySearchEngine()
+        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let items = [
+            ClipboardItem(payload: .text("First note")),
+            ClipboardItem(payload: .image(imageData)),
+            ClipboardItem(payload: .text("Second note"))
+        ]
+
+        let filtered = engine.filter(query: "", in: items, type: .text)
+        #expect(filtered.count == 2)
+    }
+
+    @Test("Type filter composes with search query")
+    func typeFilterAndQueryTogether() {
+        let engine = HistorySearchEngine()
+        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let items = [
+            ClipboardItem(payload: .text("Project Edison status")),
+            ClipboardItem(payload: .image(imageData))
+        ]
+
+        let filtered = engine.filter(query: "screenshot", in: items, type: .image)
+        #expect(filtered.count == 1)
+    }
 }
 #elseif canImport(XCTest)
-import AppKit
 import XCTest
 @testable import Edison
 final class EdisonTests: XCTestCase {
