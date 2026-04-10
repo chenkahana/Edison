@@ -14,8 +14,11 @@ final class StatusBarController: NSObject {
 
     private func constructMenu() {
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "bolt.horizontal.circle", accessibilityDescription: "Edison")
-            button.image?.isTemplate = true
+            let image = NSImage(named: "menubarIcon") ?? NSImage(systemSymbolName: "bolt.horizontal.circle", accessibilityDescription: "Edison")
+            image?.isTemplate = true
+            image?.size = NSSize(width: 18, height: 18)
+            button.image = image
+            button.imagePosition = .imageOnly
         }
 
         let menu = NSMenu()

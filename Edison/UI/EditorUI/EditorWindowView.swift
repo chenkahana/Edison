@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum EditorTool: String, CaseIterable, Identifiable {
     case crop = "Crop"
@@ -49,7 +50,7 @@ struct EditorWindowView: View {
         .onAppear {
             initializeImageIfNeeded()
         }
-        .onChange(of: imageData) { _ in
+        .onChange(of: imageData) { _, _ in
             initializeImageIfNeeded(force: true)
         }
     }
@@ -98,7 +99,7 @@ struct EditorWindowView: View {
                     .frame(width: frame.width, height: frame.height)
                     .position(x: frame.midX, y: frame.midY)
 
-                if let overlayPath = dragPreviewPath(displayRect: frame) {
+                if let overlayPath = dragPreviewPath(displayRect: frame, imageSize: image.size) {
                     overlayPath
                         .stroke(Color(accentColor), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 }
@@ -121,22 +122,25 @@ struct EditorWindowView: View {
                     .padding(8)
                     .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .position(x: point.x + frame.minX + 120, y: point.y + frame.minY + 40)
+                    .position(
+                        x: toDisplayPoint(point, displayRect: frame, imageSize: image.size).x + 120,
+                        y: toDisplayPoint(point, displayRect: frame, imageSize: image.size).y + 40
+                    )
                 }
 
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
-                    .gesture(dragGesture(displayRect: frame))
+                    .gesture(dragGesture(displayRect: frame, imageSize: image.size))
             }
         }
     }
 
-    private func dragGesture(displayRect: CGRect) -> some Gesture {
+    private func dragGesture(displayRect: CGRect, imageSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard pointInsideImage(value.location, displayRect: displayRect) else { return }
-                let imagePoint = toImagePoint(value.location, displayRect: displayRect)
+                let imagePoint = toImagePoint(value.location, displayRect: displayRect, imageSize: imageSize)
 
                 if dragStart == nil {
                     dragStart = imagePoint
@@ -161,16 +165,16 @@ struct EditorWindowView: View {
                 guard tool != .text else { return }
                 guard pointInsideImage(value.location, displayRect: displayRect) else { return }
                 guard let start = dragStart else { return }
-                let end = toImagePoint(value.location, displayRect: displayRect)
+                let end = toImagePoint(value.location, displayRect: displayRect, imageSize: imageSize)
                 applyToolAction(from: start, to: end)
             }
     }
 
-    private func dragPreviewPath(displayRect: CGRect) -> Path? {
+    private func dragPreviewPath(displayRect: CGRect, imageSize: CGSize) -> Path? {
         guard let start = dragStart, let end = dragCurrent else { return nil }
 
-        let startDisplay = toDisplayPoint(start, displayRect: displayRect)
-        let endDisplay = toDisplayPoint(end, displayRect: displayRect)
+        let startDisplay = toDisplayPoint(start, displayRect: displayRect, imageSize: imageSize)
+        let endDisplay = toDisplayPoint(end, displayRect: displayRect, imageSize: imageSize)
 
         switch tool {
         case .crop, .rectangle:
@@ -371,12 +375,24 @@ struct EditorWindowView: View {
         displayRect.contains(location)
     }
 
-    private func toImagePoint(_ location: CGPoint, displayRect: CGRect) -> CGPoint {
-        CGPoint(x: location.x - displayRect.minX, y: location.y - displayRect.minY)
+    private func toImagePoint(_ location: CGPoint, displayRect: CGRect, imageSize: CGSize) -> CGPoint {
+        guard displayRect.width > 0, displayRect.height > 0 else { return .zero }
+
+        let normalizedX = ((location.x - displayRect.minX) / displayRect.width).clamped(to: 0...1)
+        let normalizedY = ((location.y - displayRect.minY) / displayRect.height).clamped(to: 0...1)
+        let imageX = normalizedX * imageSize.width
+        let imageY = (1 - normalizedY) * imageSize.height
+        return CGPoint(x: imageX, y: imageY)
     }
 
-    private func toDisplayPoint(_ point: CGPoint, displayRect: CGRect) -> CGPoint {
-        CGPoint(x: point.x + displayRect.minX, y: point.y + displayRect.minY)
+    private func toDisplayPoint(_ point: CGPoint, displayRect: CGRect, imageSize: CGSize) -> CGPoint {
+        guard imageSize.width > 0, imageSize.height > 0 else { return displayRect.origin }
+
+        let normalizedX = (point.x / imageSize.width).clamped(to: 0...1)
+        let normalizedY = (point.y / imageSize.height).clamped(to: 0...1)
+        let displayX = displayRect.minX + (normalizedX * displayRect.width)
+        let displayY = displayRect.minY + ((1 - normalizedY) * displayRect.height)
+        return CGPoint(x: displayX, y: displayY)
     }
 
     private func normalizedRect(start: CGPoint, end: CGPoint) -> CGRect {
@@ -401,6 +417,12 @@ struct EditorWindowView: View {
             width: fitted.width,
             height: fitted.height
         )
+    }
+}
+
+private extension Comparable {
+    func clamped(to range: ClosedRange<Self>) -> Self {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
 
