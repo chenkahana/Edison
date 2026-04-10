@@ -5,6 +5,8 @@ import Foundation
 final class AppState: ObservableObject {
     @Published var activeQuery = ""
     @Published private(set) var historyItems: [ClipboardItem] = []
+    @Published private(set) var collections: [ItemCollection] = []
+    @Published var selectedCollectionID: UUID?
     @Published var isEditorPresented = false
     @Published var editorImageData: Data?
 
@@ -22,7 +24,14 @@ final class AppState: ObservableObject {
     private var screenshotObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
-        searchEngine.filter(query: activeQuery, in: historyItems)
+        let searched = searchEngine.filter(query: activeQuery, in: historyItems)
+        guard let selectedCollectionID,
+              let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
+            return searched
+        }
+
+        let itemIDs = Set(collection.itemIDs)
+        return searched.filter { itemIDs.contains($0.id) }
     }
 
     var favoriteItems: [ClipboardItem] {
@@ -30,9 +39,10 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        historyStore.loadAsync { [weak self] loaded in
+        historyStore.loadAsync { [weak self] loadedItems, loadedCollections in
             Task { @MainActor in
-                self?.historyItems = loaded
+                self?.historyItems = loadedItems
+                self?.collections = loadedCollections
             }
         }
 
@@ -89,6 +99,56 @@ final class AppState: ObservableObject {
         hotKeyCenter.apply(shortcuts: shortcuts)
     }
 
+    func createCollection(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard !collections.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
+
+        let collection = ItemCollection(name: trimmed)
+        collections.insert(collection, at: 0)
+        selectedCollectionID = collection.id
+        persistHistory()
+    }
+
+    func deleteCollection(id: UUID) {
+        collections.removeAll { $0.id == id }
+        if selectedCollectionID == id {
+            selectedCollectionID = nil
+        }
+        persistHistory()
+    }
+
+    func addItem(_ itemID: UUID, toCollection collectionID: UUID) {
+        guard let index = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        guard !collections[index].itemIDs.contains(itemID) else { return }
+
+        collections[index].itemIDs.insert(itemID, at: 0)
+        persistHistory()
+    }
+
+    func removeItem(_ itemID: UUID, fromCollection collectionID: UUID) {
+        guard let index = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+
+        collections[index].itemIDs.removeAll { $0 == itemID }
+        persistHistory()
+    }
+
+    func toggleItem(_ itemID: UUID, inCollection collectionID: UUID) {
+        guard let collection = collections.first(where: { $0.id == collectionID }) else { return }
+        if collection.itemIDs.contains(itemID) {
+            removeItem(itemID, fromCollection: collectionID)
+        } else {
+            addItem(itemID, toCollection: collectionID)
+        }
+    }
+
+    func collectionContains(_ itemID: UUID, collectionID: UUID) -> Bool {
+        collections
+            .first(where: { $0.id == collectionID })?
+            .itemIDs
+            .contains(itemID) ?? false
+    }
+
     func toggleFavorite(itemID: UUID) {
         guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
         historyItems[index].isFavorite.toggle()
@@ -122,11 +182,17 @@ final class AppState: ObservableObject {
         if historyItems.count > historyLimit {
             historyItems.removeLast(historyItems.count - historyLimit)
         }
+
+        let liveItemIDs = Set(historyItems.map(\.id))
+        for index in collections.indices {
+            collections[index].itemIDs.removeAll { !liveItemIDs.contains($0) }
+        }
+
         persistHistory()
     }
 
     private func persistHistory() {
-        historyStore.save(historyItems)
+        historyStore.save(items: historyItems, collections: collections)
     }
 
     private func handleScreenshotCapture(_ capturedData: Data?) {
