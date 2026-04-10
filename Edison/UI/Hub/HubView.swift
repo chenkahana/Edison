@@ -67,13 +67,11 @@ struct HubView: View {
                 if items.isEmpty {
                     emptyState
                 } else {
-                    HStack(spacing: HubTheme.Space.x5) {
-                        contentColumn
-
-                        Divider()
-                            .overlay(HubTheme.dividerOnGlass)
-
-                        detailColumn
+                    GeometryReader { proxy in
+                        splitContentView(
+                            totalWidth: proxy.size.width,
+                            totalHeight: proxy.size.height
+                        )
                     }
                 }
             }
@@ -310,6 +308,7 @@ struct HubView: View {
                         .padding(.vertical, HubTheme.Space.x1)
                         .padding(.horizontal, HubTheme.Space.x1)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
                         guard let newValue else { return }
@@ -323,6 +322,7 @@ struct HubView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             case .grid:
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -359,6 +359,7 @@ struct HubView: View {
                         }
                         .padding(.horizontal, HubTheme.Space.x1)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(.vertical, HubTheme.Space.x1)
                     .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
@@ -368,9 +369,11 @@ struct HubView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .clipped()
         .background(ContentWidthReader(width: $contentWidth))
     }
 
@@ -456,6 +459,31 @@ struct HubView: View {
     private func copySelectedItem() {
         guard let selectedItem else { return }
         appState.copyToClipboard(itemID: selectedItem.id)
+    }
+
+    private func splitContentView(totalWidth: CGFloat, totalHeight: CGFloat) -> some View {
+        let railWidth = contentColumnWidth(for: totalWidth)
+
+        return HStack(spacing: HubTheme.Space.x5) {
+            contentColumn
+                .frame(width: railWidth, alignment: .topLeading)
+                .frame(maxHeight: .infinity, alignment: .topLeading)
+                .layoutPriority(1)
+
+            Divider()
+                .overlay(HubTheme.dividerOnGlass)
+
+            detailColumn
+        }
+        .frame(width: totalWidth, height: totalHeight, alignment: .topLeading)
+        .clipped()
+    }
+
+    private func contentColumnWidth(for totalWidth: CGFloat) -> CGFloat {
+        let spacing = HubTheme.Space.x5 * 2
+        let dividerWidth: CGFloat = 1
+        let reservedWidth = HubTheme.previewPaneWidth + spacing + dividerWidth
+        return max(0, totalWidth - reservedWidth)
     }
 
     private func appendToSearch(_ text: String) {
