@@ -1,23 +1,25 @@
 # Current Task
 
 ## Goal
-Add repository docs that become the source of truth for Edison product direction and implementation workflow.
+Create the Edison macOS app foundation so the project builds, launches, and has a minimal CI path.
 
 ## Scope
-- Create docs/ files: product, plan, constraints, architecture, current-task, review-checklist, working-agreement
-- Update README with links to project docs
-- Keep docs concise, structured, and actionable
+- Keep a clean Swift Package layout for app, core, UI, and tests
+- Ensure there is a base app shell entry point for startup
+- Ensure local macOS build/test commands are documented and scriptable
+- Add/maintain a minimal GitHub Actions CI workflow for build + test on macOS
+- Do not introduce feature logic in this task
 
 ## Constraints
-- Docs-only task
-- No feature/code/architecture changes
-- No scope invention
+- No screenshot or clipboard feature work
+- No additional dependencies unless required for startup/build
+- Keep structure minimal and practical for follow-on work
 
 ## Acceptance Criteria
-- `docs/` contains all required files
-- Product direction is clear enough to drive future work from docs alone
-- README points to docs
-- Future tasks can be issued via "implement docs/current-task.md"
+- App builds successfully locally on macOS
+- App launches without crashing
+- CI passes build checks
+- Project structure is clean enough for follow-on feature work
 
 ## Status
 - Completed
