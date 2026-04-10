@@ -21,7 +21,7 @@ struct HubView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack {
+            HStack(spacing: 10) {
                 Picker("Filter", selection: $filter) {
                     ForEach(HubFilter.allCases) { option in
                         Text(option.rawValue).tag(option)
@@ -29,7 +29,12 @@ struct HubView: View {
                 }
                 .pickerStyle(.segmented)
 
-                Spacer()
+                Picker("Type", selection: $appState.selectedTypeFilter) {
+                    ForEach(HistoryItemTypeFilter.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
 
             TextField("Search clipboard and screenshots", text: $appState.activeQuery)
@@ -37,9 +42,9 @@ struct HubView: View {
 
             if items.isEmpty {
                 ContentUnavailableView(
-                    "No History Yet",
+                    "No Matching Items",
                     systemImage: "doc.on.clipboard",
-                    description: Text("Copy text, image, or file to start building history.")
+                    description: Text("Try a different search query or filter.")
                 )
             } else {
                 List(items) { item in

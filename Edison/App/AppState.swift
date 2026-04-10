@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class AppState: ObservableObject {
     @Published var activeQuery = ""
+    @Published var selectedTypeFilter: HistoryItemTypeFilter = .all
     @Published private(set) var historyItems: [ClipboardItem] = []
     @Published var isEditorPresented = false
     @Published var editorImageData: Data?
@@ -22,7 +23,7 @@ final class AppState: ObservableObject {
     private var screenshotObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
-        searchEngine.filter(query: activeQuery, in: historyItems)
+        searchEngine.filter(query: activeQuery, in: historyItems, type: selectedTypeFilter)
     }
 
     var favoriteItems: [ClipboardItem] {

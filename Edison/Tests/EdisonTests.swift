@@ -23,4 +23,29 @@ final class EdisonTests: XCTestCase {
         let filtered = engine.filter(query: "contract", in: items)
         XCTAssertEqual(filtered.count, 1)
     }
+
+    func testTypeFilterReturnsOnlyTextItems() {
+        let engine = HistorySearchEngine()
+        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let items = [
+            ClipboardItem(payload: .text("First note")),
+            ClipboardItem(payload: .image(imageData)),
+            ClipboardItem(payload: .text("Second note"))
+        ]
+
+        let filtered = engine.filter(query: "", in: items, type: .text)
+        XCTAssertEqual(filtered.count, 2)
+    }
+
+    func testTypeFilterAndQueryTogether() {
+        let engine = HistorySearchEngine()
+        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let items = [
+            ClipboardItem(payload: .text("Project Edison status")),
+            ClipboardItem(payload: .image(imageData))
+        ]
+
+        let filtered = engine.filter(query: "screenshot", in: items, type: .image)
+        XCTAssertEqual(filtered.count, 1)
+    }
 }
