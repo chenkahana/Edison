@@ -6,6 +6,7 @@ final class ClipboardMonitor {
     private var timer: Timer?
     private var lastChangeCount: Int
     private var onNewItem: ((ClipboardItem) -> Void)?
+    private let processingQueue = DispatchQueue(label: "edison.clipboard.processing", qos: .utility)
 
     init(pasteboard: NSPasteboard = .general) {
         self.pasteboard = pasteboard
@@ -30,11 +31,16 @@ final class ClipboardMonitor {
         guard pasteboard.changeCount != lastChangeCount else { return }
         lastChangeCount = pasteboard.changeCount
 
-        guard let item = makeClipboardItem() else { return }
-        onNewItem?(item)
+        let pasteboard = self.pasteboard
+        processingQueue.async { [weak self] in
+            guard let item = self?.makeClipboardItem(from: pasteboard) else { return }
+            DispatchQueue.main.async {
+                self?.onNewItem?(item)
+            }
+        }
     }
 
-    private func makeClipboardItem() -> ClipboardItem? {
+    private func makeClipboardItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
         if let text = pasteboard.string(forType: .string), !text.isEmpty {
             return ClipboardItem(payload: .text(text))
         }

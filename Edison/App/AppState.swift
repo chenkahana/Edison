@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
-    @Published var onboardingCompleted = false
     @Published var activeQuery = ""
     @Published private(set) var historyItems: [ClipboardItem] = []
     @Published var isEditorPresented = false
@@ -31,10 +30,10 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        Task.detached(priority: .utility) { [historyStore] in
+        Task.detached(priority: .utility) { [weak self, historyStore] in
             let loaded = historyStore.load()
             await MainActor.run {
-                self.historyItems = loaded
+                self?.historyItems = loaded
             }
         }
 
