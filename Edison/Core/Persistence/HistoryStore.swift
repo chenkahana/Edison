@@ -16,7 +16,29 @@ final class HistoryStore {
         encoder.outputFormatting = [.prettyPrinted]
     }
 
+    func loadAsync(_ completion: @escaping ([ClipboardItem]) -> Void) {
+        ioQueue.async { [weak self] in
+            guard let self else { return }
+            let items = self.loadSync()
+            DispatchQueue.main.async {
+                completion(items)
+            }
+        }
+    }
+
     func load() -> [ClipboardItem] {
+        loadSync()
+    }
+
+    func save(_ items: [ClipboardItem]) {
+        let snapshot = items
+        ioQueue.async { [fileURL, encoder] in
+            guard let data = try? encoder.encode(snapshot) else { return }
+            try? data.write(to: fileURL, options: [.atomic])
+        }
+    }
+
+    private func loadSync() -> [ClipboardItem] {
         guard let data = try? Data(contentsOf: fileURL) else {
             return []
         }
@@ -26,14 +48,6 @@ final class HistoryStore {
         } catch {
             quarantineCorruptFile()
             return []
-        }
-    }
-
-    func save(_ items: [ClipboardItem]) {
-        let snapshot = items
-        ioQueue.async { [fileURL, encoder] in
-            guard let data = try? encoder.encode(snapshot) else { return }
-            try? data.write(to: fileURL, options: [.atomic])
         }
     }
 

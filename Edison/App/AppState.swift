@@ -30,11 +30,8 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        Task.detached(priority: .utility) { [weak self, historyStore] in
-            let loaded = historyStore.load()
-            await MainActor.run {
-                self?.historyItems = loaded
-            }
+        historyStore.loadAsync { [weak self] loaded in
+            self?.historyItems = loaded
         }
 
         hotKeyCenter.updateHandler { [weak self] action in
@@ -129,9 +126,9 @@ final class AppState: ObservableObject {
             ?? NSPasteboard.general.data(forType: .tiff)
         guard let capturedData else { return }
 
-        Task.detached(priority: .utility) { [weak self] in
+        DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let prepared = ImageProcessing.prepareImagePayload(from: capturedData) else { return }
-            await MainActor.run {
+            DispatchQueue.main.async {
                 self?.addToHistory(ClipboardItem(payload: .image(prepared)))
                 self?.editorImageData = prepared.data
                 self?.windowRouter?.openHub()
