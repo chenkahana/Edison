@@ -4,6 +4,11 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
+    private enum HistorySource {
+        case clipboard
+        case internalAction
+    }
+
     @Published var activeQuery = ""
     @Published private(set) var historyItems: [ClipboardItem] = []
     @Published var isEditorPresented = false
@@ -18,6 +23,7 @@ final class AppState: ObservableObject {
     private let searchEngine = HistorySearchEngine()
 
     private let historyLimit = 250
+    private var suppressedClipboardPayloads = Set<ClipboardPayload>()
 
     weak var windowRouter: WindowRouter?
     private var screenshotObserver: NSObjectProtocol?
@@ -98,6 +104,7 @@ final class AppState: ObservableObject {
 
     func copyToClipboard(itemID: UUID) {
         guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        suppressedClipboardPayloads.insert(item.payload)
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -116,7 +123,11 @@ final class AppState: ObservableObject {
         isEditorPresented = false
     }
 
-    private func addToHistory(_ item: ClipboardItem) {
+    private func addToHistory(_ item: ClipboardItem, source: HistorySource = .clipboard) {
+        if source == .clipboard, suppressedClipboardPayloads.remove(item.payload) != nil {
+            return
+        }
+
         historyItems.removeAll { $0.payload == item.payload }
         historyItems.insert(item, at: 0)
 
@@ -141,7 +152,8 @@ final class AppState: ObservableObject {
             guard let prepared else { return }
             await MainActor.run {
                 guard let self else { return }
-                self.addToHistory(ClipboardItem(payload: .image(prepared)))
+                self.suppressedClipboardPayloads.insert(.image(prepared))
+                self.addToHistory(ClipboardItem(payload: .image(prepared)), source: .internalAction)
                 self.editorImageData = prepared.data
                 self.windowRouter?.openHub()
                 self.isEditorPresented = true
