@@ -99,8 +99,8 @@ final class AppState: ObservableObject {
         switch item.payload {
         case let .text(value):
             pasteboard.setString(value, forType: .string)
-        case let .image(data):
-            pasteboard.setData(data, forType: .tiff)
+        case let .image(image):
+            pasteboard.setData(image.data, forType: .png)
         case let .fileURL(url):
             pasteboard.writeObjects([url as NSURL])
         }
@@ -129,10 +129,15 @@ final class AppState: ObservableObject {
             ?? NSPasteboard.general.data(forType: .tiff)
         guard let capturedData else { return }
 
-        addToHistory(ClipboardItem(payload: .image(capturedData)))
-        editorImageData = capturedData
-        windowRouter?.openHub()
-        isEditorPresented = true
+        Task.detached(priority: .utility) { [weak self] in
+            guard let prepared = ImageProcessing.prepareImagePayload(from: capturedData) else { return }
+            await MainActor.run {
+                self?.addToHistory(ClipboardItem(payload: .image(prepared)))
+                self?.editorImageData = prepared.data
+                self?.windowRouter?.openHub()
+                self?.isEditorPresented = true
+            }
+        }
     }
 }
 

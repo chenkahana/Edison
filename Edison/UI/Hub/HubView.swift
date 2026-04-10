@@ -112,8 +112,8 @@ private struct ClipboardRowView: View {
             Image(systemName: "text.quote")
                 .frame(width: 38, height: 30)
                 .foregroundStyle(.secondary)
-        case let .image(data):
-            if let image = NSImage(data: data) {
+        case let .image(imageData):
+            if let image = NSImage(data: imageData.thumbnailData) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()

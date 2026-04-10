@@ -46,8 +46,8 @@ final class ClipboardMonitor {
         }
 
         if let tiffData = pasteboard.data(forType: .tiff),
-           let optimized = optimizeImageData(tiffData) {
-            return ClipboardItem(payload: .image(optimized))
+           let prepared = ImageProcessing.prepareImagePayload(from: tiffData) {
+            return ClipboardItem(payload: .image(prepared))
         }
 
         if let value = pasteboard.string(forType: .fileURL),
@@ -56,40 +56,5 @@ final class ClipboardMonitor {
         }
 
         return nil
-    }
-
-    private func optimizeImageData(_ input: Data) -> Data? {
-        guard let image = NSImage(data: input) else { return nil }
-
-        let maxDimension: CGFloat = 2200
-        let scaled = image.resized(maxDimension: maxDimension)
-        return scaled.pngData() ?? input
-    }
-}
-
-private extension NSImage {
-    func resized(maxDimension: CGFloat) -> NSImage {
-        let size = self.size
-        let longest = max(size.width, size.height)
-        guard longest > maxDimension, longest > 0 else { return self }
-
-        let ratio = maxDimension / longest
-        let targetSize = NSSize(width: size.width * ratio, height: size.height * ratio)
-        let output = NSImage(size: targetSize)
-
-        output.lockFocus()
-        draw(in: NSRect(origin: .zero, size: targetSize), from: .zero, operation: .copy, fraction: 1)
-        output.unlockFocus()
-        return output
-    }
-
-    func pngData() -> Data? {
-        guard
-            let tiffData = tiffRepresentation,
-            let rep = NSBitmapImageRep(data: tiffData)
-        else {
-            return nil
-        }
-        return rep.representation(using: .png, properties: [:])
     }
 }

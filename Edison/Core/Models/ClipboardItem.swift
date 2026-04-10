@@ -1,8 +1,13 @@
 import Foundation
 
+struct ClipboardImageData: Codable, Hashable {
+    let data: Data
+    let thumbnailData: Data
+}
+
 enum ClipboardPayload: Codable, Hashable {
     case text(String)
-    case image(Data)
+    case image(ClipboardImageData)
     case fileURL(URL)
 }
 
