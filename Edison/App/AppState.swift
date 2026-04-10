@@ -41,6 +41,7 @@ final class AppState: ObservableObject {
     private var screenshotObserver: NSObjectProtocol?
     private(set) var lastActiveApp: NSRunningApplication?
     private var activeAppObserver: NSObjectProtocol?
+    private var shortcutActionRequestObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
         let searched = searchEngine.filter(
@@ -96,6 +97,19 @@ final class AppState: ObservableObject {
             }
         }
 
+        shortcutActionRequestObserver = NotificationCenter.default.addObserver(
+            forName: .edisonShortcutActionRequested,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let rawValue = note.object as? String,
+                  let action = ShortcutAction(rawValue: rawValue) else { return }
+
+            MainActor.assumeIsolated {
+                self?.perform(action: action)
+            }
+        }
+
         activeAppObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -113,10 +127,14 @@ final class AppState: ObservableObject {
         let clipboardMonitor = clipboardMonitor
         let screenshotObserver = screenshotObserver
         let activeAppObserver = activeAppObserver
+        let shortcutActionRequestObserver = shortcutActionRequestObserver
         Task { @MainActor in
             clipboardMonitor.stop()
             if let screenshotObserver {
                 NotificationCenter.default.removeObserver(screenshotObserver)
+            }
+            if let shortcutActionRequestObserver {
+                NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
             }
             if let activeAppObserver {
                 NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
@@ -125,7 +143,11 @@ final class AppState: ObservableObject {
     }
 
     func handle(hotKeyAction: ShortcutAction) {
-        switch hotKeyAction {
+        perform(action: hotKeyAction)
+    }
+
+    private func perform(action: ShortcutAction) {
+        switch action {
         case .openHub:
             windowRouter?.toggleHub()
         case .captureArea:
@@ -416,4 +438,5 @@ final class AppState: ObservableObject {
 
 extension Notification.Name {
     static let edisonScreenshotCaptured = Notification.Name("edison.screenshot.captured")
+    static let edisonShortcutActionRequested = Notification.Name("edison.shortcut-action.requested")
 }

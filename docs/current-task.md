@@ -1,27 +1,28 @@
 # Current Task
 
 ## Goal
-Create the Edison macOS app foundation and provide a working menu bar shell with reliable Hub navigation.
+Prepare Edison 1.1 for release and App Store review.
 
 ## Scope
-- Keep a clean Swift Package layout for app, core, UI, and tests
-- Ensure there is a base app shell entry point for startup
-- Ensure local macOS build/test commands are documented and scriptable
-- Add and maintain a minimal GitHub Actions CI workflow for build and test on macOS
-- Provide a responsive status bar menu with Open Hub, Capture, Settings, and Quit actions
-- Ensure the Hub can open reliably from the menu bar shell
+- Finalize release metadata and generated `Info.plist` values
+- Remove shipping placeholders from the app surface
+- Make screenshot capture fully accessible from the menu bar
+- Prepare reusable App Review notes and release copy for App Store Connect
+- Refresh docs so the repository reflects the real product, not just the foundation shell
 
 ## Constraints
-- Keep structure minimal and practical for follow-on work
-- Avoid introducing unnecessary dependencies
-- Keep the shell lightweight while follow-on feature work lands on top of it
+- Keep the project dependency-free
+- Do not add undocumented or unused privacy keys
+- Keep the current PR branch as the release branch for this pass
 
 ## Acceptance Criteria
+- App reports version `1.1 (2)` in build metadata
+- App category resolves to `public.app-category.productivity`
+- Status bar exposes working commands for area, window, and full-screen capture
+- Settings show real About metadata with no placeholder copy
+- App Review notes can be pasted into App Store Connect with minimal edits
 - App builds successfully locally on macOS
-- App launches without crashing
 - CI passes build checks
-- Menu is responsive
-- Hub opens reliably
 
 ## Status
 - Completed
