@@ -21,6 +21,7 @@ struct HubView: View {
     @State private var filter: HubFilter = .all
     @State private var layoutMode: HubLayoutMode = .list
     @State private var selectedItemID: UUID?
+    @State private var newCollectionName = ""
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -40,11 +41,13 @@ struct HubView: View {
     private var isFilteringActive: Bool {
         !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || appState.selectedTypeFilter != .all
+            || appState.selectedCollectionID != nil
     }
 
     var body: some View {
         VStack(spacing: 14) {
             topBar
+            collectionControls
 
             if items.isEmpty {
                 ContentUnavailableView(
@@ -52,7 +55,7 @@ struct HubView: View {
                     systemImage: "doc.on.clipboard",
                     description: Text(
                         isFilteringActive
-                            ? "Try a different search query or filter."
+                            ? "Try a different search query or collection filter."
                             : "Copy text, image, or file to start building history."
                     )
                 )
@@ -91,6 +94,12 @@ struct HubView: View {
             syncSelection()
         }
         .onChange(of: appState.activeQuery) { _, _ in
+            syncSelection()
+        }
+        .onChange(of: appState.selectedTypeFilter) { _, _ in
+            syncSelection()
+        }
+        .onChange(of: appState.selectedCollectionID) { _, _ in
             syncSelection()
         }
         .onChange(of: items.map(\.id)) { _, _ in
@@ -146,6 +155,45 @@ struct HubView: View {
         }
     }
 
+    private var collectionControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("New collection", text: $newCollectionName)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Create") {
+                    appState.createCollection(named: newCollectionName)
+                    newCollectionName = ""
+                }
+                .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                Picker("Collection", selection: $appState.selectedCollectionID) {
+                    Text("All Items").tag(Optional<UUID>.none)
+                    ForEach(appState.collections) { collection in
+                        Text(collection.name).tag(Optional(collection.id))
+                    }
+                }
+                .pickerStyle(.menu)
+
+                if let selectedCollectionID,
+                   let selected = appState.collections.first(where: { $0.id == selectedCollectionID }) {
+                    Button(role: .destructive) {
+                        appState.deleteCollection(id: selected.id)
+                    } label: {
+                        Label("Delete \(selected.name)", systemImage: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                }
+
+                Spacer()
+            }
+        }
+    }
+
     private var contentColumn: some View {
         Group {
             switch layoutMode {
@@ -155,7 +203,11 @@ struct HubView: View {
                         ForEach(items) { item in
                             HubTileView(
                                 item: item,
+                                collections: appState.collections,
                                 isSelected: item.id == selectedItem?.id,
+                                isInCollection: { collectionID in
+                                    appState.collectionContains(item.id, collectionID: collectionID)
+                                },
                                 onSelect: {
                                     selectedItemID = item.id
                                 },
@@ -164,6 +216,15 @@ struct HubView: View {
                                 },
                                 onToggleFavorite: {
                                     appState.toggleFavorite(itemID: item.id)
+                                },
+                                onToggleCollectionMembership: { collectionID in
+                                    appState.toggleItem(item.id, inCollection: collectionID)
+                                },
+                                onExport: {
+                                    appState.exportItem(itemID: item.id)
+                                },
+                                onShare: {
+                                    appState.shareItem(itemID: item.id)
                                 }
                             )
                         }
@@ -176,7 +237,11 @@ struct HubView: View {
                         ForEach(items) { item in
                             ClipboardGridItemView(
                                 item: item,
+                                collections: appState.collections,
                                 isSelected: item.id == selectedItem?.id,
+                                isInCollection: { collectionID in
+                                    appState.collectionContains(item.id, collectionID: collectionID)
+                                },
                                 onSelect: {
                                     selectedItemID = item.id
                                 },
@@ -185,6 +250,15 @@ struct HubView: View {
                                 },
                                 onToggleFavorite: {
                                     appState.toggleFavorite(itemID: item.id)
+                                },
+                                onToggleCollectionMembership: { collectionID in
+                                    appState.toggleItem(item.id, inCollection: collectionID)
+                                },
+                                onExport: {
+                                    appState.exportItem(itemID: item.id)
+                                },
+                                onShare: {
+                                    appState.shareItem(itemID: item.id)
                                 }
                             )
                         }
@@ -202,11 +276,24 @@ struct HubView: View {
             if let selectedItem {
                 HubDetailView(
                     item: selectedItem,
+                    collections: appState.collections,
+                    isInCollection: { collectionID in
+                        appState.collectionContains(selectedItem.id, collectionID: collectionID)
+                    },
                     onCopy: {
                         appState.copyToClipboard(itemID: selectedItem.id)
                     },
                     onToggleFavorite: {
                         appState.toggleFavorite(itemID: selectedItem.id)
+                    },
+                    onToggleCollectionMembership: { collectionID in
+                        appState.toggleItem(selectedItem.id, inCollection: collectionID)
+                    },
+                    onExport: {
+                        appState.exportItem(itemID: selectedItem.id)
+                    },
+                    onShare: {
+                        appState.shareItem(itemID: selectedItem.id)
                     }
                 )
             }
@@ -231,10 +318,15 @@ struct HubView: View {
 
 private struct HubTileView: View {
     let item: ClipboardItem
+    let collections: [ItemCollection]
     let isSelected: Bool
+    let isInCollection: (UUID) -> Bool
     let onSelect: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -251,6 +343,10 @@ private struct HubTileView: View {
             }
 
             Spacer(minLength: 10)
+
+            if !collections.isEmpty {
+                collectionMenu
+            }
 
             Button(action: onToggleFavorite) {
                 Image(systemName: item.isFavorite ? "star.fill" : "star")
@@ -282,7 +378,47 @@ private struct HubTileView: View {
             Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
                 onToggleFavorite()
             }
+            if !collections.isEmpty {
+                Menu("Collections") {
+                    ForEach(collections) { collection in
+                        Button {
+                            onToggleCollectionMembership(collection.id)
+                        } label: {
+                            Label(
+                                collection.name,
+                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                            )
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Export") {
+                onExport()
+            }
+            Button("Share") {
+                onShare()
+            }
         }
+    }
+
+    private var collectionMenu: some View {
+        Menu {
+            ForEach(collections) { collection in
+                Button {
+                    onToggleCollectionMembership(collection.id)
+                } label: {
+                    Label(
+                        collection.name,
+                        systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                    )
+                }
+            }
+        } label: {
+            Image(systemName: "tray.full")
+        }
+        .menuStyle(.borderlessButton)
+        .help("Add or remove from collections")
     }
 
     @ViewBuilder
@@ -314,10 +450,15 @@ private struct HubTileView: View {
 
 private struct ClipboardGridItemView: View {
     let item: ClipboardItem
+    let collections: [ItemCollection]
     let isSelected: Bool
+    let isInCollection: (UUID) -> Bool
     let onSelect: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -361,6 +502,35 @@ private struct ClipboardGridItemView: View {
         .onTapGesture(count: 2) {
             onCopy()
         }
+        .contextMenu {
+            Button("Copy") {
+                onCopy()
+            }
+            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
+                onToggleFavorite()
+            }
+            if !collections.isEmpty {
+                Menu("Collections") {
+                    ForEach(collections) { collection in
+                        Button {
+                            onToggleCollectionMembership(collection.id)
+                        } label: {
+                            Label(
+                                collection.name,
+                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                            )
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Export") {
+                onExport()
+            }
+            Button("Share") {
+                onShare()
+            }
+        }
         .help("Select to copy back to clipboard")
     }
 
@@ -400,8 +570,13 @@ private struct ClipboardGridItemView: View {
 
 private struct HubDetailView: View {
     let item: ClipboardItem
+    let collections: [ItemCollection]
+    let isInCollection: (UUID) -> Bool
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -416,7 +591,29 @@ private struct HubDetailView: View {
 
                 Spacer()
 
+                if !collections.isEmpty {
+                    Menu("Collections") {
+                        ForEach(collections) { collection in
+                            Button {
+                                onToggleCollectionMembership(collection.id)
+                            } label: {
+                                Label(
+                                    collection.name,
+                                    systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                                )
+                            }
+                        }
+                    }
+                    .menuStyle(.borderedButton)
+                }
+
                 Button(item.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
+                    .buttonStyle(.bordered)
+
+                Button("Export", action: onExport)
+                    .buttonStyle(.bordered)
+
+                Button("Share", action: onShare)
                     .buttonStyle(.bordered)
 
                 Button("Copy", action: onCopy)

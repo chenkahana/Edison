@@ -1,6 +1,11 @@
 import Foundation
 
 final class HistoryStore {
+    private struct HistorySnapshot: Codable {
+        let items: [ClipboardItem]
+        let collections: [ItemCollection]
+    }
+
     private let fileURL: URL
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -16,38 +21,44 @@ final class HistoryStore {
         encoder.outputFormatting = [.prettyPrinted]
     }
 
-    func loadAsync(_ completion: @escaping ([ClipboardItem]) -> Void) {
+    func loadAsync(_ completion: @escaping ([ClipboardItem], [ItemCollection]) -> Void) {
         ioQueue.async { [weak self] in
             guard let self else { return }
-            let items = self.loadSync()
+            let snapshot = self.loadSync()
             DispatchQueue.main.async {
-                completion(items)
+                completion(snapshot.items, snapshot.collections)
             }
         }
     }
 
-    func load() -> [ClipboardItem] {
-        loadSync()
+    func load() -> ([ClipboardItem], [ItemCollection]) {
+        let snapshot = loadSync()
+        return (snapshot.items, snapshot.collections)
     }
 
-    func save(_ items: [ClipboardItem]) {
-        let snapshot = items
+    func save(items: [ClipboardItem], collections: [ItemCollection]) {
+        let snapshot = HistorySnapshot(items: items, collections: collections)
         ioQueue.async { [fileURL, encoder] in
             guard let data = try? encoder.encode(snapshot) else { return }
             try? data.write(to: fileURL, options: [.atomic])
         }
     }
 
-    private func loadSync() -> [ClipboardItem] {
+    private func loadSync() -> HistorySnapshot {
         guard let data = try? Data(contentsOf: fileURL) else {
-            return []
+            return HistorySnapshot(items: [], collections: [])
         }
 
         do {
-            return try decoder.decode([ClipboardItem].self, from: data)
+            return try decoder.decode(HistorySnapshot.self, from: data)
         } catch {
+            // Backward compatibility for older versions that stored only clipboard items.
+            if let legacyItems = try? decoder.decode([ClipboardItem].self, from: data) {
+                return HistorySnapshot(items: legacyItems, collections: [])
+            }
+
             quarantineCorruptFile()
-            return []
+            return HistorySnapshot(items: [], collections: [])
         }
     }
 
