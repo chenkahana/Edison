@@ -1,3 +1,5 @@
+import Foundation
+
 #if canImport(Testing)
 import Testing
 @testable import Edison
@@ -54,4 +56,3 @@ final class EdisonTests: XCTestCase {
     }
 }
 #endif
-
