@@ -6,7 +6,7 @@ struct EdisonApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {
-        WindowGroup("Edison") {
+        WindowGroup("Edison", id: "hub") {
             HubView()
                 .environmentObject(appState)
                 .onAppear {

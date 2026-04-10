@@ -10,6 +10,7 @@ private enum HubFilter: String, CaseIterable, Identifiable {
 
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.openWindow) private var openWindow
     @State private var filter: HubFilter = .all
 
     var items: [ClipboardItem] {
@@ -58,11 +59,35 @@ struct HubView: View {
         }
         .padding()
         .navigationTitle("Edison")
+        .background(WindowIDAssigner())
+        .onAppear {
+            appState.windowRouter?.setOpenHubAction {
+                openWindow(id: "hub")
+            }
+        }
         .sheet(isPresented: $appState.isEditorPresented) {
             EditorWindowView(imageData: appState.editorImageData) {
                 appState.closeEditor()
             }
             .frame(minWidth: 840, minHeight: 560)
+        }
+    }
+}
+
+private struct WindowIDAssigner: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+
+        DispatchQueue.main.async {
+            view.window?.identifier = NSUserInterfaceItemIdentifier("hub-window")
+        }
+
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            nsView.window?.identifier = NSUserInterfaceItemIdentifier("hub-window")
         }
     }
 }

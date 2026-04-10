@@ -4,7 +4,6 @@ import AppKit
 final class StatusBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let windowRouter: WindowRouter
-    private let captureEngine = CaptureEngine()
 
     init(windowRouter: WindowRouter) {
         self.windowRouter = windowRouter
@@ -19,11 +18,9 @@ final class StatusBarController: NSObject {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Open Edison", action: #selector(openHub), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Open Hub", action: #selector(openHub), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Capture Area", action: #selector(captureArea), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture", action: #selector(capture), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
@@ -40,16 +37,8 @@ final class StatusBarController: NSObject {
         windowRouter.openSettings()
     }
 
-    @objc private func captureArea() {
-        captureEngine.captureArea()
-    }
-
-    @objc private func captureWindow() {
-        captureEngine.captureWindow()
-    }
-
-    @objc private func captureFullScreen() {
-        captureEngine.captureFullScreen()
+    @objc private func capture() {
+        // Capture flow is intentionally a shell-only placeholder for this task.
     }
 
     @objc private func quit() {
