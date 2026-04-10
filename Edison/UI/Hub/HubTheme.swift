@@ -18,17 +18,16 @@ enum HubTheme {
         static let x6: CGFloat = 24
     }
 
-    static let shelfWindowSize = CGSize(width: 1240, height: 372)
+    static let shelfWindowSize = CGSize(width: 1440, height: 360)
     static let searchPillHeight: CGFloat = 36
-    static let previewPaneWidth: CGFloat = 318
-    static let railCardHeight: CGFloat = 188
+    static let previewPaneWidth: CGFloat = 360
 
     static func cardSize(for item: ClipboardItem) -> CGSize {
         switch item.payload {
         case .image:
-            return CGSize(width: 180, height: 180)
+            return CGSize(width: 196, height: 196)
         case .text, .fileURL:
-            return CGSize(width: 200, height: 180)
+            return CGSize(width: 220, height: 206)
         }
     }
 
@@ -62,16 +61,16 @@ enum HubTheme {
         dark: NSColor(white: 1, alpha: 0.45)
     ))
     static let glassBase = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.52),
-        dark: NSColor(calibratedWhite: 0.12, alpha: 0.58)
+        light: NSColor(calibratedWhite: 1, alpha: 0.18),
+        dark: NSColor(calibratedWhite: 0.10, alpha: 0.22)
     ))
     static let glassTintWarm = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedRed: 1, green: 180 / 255, blue: 90 / 255, alpha: 0.10),
-        dark: NSColor(calibratedRed: 1, green: 148 / 255, blue: 0, alpha: 0.10)
+        light: NSColor(calibratedRed: 1, green: 180 / 255, blue: 90 / 255, alpha: 0.02),
+        dark: NSColor(calibratedRed: 1, green: 148 / 255, blue: 0, alpha: 0.02)
     ))
     static let glassStroke = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.26),
-        dark: NSColor(calibratedWhite: 1, alpha: 0.14)
+        light: NSColor(calibratedWhite: 1, alpha: 0.14),
+        dark: NSColor(calibratedWhite: 1, alpha: 0.08)
     ))
     static let dividerOnGlass = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 0, alpha: 0.10),
@@ -82,12 +81,12 @@ enum HubTheme {
         dark: NSColor(calibratedRed: 10 / 255, green: 132 / 255, blue: 1, alpha: 0.28)
     ))
     static let cardFill = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.58),
-        dark: NSColor(calibratedWhite: 0.20, alpha: 0.62)
+        light: NSColor(calibratedWhite: 1, alpha: 0.18),
+        dark: NSColor(calibratedWhite: 0.16, alpha: 0.22)
     ))
     static let cardFillMuted = Color(nsColor: dynamicColor(
-        light: NSColor(calibratedWhite: 1, alpha: 0.38),
-        dark: NSColor(calibratedWhite: 0.18, alpha: 0.48)
+        light: NSColor(calibratedWhite: 1, alpha: 0.10),
+        dark: NSColor(calibratedWhite: 0.14, alpha: 0.14)
     ))
     static let opaqueFallback = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 0.95, alpha: 1),
@@ -137,6 +136,9 @@ struct HubGlassBackground: View {
                 RoundedRectangle(cornerRadius: HubTheme.Radius.window, style: .continuous)
                     .fill(HubTheme.opaqueFallback)
             } else {
+                HubTheme.glassBase
+                    .clipShape(RoundedRectangle(cornerRadius: HubTheme.Radius.window, style: .continuous))
+
                 VisualEffectView(
                     material: .hudWindow,
                     blendingMode: .behindWindow,
@@ -152,7 +154,7 @@ struct HubGlassBackground: View {
 
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(colorScheme == .dark ? 0.10 : 0.22),
+                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.14),
                         Color.white.opacity(0.0)
                     ],
                     startPoint: .top,
@@ -169,23 +171,29 @@ enum HubShelfWindowStyle {
         window.identifier = NSUserInterfaceItemIdentifier("hub-window")
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = true
-        window.isMovableByWindowBackground = true
-        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.level = .floating
+        window.isMovable = false
+        window.isMovableByWindowBackground = false
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient, .ignoresCycle]
         window.styleMask.insert(.fullSizeContentView)
+        window.styleMask.remove(.resizable)
+        window.toolbar = nil
+        window.isExcludedFromWindowsMenu = true
         window.standardWindowButton(.closeButton)?.isHidden = true
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
 
         guard let screen = window.screen ?? NSScreen.main else { return }
-        let visibleFrame = screen.visibleFrame.insetBy(dx: 24, dy: 24)
-        let width = min(HubTheme.shelfWindowSize.width, visibleFrame.width)
+        let visibleFrame = screen.visibleFrame
+        let width = visibleFrame.width
         let height = min(HubTheme.shelfWindowSize.height, visibleFrame.height)
         let frame = NSRect(
-            x: visibleFrame.midX - (width / 2),
-            y: visibleFrame.minY + 16,
+            x: visibleFrame.minX,
+            y: visibleFrame.minY,
             width: width,
             height: height
         )

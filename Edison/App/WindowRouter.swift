@@ -43,6 +43,10 @@ final class WindowRouter {
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
+    func dismissHub() {
+        resolveHubWindow()?.orderOut(nil)
+    }
+
     private func resolveHubWindow() -> NSWindow? {
         if let hubWindow, NSApp.windows.contains(hubWindow) {
             return hubWindow

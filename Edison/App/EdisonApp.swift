@@ -6,7 +6,7 @@ struct EdisonApp: App {
     @StateObject private var appState = AppState()
 
     var body: some Scene {
-        WindowGroup("Edison", id: "hub") {
+        Window("Edison", id: "hub") {
             HubView()
                 .environmentObject(appState)
                 .onAppear {
@@ -14,6 +14,7 @@ struct EdisonApp: App {
                 }
         }
         .defaultSize(width: HubTheme.shelfWindowSize.width, height: HubTheme.shelfWindowSize.height)
+        .windowStyle(.hiddenTitleBar)
 
         Settings {
             SettingsView()

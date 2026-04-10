@@ -15,13 +15,19 @@ private enum HubLayoutMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private enum HubFocusTarget: Hashable {
+    case search
+}
+
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openWindow) private var openWindow
+    @FocusState private var focusedField: HubFocusTarget?
     @State private var filter: HubFilter = .all
     @State private var layoutMode: HubLayoutMode = .rail
     @State private var selectedItemID: UUID?
     @State private var newCollectionName = ""
+    @State private var contentWidth: CGFloat = 0
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -42,6 +48,13 @@ struct HubView: View {
         !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || appState.selectedTypeFilter != .all
             || appState.selectedCollectionID != nil
+    }
+
+    private var gridColumnCount: Int {
+        let minimumCardWidth: CGFloat = 216
+        let spacing = HubTheme.Space.x4
+        let usableWidth = max(contentWidth, minimumCardWidth)
+        return max(1, Int((usableWidth + spacing) / (minimumCardWidth + spacing)))
     }
 
     var body: some View {
@@ -68,16 +81,28 @@ struct HubView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            HubWindowAccessor { window in
-                guard let window else { return }
-                HubShelfWindowStyle.apply(to: window)
-                appState.windowRouter?.registerHubWindow(window)
-            }
+            HubWindowAccessor(
+                onResolveWindow: { window in
+                    guard let window else { return }
+                    HubShelfWindowStyle.apply(to: window)
+                    appState.windowRouter?.registerHubWindow(window)
+                },
+                onMoveCommand: handleMoveCommand,
+                onConfirmSelection: copySelectedItem,
+                onDismiss: {
+                    appState.windowRouter?.dismissHub()
+                },
+                onFocusSearch: {
+                    focusedField = .search
+                }
+            )
         )
+        .ignoresSafeArea()
         .onAppear {
             appState.windowRouter?.setOpenHubAction {
                 openWindow(id: "hub")
             }
+            focusedField = nil
             syncSelection()
         }
         .onChange(of: filter) { _, _ in
@@ -175,6 +200,7 @@ struct HubView: View {
             TextField("Search clipboard and screenshots", text: $appState.activeQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .focused($focusedField, equals: .search)
         }
         .padding(.horizontal, HubTheme.Space.x4)
         .frame(height: HubTheme.searchPillHeight)
@@ -241,76 +267,100 @@ struct HubView: View {
         Group {
             switch layoutMode {
             case .rail:
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
-                        ForEach(items) { item in
-                            HubShelfCardView(
-                                item: item,
-                                collections: appState.collections,
-                                isSelected: item.id == selectedItem?.id,
-                                isInCollection: { collectionID in
-                                    appState.collectionContains(item.id, collectionID: collectionID)
-                                },
-                                onSelect: {
-                                    selectedItemID = item.id
-                                },
-                                onCopy: {
-                                    appState.copyToClipboard(itemID: item.id)
-                                },
-                                onToggleFavorite: {
-                                    appState.toggleFavorite(itemID: item.id)
-                                },
-                                onToggleCollectionMembership: { collectionID in
-                                    appState.toggleItem(item.id, inCollection: collectionID)
-                                },
-                                onExport: {
-                                    appState.exportItem(itemID: item.id)
-                                },
-                                onShare: {
-                                    appState.shareItem(itemID: item.id)
-                                }
-                            )
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
+                            ForEach(items) { item in
+                                HubShelfCardView(
+                                    item: item,
+                                    collections: appState.collections,
+                                    isSelected: item.id == selectedItem?.id,
+                                    isInCollection: { collectionID in
+                                        appState.collectionContains(item.id, collectionID: collectionID)
+                                    },
+                                    onSelect: {
+                                        selectedItemID = item.id
+                                    },
+                                    onCopy: {
+                                        appState.copyToClipboard(itemID: item.id)
+                                    },
+                                    onToggleFavorite: {
+                                        appState.toggleFavorite(itemID: item.id)
+                                    },
+                                    onToggleCollectionMembership: { collectionID in
+                                        appState.toggleItem(item.id, inCollection: collectionID)
+                                    },
+                                    onExport: {
+                                        appState.exportItem(itemID: item.id)
+                                    },
+                                    onShare: {
+                                        appState.shareItem(itemID: item.id)
+                                    }
+                                )
+                                .id(item.id)
+                            }
+                        }
+                        .padding(.vertical, HubTheme.Space.x1)
+                    }
+                    .onChange(of: selectedItemID) { _, newValue in
+                        guard let newValue else { return }
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            proxy.scrollTo(newValue, anchor: .center)
                         }
                     }
-                    .padding(.vertical, HubTheme.Space.x1)
+                    .onAppear {
+                        if let selectedItemID {
+                            proxy.scrollTo(selectedItemID, anchor: .center)
+                        }
+                    }
                 }
             case .grid:
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: HubTheme.Space.x4)], spacing: HubTheme.Space.x4) {
-                        ForEach(items) { item in
-                            HubShelfCardView(
-                                item: item,
-                                collections: appState.collections,
-                                isSelected: item.id == selectedItem?.id,
-                                isInCollection: { collectionID in
-                                    appState.collectionContains(item.id, collectionID: collectionID)
-                                },
-                                onSelect: {
-                                    selectedItemID = item.id
-                                },
-                                onCopy: {
-                                    appState.copyToClipboard(itemID: item.id)
-                                },
-                                onToggleFavorite: {
-                                    appState.toggleFavorite(itemID: item.id)
-                                },
-                                onToggleCollectionMembership: { collectionID in
-                                    appState.toggleItem(item.id, inCollection: collectionID)
-                                },
-                                onExport: {
-                                    appState.exportItem(itemID: item.id)
-                                },
-                                onShare: {
-                                    appState.shareItem(itemID: item.id)
-                                }
-                            )
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 216), spacing: HubTheme.Space.x4)], spacing: HubTheme.Space.x4) {
+                            ForEach(items) { item in
+                                HubShelfCardView(
+                                    item: item,
+                                    collections: appState.collections,
+                                    isSelected: item.id == selectedItem?.id,
+                                    isInCollection: { collectionID in
+                                        appState.collectionContains(item.id, collectionID: collectionID)
+                                    },
+                                    onSelect: {
+                                        selectedItemID = item.id
+                                    },
+                                    onCopy: {
+                                        appState.copyToClipboard(itemID: item.id)
+                                    },
+                                    onToggleFavorite: {
+                                        appState.toggleFavorite(itemID: item.id)
+                                    },
+                                    onToggleCollectionMembership: { collectionID in
+                                        appState.toggleItem(item.id, inCollection: collectionID)
+                                    },
+                                    onExport: {
+                                        appState.exportItem(itemID: item.id)
+                                    },
+                                    onShare: {
+                                        appState.shareItem(itemID: item.id)
+                                    }
+                                )
+                                .id(item.id)
+                            }
                         }
                     }
                     .padding(.vertical, HubTheme.Space.x1)
+                    .onChange(of: selectedItemID) { _, newValue in
+                        guard let newValue else { return }
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            proxy.scrollTo(newValue, anchor: .center)
+                        }
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(ContentWidthReader(width: $contentWidth))
     }
 
     private var detailColumn: some View {
@@ -361,17 +411,56 @@ struct HubView: View {
         guard !items.isEmpty else { return }
         let currentIndex = items.firstIndex { $0.id == selectedItem?.id } ?? 0
 
-        let nextIndex: Int
-        switch direction {
-        case .left, .up:
-            nextIndex = max(0, currentIndex - 1)
-        case .right, .down:
-            nextIndex = min(items.count - 1, currentIndex + 1)
-        @unknown default:
-            nextIndex = currentIndex
+        let step: Int
+        switch layoutMode {
+        case .rail:
+            switch direction {
+            case .left, .up:
+                step = -1
+            case .right, .down:
+                step = 1
+            @unknown default:
+                step = 0
+            }
+        case .grid:
+            switch direction {
+            case .left:
+                step = -1
+            case .right:
+                step = 1
+            case .up:
+                step = -gridColumnCount
+            case .down:
+                step = gridColumnCount
+            @unknown default:
+                step = 0
+            }
         }
 
+        let nextIndex = max(0, min(items.count - 1, currentIndex + step))
+        guard nextIndex != currentIndex else { return }
         selectedItemID = items[nextIndex].id
+    }
+
+    private func copySelectedItem() {
+        guard let selectedItem else { return }
+        appState.copyToClipboard(itemID: selectedItem.id)
+    }
+}
+
+private struct ContentWidthReader: View {
+    @Binding var width: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear {
+                    width = proxy.size.width
+                }
+                .onChange(of: proxy.size.width) { _, newValue in
+                    width = newValue
+                }
+        }
     }
 }
 
@@ -416,11 +505,13 @@ private struct HubShelfCardView: View {
                 Text(item.historyTitle)
                     .font(.system(size: 12))
                     .foregroundStyle(HubTheme.textPrimary)
-                    .lineLimit(3)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(HubTheme.Space.x4)
-        .frame(width: HubTheme.cardSize(for: item).width, height: HubTheme.cardSize(for: item).height, alignment: .topLeading)
+        .frame(width: HubTheme.cardSize(for: item).width, alignment: .topLeading)
+        .frame(minHeight: HubTheme.cardSize(for: item).height, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
                 .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
@@ -480,7 +571,7 @@ private struct HubShelfCardView: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
-                    .frame(height: 96)
+                    .frame(height: 102)
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
@@ -505,12 +596,12 @@ private struct HubShelfCardView: View {
                     Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
                         .font(.system(size: 10))
                         .foregroundStyle(HubTheme.textSecondary)
-                        .lineLimit(4)
+                        .lineLimit(3)
                 } else if case let .fileURL(url) = item.payload {
                     Text(url.lastPathComponent)
                         .font(.system(size: 10))
                         .foregroundStyle(HubTheme.textSecondary)
-                        .lineLimit(4)
+                        .lineLimit(3)
                 } else {
                     Text(item.kindLabel)
                         .font(.system(size: 10))
@@ -519,7 +610,7 @@ private struct HubShelfCardView: View {
             }
             .padding(HubTheme.Space.x3)
         }
-        .frame(height: 96)
+        .frame(height: 84)
     }
 }
 
@@ -553,12 +644,15 @@ private struct HubDetailView: View {
                 HubMetaChip(label: item.relativeTimestamp, icon: "clock", tint: HubTheme.textTertiary)
             }
 
-            HStack(spacing: HubTheme.Space.x2) {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: HubTheme.Space.x2), count: 2),
+                spacing: HubTheme.Space.x2
+            ) {
                 HubActionButton(title: "Copy", systemImage: "doc.on.doc", tint: accent, action: onCopy)
                 HubActionButton(title: "Export", systemImage: "square.and.arrow.down", tint: HubTheme.textPrimary, action: onExport)
                 HubActionButton(title: "Share", systemImage: "square.and.arrow.up", tint: HubTheme.textPrimary, action: onShare)
                 HubActionButton(
-                    title: item.isFavorite ? "Unfavorite" : "Favorite",
+                    title: item.isFavorite ? "Unstar" : "Star",
                     systemImage: item.isFavorite ? "star.fill" : "star",
                     tint: item.isFavorite ? HubTheme.accentBrand : HubTheme.textPrimary,
                     action: onToggleFavorite
@@ -656,6 +750,8 @@ private struct HubMetaChip: View {
                 .font(.system(size: 11, weight: .semibold))
             Text(label)
                 .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .foregroundStyle(tint)
         .padding(.horizontal, HubTheme.Space.x2)
@@ -675,8 +771,15 @@ private struct HubActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 11, weight: .medium))
+            HStack(spacing: HubTheme.Space.x1) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
@@ -731,20 +834,126 @@ private extension ClipboardItem {
 
 private struct HubWindowAccessor: NSViewRepresentable {
     let onResolveWindow: (NSWindow?) -> Void
+    let onMoveCommand: (MoveCommandDirection) -> Void
+    let onConfirmSelection: () -> Void
+    let onDismiss: () -> Void
+    let onFocusSearch: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
 
     func makeNSView(context: Context) -> HubWindowReaderView {
         let view = HubWindowReaderView()
         view.onResolveWindow = onResolveWindow
+        view.onAttachWindow = { [weak coordinator = context.coordinator] window in
+            coordinator?.attach(to: window)
+        }
         return view
     }
 
     func updateNSView(_ nsView: HubWindowReaderView, context: Context) {
+        context.coordinator.parent = self
         nsView.onResolveWindow = onResolveWindow
         nsView.resolveWindow()
     }
 
+    final class Coordinator: NSObject, NSWindowDelegate {
+        var parent: HubWindowAccessor
+        private weak var window: NSWindow?
+        private var keyMonitor: Any?
+
+        init(parent: HubWindowAccessor) {
+            self.parent = parent
+        }
+
+        deinit {
+            if let keyMonitor {
+                NSEvent.removeMonitor(keyMonitor)
+            }
+        }
+
+        func attach(to window: NSWindow?) {
+            guard self.window !== window else {
+                parent.onResolveWindow(window)
+                return
+            }
+
+            self.window?.delegate = nil
+            self.window = window
+            self.window?.delegate = self
+            parent.onResolveWindow(window)
+            installKeyMonitorIfNeeded()
+        }
+
+        func windowDidResignKey(_ notification: Notification) {
+            guard let window,
+                  window.attachedSheet == nil,
+                  window.childWindows?.isEmpty ?? true else { return }
+            parent.onDismiss()
+        }
+
+        private func installKeyMonitorIfNeeded() {
+            guard keyMonitor == nil else { return }
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.handle(event) ?? event
+            }
+        }
+
+        private func handle(_ event: NSEvent) -> NSEvent? {
+            guard let window, event.window == window else { return event }
+
+            if let fieldEditor = window.firstResponder as? NSTextView,
+               fieldEditor.isFieldEditor {
+                if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
+                   event.charactersIgnoringModifiers?.lowercased() == "f" {
+                    parent.onFocusSearch()
+                    return nil
+                }
+
+                if event.keyCode == 53 {
+                    window.makeFirstResponder(nil)
+                    parent.onDismiss()
+                    return nil
+                }
+
+                return event
+            }
+
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
+               event.charactersIgnoringModifiers?.lowercased() == "f" {
+                parent.onFocusSearch()
+                return nil
+            }
+
+            switch event.keyCode {
+            case 123:
+                parent.onMoveCommand(.left)
+                return nil
+            case 124:
+                parent.onMoveCommand(.right)
+                return nil
+            case 125:
+                parent.onMoveCommand(.down)
+                return nil
+            case 126:
+                parent.onMoveCommand(.up)
+                return nil
+            case 36, 76:
+                parent.onConfirmSelection()
+                return nil
+            case 53:
+                parent.onDismiss()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
     final class HubWindowReaderView: NSView {
         var onResolveWindow: (NSWindow?) -> Void = { _ in }
+        var onAttachWindow: (NSWindow?) -> Void = { _ in }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -753,7 +962,9 @@ private struct HubWindowAccessor: NSViewRepresentable {
 
         func resolveWindow() {
             DispatchQueue.main.async { [weak self] in
-                self?.onResolveWindow(self?.window)
+                let window = self?.window
+                self?.onAttachWindow(window)
+                self?.onResolveWindow(window)
             }
         }
     }
