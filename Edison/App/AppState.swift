@@ -54,8 +54,12 @@ final class AppState: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] note in
-            Task { @MainActor in
-                self?.handleScreenshotCapture(note)
+            guard let self else { return }
+            let capturedData = (note.userInfo?[CaptureEngine.imageDataUserInfoKey] as? Data)
+                ?? NSPasteboard.general.data(forType: .tiff)
+
+            MainActor.assumeIsolated {
+                self.handleScreenshotCapture(capturedData)
             }
         }
     }
@@ -125,9 +129,7 @@ final class AppState: ObservableObject {
         historyStore.save(historyItems)
     }
 
-    private func handleScreenshotCapture(_ note: Notification) {
-        let capturedData = (note.userInfo?[CaptureEngine.imageDataUserInfoKey] as? Data)
-            ?? NSPasteboard.general.data(forType: .tiff)
+    private func handleScreenshotCapture(_ capturedData: Data?) {
         guard let capturedData else { return }
 
         Task { [weak self] in
@@ -135,11 +137,14 @@ final class AppState: ObservableObject {
                 ImageProcessing.prepareImagePayload(from: capturedData)
             }.value
 
-            guard let prepared, let self else { return }
-            self.addToHistory(ClipboardItem(payload: .image(prepared)))
-            self.editorImageData = prepared.data
-            self.windowRouter?.openHub()
-            self.isEditorPresented = true
+            guard let prepared else { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.addToHistory(ClipboardItem(payload: .image(prepared)))
+                self.editorImageData = prepared.data
+                self.windowRouter?.openHub()
+                self.isEditorPresented = true
+            }
         }
     }
 }

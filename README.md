@@ -23,3 +23,10 @@ This branch contains the app shell + clipboard/screenshot foundations.
 ```bash
 swift run Edison
 ```
+
+## Local CI check (macOS)
+
+```bash
+./scripts/ci-local-macos.sh
+```
+
