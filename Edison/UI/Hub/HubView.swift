@@ -45,6 +45,10 @@ struct HubView: View {
                 List(items) { item in
                     ClipboardRowView(item: item) {
                         appState.copyToClipboard(itemID: item.id)
+                    } onExport: {
+                        appState.exportItem(itemID: item.id)
+                    } onShare: {
+                        appState.shareItem(itemID: item.id)
                     } onToggleFavorite: {
                         appState.toggleFavorite(itemID: item.id)
                     }
@@ -70,6 +74,8 @@ struct HubView: View {
 private struct ClipboardRowView: View {
     let item: ClipboardItem
     let onCopy: () -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
     let onToggleFavorite: () -> Void
 
     var body: some View {
@@ -101,6 +107,22 @@ private struct ClipboardRowView: View {
             }
             .buttonStyle(.borderless)
             .help("Copy back to clipboard")
+
+            Button {
+                onExport()
+            } label: {
+                Image(systemName: "square.and.arrow.down")
+            }
+            .buttonStyle(.borderless)
+            .help("Export to file")
+
+            Button {
+                onShare()
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .buttonStyle(.borderless)
+            .help("Share")
         }
         .padding(.vertical, 4)
     }

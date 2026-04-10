@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppState: ObservableObject {
@@ -17,6 +18,11 @@ final class AppState: ObservableObject {
     private let searchEngine = HistorySearchEngine()
 
     private let historyLimit = 250
+    private let missingWindowError = NSError(
+        domain: "Edison.Share",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "No active window available for sharing."]
+    )
 
     weak var windowRouter: WindowRouter?
     private var screenshotObserver: NSObjectProtocol?
@@ -111,6 +117,49 @@ final class AppState: ObservableObject {
         }
     }
 
+    func exportItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        do {
+            let export = try makeExportPayload(for: item)
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = export.defaultFileName
+            panel.allowedContentTypes = [export.contentType]
+            panel.canCreateDirectories = true
+
+            if let window = NSApp.keyWindow {
+                panel.beginSheetModal(for: window) { [weak self] response in
+                    guard response == .OK, let url = panel.url else { return }
+                    self?.writeExportPayload(export, to: url)
+                }
+            } else if panel.runModal() == .OK, let url = panel.url {
+                writeExportPayload(export, to: url)
+            }
+        } catch {
+            present(error: error, title: "Export Failed")
+        }
+    }
+
+    func shareItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        do {
+            let shareItems = try makeShareItems(for: item)
+            let picker = NSSharingServicePicker(items: shareItems)
+            guard let contentView = NSApp.keyWindow?.contentView else {
+                throw missingWindowError
+            }
+
+            let anchor = NSRect(
+                x: contentView.bounds.midX,
+                y: contentView.bounds.midY,
+                width: 1,
+                height: 1
+            )
+            picker.show(relativeTo: anchor, of: contentView, preferredEdge: .minY)
+        } catch {
+            present(error: error, title: "Share Failed")
+        }
+    }
+
     func closeEditor() {
         isEditorPresented = false
     }
@@ -146,6 +195,53 @@ final class AppState: ObservableObject {
                 self.isEditorPresented = true
             }
         }
+    }
+
+    private func makeExportPayload(for item: ClipboardItem) throws -> (data: Data, defaultFileName: String, contentType: UTType) {
+        switch item.payload {
+        case let .text(value):
+            guard let data = value.data(using: .utf8) else {
+                throw CocoaError(.fileWriteInapplicableStringEncoding)
+            }
+            return (data, "edison-export.txt", .plainText)
+        case let .image(image):
+            return (image.data, "edison-image.png", .png)
+        case let .fileURL(url):
+            let data = try Data(contentsOf: url)
+            let filename = url.lastPathComponent.isEmpty ? "edison-file" : url.lastPathComponent
+            let contentType = UTType(filenameExtension: url.pathExtension) ?? .data
+            return (data, filename, contentType)
+        }
+    }
+
+    private func writeExportPayload(_ payload: (data: Data, defaultFileName: String, contentType: UTType), to url: URL) {
+        do {
+            try payload.data.write(to: url, options: .atomic)
+        } catch {
+            present(error: error, title: "Export Failed")
+        }
+    }
+
+    private func makeShareItems(for item: ClipboardItem) throws -> [Any] {
+        switch item.payload {
+        case let .text(value):
+            return [value]
+        case let .image(image):
+            guard let nsImage = NSImage(data: image.data) else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            return [nsImage]
+        case let .fileURL(url):
+            return [url]
+        }
+    }
+
+    private func present(error: Error, title: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
     }
 }
 
