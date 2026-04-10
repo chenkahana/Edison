@@ -24,6 +24,7 @@ final class WindowRouter {
             }
             targetWindow.makeKeyAndOrderFront(nil)
             targetWindow.orderFrontRegardless()
+            targetWindow.makeFirstResponder(nil)
             return
         }
 
@@ -33,6 +34,8 @@ final class WindowRouter {
             guard let hubWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "hub-window" }) else { return }
             HubShelfWindowStyle.apply(to: hubWindow)
             hubWindow.makeKeyAndOrderFront(nil)
+            hubWindow.orderFrontRegardless()
+            hubWindow.makeFirstResponder(nil)
         }
 
         NSApp.unhide(nil)

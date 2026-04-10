@@ -90,10 +90,17 @@ struct HubView: View {
                 onMoveCommand: handleMoveCommand,
                 onConfirmSelection: copySelectedItem,
                 onDismiss: {
+                    focusedField = nil
                     appState.windowRouter?.dismissHub()
                 },
                 onFocusSearch: {
                     focusedField = .search
+                },
+                onTypeSearch: { text in
+                    appendToSearch(text)
+                },
+                onDeleteSearchCharacter: {
+                    deleteSearchCharacter()
                 }
             )
         )
@@ -301,7 +308,9 @@ struct HubView: View {
                             }
                         }
                         .padding(.vertical, HubTheme.Space.x1)
+                        .padding(.horizontal, HubTheme.Space.x1)
                     }
+                    .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
                         guard let newValue else { return }
                         withAnimation(.easeInOut(duration: 0.16)) {
@@ -348,8 +357,10 @@ struct HubView: View {
                                 .id(item.id)
                             }
                         }
+                        .padding(.horizontal, HubTheme.Space.x1)
                     }
                     .padding(.vertical, HubTheme.Space.x1)
+                    .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
                         guard let newValue else { return }
                         withAnimation(.easeInOut(duration: 0.16)) {
@@ -445,6 +456,16 @@ struct HubView: View {
     private func copySelectedItem() {
         guard let selectedItem else { return }
         appState.copyToClipboard(itemID: selectedItem.id)
+    }
+
+    private func appendToSearch(_ text: String) {
+        guard !text.isEmpty else { return }
+        appState.activeQuery.append(text)
+    }
+
+    private func deleteSearchCharacter() {
+        guard !appState.activeQuery.isEmpty else { return }
+        appState.activeQuery.removeLast()
     }
 }
 
@@ -838,6 +859,8 @@ private struct HubWindowAccessor: NSViewRepresentable {
     let onConfirmSelection: () -> Void
     let onDismiss: () -> Void
     let onFocusSearch: () -> Void
+    let onTypeSearch: (String) -> Void
+    let onDeleteSearchCharacter: () -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -926,7 +949,15 @@ private struct HubWindowAccessor: NSViewRepresentable {
                 return nil
             }
 
+            if let text = printableSearchText(from: event) {
+                parent.onTypeSearch(text)
+                return nil
+            }
+
             switch event.keyCode {
+            case 51, 117:
+                parent.onDeleteSearchCharacter()
+                return nil
             case 123:
                 parent.onMoveCommand(.left)
                 return nil
@@ -948,6 +979,16 @@ private struct HubWindowAccessor: NSViewRepresentable {
             default:
                 return event
             }
+        }
+
+        private func printableSearchText(from event: NSEvent) -> String? {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard modifiers.isEmpty || modifiers == [.shift] else { return nil }
+            guard let characters = event.characters, !characters.isEmpty else { return nil }
+            guard characters.rangeOfCharacter(from: .controlCharacters.union(.whitespacesAndNewlines)) == nil else {
+                return nil
+            }
+            return characters
         }
     }
 
