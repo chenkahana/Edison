@@ -2,22 +2,27 @@
 
 Edison is a native macOS menu bar app for clipboard history and screenshots.
 
+## Current status on `main`
+
+- Menu bar shell with a floating Hub window and configurable global shortcuts
+- Clipboard history with search, favorites, type filtering, collections, export, and share actions
+- Shelf-style and grid Hub layouts with keyboard navigation and a detail pane
+- Screenshot capture flows for area, window, and full-screen capture
+- Screenshot editor tools for crop, arrow, rectangle, text, undo/redo, copy, and save
+- Local Swift build/test support and a macOS CI workflow
+
 ## Project docs
 
-Use these docs as the source of truth for implementation:
+Use these docs for product and implementation context:
 
 - `docs/product.md` — product definition, users, core flows, non-goals
 - `docs/ui-style-guide.md` — visual system, interaction spec, and glass UI guidance
 - `docs/plan.md` — phased roadmap and MVP scope
 - `docs/constraints.md` — hard constraints and boundaries
 - `docs/architecture.md` — architectural direction and simplicity rules
-- `docs/current-task.md` — active implementation task
+- `docs/current-task.md` — completed app-foundation task that bootstrapped the current repo state
 - `docs/review-checklist.md` — pre-merge checklist
 - `docs/working-agreement.md` — implementation operating rules
-
-## Current status
-
-This repository contains the Edison macOS app foundation (app shell, project skeleton, and CI baseline).
 
 ## Project layout
 
@@ -27,15 +32,34 @@ This repository contains the Edison macOS app foundation (app shell, project ske
 - `Edison/Tests` — package tests
 - `.github/workflows/ci.yml` — macOS CI build + test
 
+## Run locally
 
-## Run
+- Full app flow in Xcode:
+
+```bash
+open Edison.xcodeproj
+```
+
+- Package-based launch:
 
 ```bash
 swift run Edison
 ```
 
-## Local CI check (macOS)
+- Local CI check (macOS):
 
 ```bash
 ./scripts/ci-local-macos.sh
 ```
+
+## Default shortcuts
+
+- `Shift-Command-V` — open Hub
+- `Shift-Command-2` — capture area
+- `Shift-Command-3` — capture window
+- `Shift-Command-4` — capture full screen
+
+## Notes
+
+- The first run may require Accessibility and Screen Recording permissions for shortcuts and capture flows.
+- The status bar menu shell is present on `main`, but screenshot capture is currently shortcut-driven rather than exposed through a finished menu action.
