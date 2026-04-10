@@ -3,21 +3,39 @@ import AppKit
 @MainActor
 final class WindowRouter {
     private weak var hubWindow: NSWindow?
+    private var openHubAction: (() -> Void)?
 
     func registerHubWindow(_ window: NSWindow?) {
         guard let window, window.canBecomeKey else { return }
+        HubShelfWindowStyle.apply(to: window)
         hubWindow = window
+    }
+
+    func setOpenHubAction(_ action: @escaping () -> Void) {
+        openHubAction = action
     }
 
     func openHub() {
         NSApp.activate(ignoringOtherApps: true)
         if let targetWindow = resolveHubWindow() {
+            HubShelfWindowStyle.apply(to: targetWindow)
             if targetWindow.isMiniaturized {
                 targetWindow.deminiaturize(nil)
             }
             targetWindow.makeKeyAndOrderFront(nil)
             targetWindow.orderFrontRegardless()
+            targetWindow.makeFirstResponder(nil)
             return
+        }
+
+        openHubAction?()
+
+        DispatchQueue.main.async {
+            guard let hubWindow = NSApp.windows.first(where: { $0.identifier?.rawValue == "hub-window" }) else { return }
+            HubShelfWindowStyle.apply(to: hubWindow)
+            hubWindow.makeKeyAndOrderFront(nil)
+            hubWindow.orderFrontRegardless()
+            hubWindow.makeFirstResponder(nil)
         }
 
         NSApp.unhide(nil)
@@ -28,9 +46,21 @@ final class WindowRouter {
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
+    func dismissHub() {
+        resolveHubWindow()?.orderOut(nil)
+    }
+
     private func resolveHubWindow() -> NSWindow? {
         if let hubWindow, NSApp.windows.contains(hubWindow) {
             return hubWindow
+        }
+
+        let identifiedWindow = NSApp.windows.first {
+            $0.identifier?.rawValue == "hub-window" && $0.canBecomeKey
+        }
+        if let identifiedWindow {
+            hubWindow = identifiedWindow
+            return identifiedWindow
         }
 
         let primaryCandidate = NSApp.windows.first {

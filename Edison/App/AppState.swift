@@ -1,11 +1,20 @@
 import AppKit
 import Combine
 import Foundation
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppState: ObservableObject {
+    private enum HistorySource {
+        case clipboard
+        case internalAction
+    }
+
     @Published var activeQuery = ""
+    @Published var selectedTypeFilter: HistoryItemTypeFilter = .all
     @Published private(set) var historyItems: [ClipboardItem] = []
+    @Published private(set) var collections: [ItemCollection] = []
+    @Published var selectedCollectionID: UUID?
     @Published var isEditorPresented = false
     @Published var editorImageData: Data?
 
@@ -16,14 +25,31 @@ final class AppState: ObservableObject {
     private let historyStore = HistoryStore()
     private let clipboardMonitor = ClipboardMonitor()
     private let searchEngine = HistorySearchEngine()
+    private let missingWindowError = NSError(
+        domain: "Edison.Share",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "No active window available for sharing."]
+    )
 
     private let historyLimit = 250
+    private var suppressedClipboardPayloads = Set<ClipboardPayload>()
 
     weak var windowRouter: WindowRouter?
     private var screenshotObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
-        searchEngine.filter(query: activeQuery, in: historyItems)
+        let searched = searchEngine.filter(
+            query: activeQuery,
+            in: historyItems,
+            type: selectedTypeFilter
+        )
+        guard let selectedCollectionID,
+              let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
+            return searched
+        }
+
+        let itemIDs = Set(collection.itemIDs)
+        return searched.filter { itemIDs.contains($0.id) }
     }
 
     var favoriteItems: [ClipboardItem] {
@@ -31,9 +57,10 @@ final class AppState: ObservableObject {
     }
 
     init() {
-        historyStore.loadAsync { [weak self] loaded in
+        historyStore.loadAsync { [weak self] loadedItems, loadedCollections in
             Task { @MainActor in
-                self?.historyItems = loaded
+                self?.historyItems = loadedItems
+                self?.collections = loadedCollections
             }
         }
 
@@ -66,9 +93,13 @@ final class AppState: ObservableObject {
     }
 
     deinit {
-        clipboardMonitor.stop()
-        if let screenshotObserver {
-            NotificationCenter.default.removeObserver(screenshotObserver)
+        let clipboardMonitor = clipboardMonitor
+        let screenshotObserver = screenshotObserver
+        Task { @MainActor in
+            clipboardMonitor.stop()
+            if let screenshotObserver {
+                NotificationCenter.default.removeObserver(screenshotObserver)
+            }
         }
     }
 
@@ -90,6 +121,56 @@ final class AppState: ObservableObject {
         hotKeyCenter.apply(shortcuts: shortcuts)
     }
 
+    func createCollection(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard !collections.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
+
+        let collection = ItemCollection(name: trimmed)
+        collections.insert(collection, at: 0)
+        selectedCollectionID = collection.id
+        persistHistory()
+    }
+
+    func deleteCollection(id: UUID) {
+        collections.removeAll { $0.id == id }
+        if selectedCollectionID == id {
+            selectedCollectionID = nil
+        }
+        persistHistory()
+    }
+
+    func addItem(_ itemID: UUID, toCollection collectionID: UUID) {
+        guard let index = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+        guard !collections[index].itemIDs.contains(itemID) else { return }
+
+        collections[index].itemIDs.insert(itemID, at: 0)
+        persistHistory()
+    }
+
+    func removeItem(_ itemID: UUID, fromCollection collectionID: UUID) {
+        guard let index = collections.firstIndex(where: { $0.id == collectionID }) else { return }
+
+        collections[index].itemIDs.removeAll { $0 == itemID }
+        persistHistory()
+    }
+
+    func toggleItem(_ itemID: UUID, inCollection collectionID: UUID) {
+        guard let collection = collections.first(where: { $0.id == collectionID }) else { return }
+        if collection.itemIDs.contains(itemID) {
+            removeItem(itemID, fromCollection: collectionID)
+        } else {
+            addItem(itemID, toCollection: collectionID)
+        }
+    }
+
+    func collectionContains(_ itemID: UUID, collectionID: UUID) -> Bool {
+        collections
+            .first(where: { $0.id == collectionID })?
+            .itemIDs
+            .contains(itemID) ?? false
+    }
+
     func toggleFavorite(itemID: UUID) {
         guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
         historyItems[index].isFavorite.toggle()
@@ -98,6 +179,7 @@ final class AppState: ObservableObject {
 
     func copyToClipboard(itemID: UUID) {
         guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        suppressedClipboardPayloads.insert(item.payload)
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
@@ -112,22 +194,75 @@ final class AppState: ObservableObject {
         }
     }
 
+    func exportItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        do {
+            let export = try makeExportPayload(for: item)
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = export.defaultFileName
+            panel.allowedContentTypes = [export.contentType]
+            panel.canCreateDirectories = true
+
+            if let window = NSApp.keyWindow {
+                panel.beginSheetModal(for: window) { [weak self] response in
+                    guard response == .OK, let url = panel.url else { return }
+                    self?.writeExportPayload(export, to: url)
+                }
+            } else if panel.runModal() == .OK, let url = panel.url {
+                writeExportPayload(export, to: url)
+            }
+        } catch {
+            present(error: error, title: "Export Failed")
+        }
+    }
+
+    func shareItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        do {
+            let shareItems = try makeShareItems(for: item)
+            let picker = NSSharingServicePicker(items: shareItems)
+            guard let contentView = NSApp.keyWindow?.contentView else {
+                throw missingWindowError
+            }
+
+            let anchor = NSRect(
+                x: contentView.bounds.midX,
+                y: contentView.bounds.midY,
+                width: 1,
+                height: 1
+            )
+            picker.show(relativeTo: anchor, of: contentView, preferredEdge: .minY)
+        } catch {
+            present(error: error, title: "Share Failed")
+        }
+    }
+
     func closeEditor() {
         isEditorPresented = false
     }
 
-    private func addToHistory(_ item: ClipboardItem) {
+    private func addToHistory(_ item: ClipboardItem, source: HistorySource = .clipboard) {
+        if source == .clipboard, suppressedClipboardPayloads.remove(item.payload) != nil {
+            return
+        }
+
         historyItems.removeAll { $0.payload == item.payload }
         historyItems.insert(item, at: 0)
 
         if historyItems.count > historyLimit {
             historyItems.removeLast(historyItems.count - historyLimit)
         }
+
+        let liveItemIDs = Set(historyItems.map(\.id))
+        for index in collections.indices {
+            collections[index].itemIDs.removeAll { !liveItemIDs.contains($0) }
+        }
+
         persistHistory()
     }
 
     private func persistHistory() {
-        historyStore.save(historyItems)
+        historyStore.save(items: historyItems, collections: collections)
     }
 
     private func handleScreenshotCapture(_ capturedData: Data?) {
@@ -141,12 +276,65 @@ final class AppState: ObservableObject {
             guard let prepared else { return }
             await MainActor.run {
                 guard let self else { return }
-                self.addToHistory(ClipboardItem(payload: .image(prepared)))
+                self.suppressedClipboardPayloads.insert(.image(prepared))
+                self.addToHistory(ClipboardItem(payload: .image(prepared)), source: .internalAction)
                 self.editorImageData = prepared.data
                 self.windowRouter?.openHub()
                 self.isEditorPresented = true
             }
         }
+    }
+
+    private func makeExportPayload(
+        for item: ClipboardItem
+    ) throws -> (data: Data, defaultFileName: String, contentType: UTType) {
+        switch item.payload {
+        case let .text(value):
+            guard let data = value.data(using: .utf8) else {
+                throw CocoaError(.fileWriteInapplicableStringEncoding)
+            }
+            return (data, "edison-export.txt", .plainText)
+        case let .image(image):
+            return (image.data, "edison-image.png", .png)
+        case let .fileURL(url):
+            let data = try Data(contentsOf: url)
+            let filename = url.lastPathComponent.isEmpty ? "edison-file" : url.lastPathComponent
+            let contentType = UTType(filenameExtension: url.pathExtension) ?? .data
+            return (data, filename, contentType)
+        }
+    }
+
+    private func writeExportPayload(
+        _ payload: (data: Data, defaultFileName: String, contentType: UTType),
+        to url: URL
+    ) {
+        do {
+            try payload.data.write(to: url, options: .atomic)
+        } catch {
+            present(error: error, title: "Export Failed")
+        }
+    }
+
+    private func makeShareItems(for item: ClipboardItem) throws -> [Any] {
+        switch item.payload {
+        case let .text(value):
+            return [value]
+        case let .image(image):
+            guard let nsImage = NSImage(data: image.data) else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            return [nsImage]
+        case let .fileURL(url):
+            return [url]
+        }
+    }
+
+    private func present(error: Error, title: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = title
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
     }
 }
 
