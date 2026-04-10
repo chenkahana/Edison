@@ -23,4 +23,25 @@ final class EdisonTests: XCTestCase {
         let filtered = engine.filter(query: "contract", in: items)
         XCTAssertEqual(filtered.count, 1)
     }
+
+    func testClipboardMonitorSkipsTransientType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType("org.nspasteboard.TransientType")]
+
+        XCTAssertTrue(monitor.shouldSkipStorage(for: types))
+    }
+
+    func testClipboardMonitorSkipsConcealedType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")]
+
+        XCTAssertTrue(monitor.shouldSkipStorage(for: types))
+    }
+
+    func testClipboardMonitorStoresRegularType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType.string]
+
+        XCTAssertFalse(monitor.shouldSkipStorage(for: types))
+    }
 }
