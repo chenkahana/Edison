@@ -1,4 +1,6 @@
 import AppKit
+import CoreGraphics
+import Quartz
 import SwiftUI
 
 private enum HubFilter: String, CaseIterable, Identifiable {
@@ -34,6 +36,7 @@ struct HubView: View {
     @State private var selectedItemID: UUID?
     @State private var newCollectionName = ""
     @State private var contentWidth: CGFloat = 0
+    @State private var showQuickLook = false
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -68,6 +71,24 @@ struct HubView: View {
             HubGlassBackground()
 
             VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
+                // Resize handle
+                HStack {
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 999)
+                        .fill(HubTheme.textTertiary.opacity(0.4))
+                        .frame(width: 36, height: 4)
+                    Spacer()
+                }
+                .frame(height: 20)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(coordinateSpace: .global)
+                        .onChanged { value in
+                            appState.windowRouter?.adjustShelfHeight(by: value.translation.height)
+                        }
+                )
+                .background(ResizeCursorView())
+
                 header
 
                 if items.isEmpty {
@@ -82,7 +103,47 @@ struct HubView: View {
                 }
             }
             .padding(HubTheme.Space.x5)
+
+            // Undo toast
+            if appState.showDeleteUndoToast {
+                VStack {
+                    Spacer()
+                    HStack(spacing: HubTheme.Space.x3) {
+                        Text("Item deleted")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(HubTheme.textPrimary)
+                        Button("Undo") {
+                            appState.undoDelete()
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(HubTheme.accentBrand)
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, HubTheme.Space.x5)
+                    .padding(.vertical, HubTheme.Space.x3)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(HubTheme.cardFill)
+                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
+                    )
+                    .padding(.bottom, HubTheme.Space.x5)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
+            }
         }
+        .background(
+            Group {
+                if showQuickLook, let item = selectedItem, let url = quickLookURL(for: item) {
+                    QuickLookBridge(url: url, isPresented: $showQuickLook)
+                        .frame(width: 0, height: 0)
+                }
+            }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             HubWindowAccessor(
@@ -105,6 +166,17 @@ struct HubView: View {
                 },
                 onDeleteSearchCharacter: {
                     deleteSearchCharacter()
+                },
+                onDeleteItem: {
+                    guard let selectedItem else { return }
+                    appState.deleteItem(itemID: selectedItem.id)
+                },
+                onQuickLook: {
+                    showQuickLook = true
+                },
+                onQuickPaste: { idx in
+                    guard idx < items.count else { return }
+                    appState.pasteItem(itemID: items[idx].id)
                 }
             )
         )
@@ -281,7 +353,7 @@ struct HubView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
-                            ForEach(items) { item in
+                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                                 HubShelfCardView(
                                     item: item,
                                     collections: appState.collections,
@@ -306,6 +378,11 @@ struct HubView: View {
                                     },
                                     onShare: {
                                         appState.shareItem(itemID: item.id)
+                                    },
+                                    badgeNumber: appState.activeQuery.isEmpty ? (index < 9 ? index + 1 : nil) : nil,
+                                    collectionAccentHex: appState.collections.first(where: { $0.id == appState.selectedCollectionID })?.accentHex,
+                                    onDelete: {
+                                        appState.deleteItem(itemID: item.id)
                                     }
                                 )
                                 .id(item.id)
@@ -372,7 +449,7 @@ struct HubView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 216), spacing: HubTheme.Space.x4)], spacing: HubTheme.Space.x4) {
-                            ForEach(items) { item in
+                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                                 HubShelfCardView(
                                     item: item,
                                     collections: appState.collections,
@@ -397,6 +474,11 @@ struct HubView: View {
                                     },
                                     onShare: {
                                         appState.shareItem(itemID: item.id)
+                                    },
+                                    badgeNumber: appState.activeQuery.isEmpty ? (index < 9 ? index + 1 : nil) : nil,
+                                    collectionAccentHex: appState.collections.first(where: { $0.id == appState.selectedCollectionID })?.accentHex,
+                                    onDelete: {
+                                        appState.deleteItem(itemID: item.id)
                                     }
                                 )
                                 .id(item.id)
@@ -560,6 +642,22 @@ struct HubView: View {
         guard !appState.activeQuery.isEmpty else { return }
         appState.activeQuery.removeLast()
     }
+
+    private func quickLookURL(for item: ClipboardItem) -> URL? {
+        let tmp = FileManager.default.temporaryDirectory
+        switch item.payload {
+        case let .text(text):
+            let url = tmp.appendingPathComponent("edison-ql-\(item.id).txt")
+            try? text.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        case let .image(imageData):
+            let url = tmp.appendingPathComponent("edison-ql-\(item.id).png")
+            try? imageData.data.write(to: url, options: .atomic)
+            return url
+        case let .fileURL(url):
+            return url
+        }
+    }
 }
 
 private struct ContentWidthReader: View {
@@ -698,8 +796,12 @@ private struct HubShelfCardView: View {
     let onToggleCollectionMembership: (UUID) -> Void
     let onExport: () -> Void
     let onShare: () -> Void
+    let badgeNumber: Int?
+    let collectionAccentHex: String?
+    let onDelete: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
 
     private var accent: Color { HubTheme.accentColor(for: item) }
     private var cardSize: CGSize { HubTheme.cardSize(for: item) }
@@ -711,38 +813,92 @@ private struct HubShelfCardView: View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
     }
 
+    private var barColor: Color {
+        if let hex = collectionAccentHex {
+            return Color(hexString: hex)
+        }
+        return accent
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
-            RoundedRectangle(cornerRadius: 999, style: .continuous)
-                .fill(accent)
-                .frame(width: 34, height: 4)
+        ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
+                RoundedRectangle(cornerRadius: 999, style: .continuous)
+                    .fill(barColor)
+                    .frame(width: 34, height: 4)
 
-            preview
+                preview
 
-            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                HStack(spacing: HubTheme.Space.x2) {
-                    HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
-                    Text(item.relativeTimestamp)
-                        .font(.system(size: 10))
-                        .foregroundStyle(HubTheme.textTertiary)
-                    Spacer()
-                    if item.isFavorite {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(HubTheme.accentBrand)
+                VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
+                    HStack(spacing: HubTheme.Space.x2) {
+                        HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
+                        Text(item.relativeTimestamp)
+                            .font(.system(size: 10))
+                            .foregroundStyle(HubTheme.textTertiary)
+                        Spacer()
+                        if item.isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(HubTheme.accentBrand)
+                        }
+                    }
+
+                    Text(item.historyTitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(HubTheme.textPrimary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    if let meta = item.metaFooterLabel {
+                        Text(meta)
+                            .font(.system(size: 10))
+                            .foregroundStyle(HubTheme.textTertiary)
+                            .lineLimit(1)
+                    }
+
+                    if let appName = item.sourceApplication?.localizedName {
+                        Text(appName)
+                            .font(.system(size: 10))
+                            .foregroundStyle(HubTheme.textTertiary)
+                            .lineLimit(1)
                     }
                 }
+            }
+            .padding(HubTheme.Space.x4)
+            .frame(width: cardSize.width, alignment: .topLeading)
+            .frame(minHeight: cardSize.height, alignment: .topLeading)
 
-                Text(item.historyTitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(HubTheme.textPrimary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+            // Source app icon badge
+            if let appIcon = item.sourceApplicationIcon {
+                ZStack {
+                    Circle()
+                        .fill(HubTheme.cardFillMuted)
+                        .frame(width: 26, height: 26)
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                }
+                .padding(HubTheme.Space.x2)
+            }
+
+            // Quick paste number badge
+            if let num = badgeNumber {
+                Text("\u{2318}\(num)")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(HubTheme.textTertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(HubTheme.cardFillMuted)
+                    )
+                    .padding(HubTheme.Space.x2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
-        .padding(HubTheme.Space.x4)
-        .frame(width: cardSize.width, alignment: .topLeading)
-        .frame(minHeight: cardSize.height, alignment: .topLeading)
         .background(
             cardShape
                 .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
@@ -752,8 +908,13 @@ private struct HubShelfCardView: View {
                 .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
         )
         .clipShape(cardShape)
-        .shadow(color: HubTheme.cardShadow(colorScheme: colorScheme), radius: 16, y: 8)
+        .shadow(color: HubTheme.cardShadowAmbient(colorScheme: colorScheme), radius: 10, y: 2)
+        .shadow(color: HubTheme.cardShadowKey(colorScheme: colorScheme), radius: 28, x: 0, y: 10)
         .contentShape(cardShape)
+        .scaleEffect(isHovered && !isSelected ? 1.015 : 1.0)
+        .animation(.spring(response: 0.22, dampingFraction: 0.80), value: isHovered)
+        .onHover { isHovered = $0 }
+        .draggable(item)
         .onTapGesture {
             onSelect()
         }
@@ -789,6 +950,12 @@ private struct HubShelfCardView: View {
             Button("Share") {
                 onShare()
             }
+            Divider()
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
         .accessibilityLabel("\(item.kindLabel) \(item.historyTitle)")
         .accessibilityValue(item.relativeTimestamp)
@@ -809,8 +976,27 @@ private struct HubShelfCardView: View {
                 fallbackPreview
             }
         case .text, .fileURL:
-            fallbackPreview
+            if let hexColor = item.hexColorSwatch {
+                hexColorPreview(hexColor)
+            } else {
+                fallbackPreview
+            }
         }
+    }
+
+    private func hexColorPreview(_ color: Color) -> some View {
+        ZStack {
+            previewShape.fill(color)
+            VStack(spacing: 4) {
+                if case let .text(text) = item.payload {
+                    Text(text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(color.accessibleForeground)
+                }
+            }
+        }
+        .frame(width: previewWidth, height: 84)
+        .clipShape(previewShape)
     }
 
     private var fallbackPreview: some View {
@@ -1091,6 +1277,39 @@ private extension ClipboardItem {
     var relativeTimestamp: String {
         createdAt.formatted(.relative(presentation: .named))
     }
+
+    var metaFooterLabel: String? {
+        switch payload {
+        case let .text(text):
+            let count = text.unicodeScalars.count
+            let words = text.split(separator: " ").count
+            return "\(count) chars \u{00B7} \(words) words"
+        case let .image(imageData):
+            if let src = CGImageSourceCreateWithData(imageData.data as CFData, nil),
+               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+               let w = props[kCGImagePropertyPixelWidth] as? Int,
+               let h = props[kCGImagePropertyPixelHeight] as? Int {
+                return "\(w) \u{00D7} \(h)"
+            }
+            return "Image"
+        case let .fileURL(url):
+            if let resources = try? url.resourceValues(forKeys: [.fileSizeKey]),
+               let size = resources.fileSize {
+                return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
+            }
+            return url.pathExtension.uppercased()
+        }
+    }
+
+    var hexColorSwatch: Color? {
+        guard case let .text(text) = payload else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 4, trimmed.count <= 7, trimmed.hasPrefix("#") else { return nil }
+        let hex = String(trimmed.dropFirst())
+        guard hex.count == 3 || hex.count == 6 else { return nil }
+        guard hex.allSatisfy({ $0.isHexDigit }) else { return nil }
+        return Color(hexString: trimmed)
+    }
 }
 
 private enum ClipboardSourceApplicationIconProvider {
@@ -1124,6 +1343,9 @@ private struct HubWindowAccessor: NSViewRepresentable {
     let onFocusSearch: () -> Void
     let onTypeSearch: (String) -> Void
     let onDeleteSearchCharacter: () -> Void
+    let onDeleteItem: () -> Void
+    let onQuickLook: () -> Void
+    let onQuickPaste: (Int) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -1179,6 +1401,13 @@ private struct HubWindowAccessor: NSViewRepresentable {
             parent.onDismiss()
         }
 
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            guard sender.attachedSheet == nil,
+                  sender.childWindows?.isEmpty ?? true else { return false }
+            parent.onDismiss()
+            return false
+        }
+
         private func installKeyMonitorIfNeeded() {
             guard keyMonitor == nil else { return }
             keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -1212,12 +1441,30 @@ private struct HubWindowAccessor: NSViewRepresentable {
                 return nil
             }
 
+            // Cmd+Delete → delete selected item
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
+               event.keyCode == 51 {
+                parent.onDeleteItem()
+                return nil
+            }
+
+            // Cmd+1-9 → quick paste
+            let quickPasteKeyCodes: [UInt16: Int] = [18: 0, 19: 1, 20: 2, 21: 3, 23: 4, 22: 5, 26: 6, 28: 7, 25: 8]
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
+               let idx = quickPasteKeyCodes[event.keyCode] {
+                parent.onQuickPaste(idx)
+                return nil
+            }
+
             if let text = printableSearchText(from: event) {
                 parent.onTypeSearch(text)
                 return nil
             }
 
             switch event.keyCode {
+            case 49: // Space → Quick Look
+                parent.onQuickLook()
+                return nil
             case 51, 117:
                 parent.onDeleteSearchCharacter()
                 return nil
@@ -1271,5 +1518,97 @@ private struct HubWindowAccessor: NSViewRepresentable {
                 self?.onResolveWindow(window)
             }
         }
+    }
+}
+
+// MARK: - Quick Look Bridge
+
+private struct QuickLookBridge: NSViewRepresentable {
+    let url: URL
+    @Binding var isPresented: Bool
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            context.coordinator.open(url: url)
+        }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        if isPresented {
+            context.coordinator.open(url: url)
+        } else {
+            QLPreviewPanel.shared()?.close()
+        }
+    }
+
+    final class Coordinator: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+        var parent: QuickLookBridge
+
+        init(parent: QuickLookBridge) {
+            self.parent = parent
+        }
+
+        func open(url: URL) {
+            let panel = QLPreviewPanel.shared()!
+            panel.dataSource = self
+            panel.delegate = self
+            panel.reloadData()
+            if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
+        }
+
+        func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { 1 }
+
+        func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> (any QLPreviewItem)! {
+            parent.url as NSURL
+        }
+
+        func previewPanelDidClose(_ panel: QLPreviewPanel!) {
+            parent.isPresented = false
+        }
+    }
+}
+
+// MARK: - Resize Cursor View
+
+private struct ResizeCursorView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { CursorView() }
+    func updateNSView(_ v: NSView, context: Context) {}
+
+    final class CursorView: NSView {
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: .resizeUpDown)
+        }
+    }
+}
+
+// MARK: - Color Hex String Extension
+
+private extension Color {
+    init(hexString: String) {
+        let h = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
+        let expanded = h.count == 3 ? h.flatMap { [$0, $0] } : Array(h)
+        let str = String(expanded)
+        let val = UInt32(str, radix: 16) ?? 0
+        self.init(
+            .sRGB,
+            red: Double((val >> 16) & 0xFF) / 255,
+            green: Double((val >> 8) & 0xFF) / 255,
+            blue: Double(val & 0xFF) / 255,
+            opacity: 1
+        )
+    }
+
+    init?(hexString: String?) {
+        guard let hexString else { return nil }
+        self.init(hexString: hexString)
+    }
+
+    /// Returns white or black depending on which has better contrast against this color.
+    var accessibleForeground: Color {
+        .primary
     }
 }

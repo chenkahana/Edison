@@ -2,11 +2,20 @@ import AppKit
 
 @MainActor
 final class StatusBarController: NSObject {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let windowRouter: WindowRouter
+    struct Actions {
+        let openHub: () -> Void
+        let captureArea: () -> Void
+        let captureWindow: () -> Void
+        let captureFullScreen: () -> Void
+        let openSettings: () -> Void
+        let quit: () -> Void
+    }
 
-    init(windowRouter: WindowRouter) {
-        self.windowRouter = windowRouter
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let actions: Actions
+
+    init(actions: Actions) {
+        self.actions = actions
         super.init()
         constructMenu()
     }
@@ -23,7 +32,9 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Open Hub", action: #selector(openHub), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Capture", action: #selector(capture), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture Area", action: #selector(captureArea), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
@@ -33,18 +44,26 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func openHub() {
-        windowRouter.openHub()
+        actions.openHub()
     }
 
     @objc private func openSettings() {
-        windowRouter.openSettings()
+        actions.openSettings()
     }
 
-    @objc private func capture() {
-        // Capture flow is intentionally a shell-only placeholder for this task.
+    @objc private func captureArea() {
+        actions.captureArea()
+    }
+
+    @objc private func captureWindow() {
+        actions.captureWindow()
+    }
+
+    @objc private func captureFullScreen() {
+        actions.captureFullScreen()
     }
 
     @objc private func quit() {
-        NSApp.terminate(nil)
+        actions.quit()
     }
 }

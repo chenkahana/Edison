@@ -2,13 +2,14 @@
 
 Edison is a native macOS menu bar app for clipboard history and screenshots.
 
-## Current status on `main`
+## Current status
 
 - Menu bar shell with a floating Hub window and configurable global shortcuts
 - Clipboard history with search, favorites, type filtering, collections, export, and share actions
 - Shelf-style and grid Hub layouts with keyboard navigation and a detail pane
 - Screenshot capture flows for area, window, and full-screen capture
 - Screenshot editor tools for crop, arrow, rectangle, text, undo/redo, copy, and save
+- Status bar access for hub, screenshot capture, settings, and quit actions
 - Local Swift build/test support and a macOS CI workflow
 
 ## Project docs
@@ -20,9 +21,10 @@ Use these docs for product and implementation context:
 - `docs/plan.md` — phased roadmap and MVP scope
 - `docs/constraints.md` — hard constraints and boundaries
 - `docs/architecture.md` — architectural direction and simplicity rules
-- `docs/current-task.md` — completed app-foundation task that bootstrapped the current repo state
+- `docs/current-task.md` — Edison 1.1 release and App Store review task
 - `docs/review-checklist.md` — pre-merge checklist
 - `docs/working-agreement.md` — implementation operating rules
+- `docs/app-store-release-1.1.md` — App Store review notes, release text, and recording checklist
 
 ## Project layout
 
@@ -46,7 +48,7 @@ open Edison.xcodeproj
 swift run Edison
 ```
 
-- Local CI check (macOS):
+## Local CI check (macOS)
 
 ```bash
 ./scripts/ci-local-macos.sh
@@ -54,7 +56,7 @@ swift run Edison
 
 ## Default shortcuts
 
-- `Shift-Command-V` — open Hub
+- `Shift-Command-V` — open or close the Edison hub
 - `Shift-Command-2` — capture area
 - `Shift-Command-3` — capture window
 - `Shift-Command-4` — capture full screen
@@ -62,4 +64,4 @@ swift run Edison
 ## Notes
 
 - The first run may require Accessibility and Screen Recording permissions for shortcuts and capture flows.
-- The status bar menu shell is present on `main`, but screenshot capture is currently shortcut-driven rather than exposed through a finished menu action.
+- Screenshot capture is available from both the global shortcuts and the status bar menu.

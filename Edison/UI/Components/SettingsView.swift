@@ -17,10 +17,10 @@ struct SettingsView: View {
             }
 
             Section("About") {
-                LabeledContent("Bundle Identifier", value: Bundle.main.bundleIdentifier ?? "com.your-company.Edison")
-                Text("Replace placeholder bundle id before shipping.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                LabeledContent("App", value: Bundle.main.edisonDisplayName)
+                LabeledContent("Version", value: Bundle.main.edisonShortVersion)
+                LabeledContent("Build", value: Bundle.main.edisonBuildNumber)
+                LabeledContent("Bundle Identifier", value: Bundle.main.bundleIdentifier ?? "Unavailable")
             }
         }
         .padding()
@@ -35,5 +35,21 @@ struct SettingsView: View {
             get: { editableShortcuts[action] },
             set: { editableShortcuts[action] = $0 }
         )
+    }
+}
+
+private extension Bundle {
+    var edisonDisplayName: String {
+        object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String
+            ?? "Edison"
+    }
+
+    var edisonShortVersion: String {
+        object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+    }
+
+    var edisonBuildNumber: String {
+        object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String ?? "Unknown"
     }
 }
