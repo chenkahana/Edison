@@ -48,6 +48,14 @@ struct EdisonTests {
         #expect(monitor.shouldSkipStorage(for: types))
     }
 
+    @Test("Clipboard monitor stores regular pasteboard content")
+    func clipboardMonitorStoresRegularType() {
+        let monitor = ClipboardMonitor()
+        let types = [NSPasteboard.PasteboardType.string]
+
+        #expect(!monitor.shouldSkipStorage(for: types))
+    }
+
     @Test("Type filter returns only text items")
     func typeFilterReturnsOnlyTextItems() {
         let engine = HistorySearchEngine()
@@ -73,6 +81,29 @@ struct EdisonTests {
 
         let filtered = engine.filter(query: "screenshot", in: items, type: .image)
         #expect(filtered.count == 1)
+    }
+
+    @Test("Clipboard item source application survives codable roundtrips")
+    func clipboardItemSourceApplicationRoundTrip() {
+        let decoder = JSONDecoder()
+        let encoder = JSONEncoder()
+        let withSource = ClipboardItem(
+            sourceApplication: ClipboardSourceApplication(
+                bundleIdentifier: "com.apple.Safari",
+                localizedName: "Safari"
+            ),
+            payload: .text("Hello Edison")
+        )
+        let withoutSource = ClipboardItem(payload: .text("Fallback"))
+
+        let withSourceData = try! encoder.encode(withSource)
+        let withoutSourceData = try! encoder.encode(withoutSource)
+
+        let decodedWithSource = try! decoder.decode(ClipboardItem.self, from: withSourceData)
+        let decodedWithoutSource = try! decoder.decode(ClipboardItem.self, from: withoutSourceData)
+
+        #expect(decodedWithSource.sourceApplication?.bundleIdentifier == "com.apple.Safari")
+        #expect(decodedWithoutSource.sourceApplication == nil)
     }
 }
 #elseif canImport(XCTest)
@@ -145,6 +176,28 @@ final class EdisonTests: XCTestCase {
 
         let filtered = engine.filter(query: "screenshot", in: items, type: .image)
         XCTAssertEqual(filtered.count, 1)
+    }
+
+    func testClipboardItemSourceApplicationRoundTrip() throws {
+        let decoder = JSONDecoder()
+        let encoder = JSONEncoder()
+        let withSource = ClipboardItem(
+            sourceApplication: ClipboardSourceApplication(
+                bundleIdentifier: "com.apple.Safari",
+                localizedName: "Safari"
+            ),
+            payload: .text("Hello Edison")
+        )
+        let withoutSource = ClipboardItem(payload: .text("Fallback"))
+
+        let withSourceData = try encoder.encode(withSource)
+        let withoutSourceData = try encoder.encode(withoutSource)
+
+        let decodedWithSource = try decoder.decode(ClipboardItem.self, from: withSourceData)
+        let decodedWithoutSource = try decoder.decode(ClipboardItem.self, from: withoutSourceData)
+
+        XCTAssertEqual(decodedWithSource.sourceApplication?.bundleIdentifier, "com.apple.Safari")
+        XCTAssertNil(decodedWithoutSource.sourceApplication)
     }
 }
 #endif

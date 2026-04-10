@@ -10,6 +10,7 @@ private enum HubFilter: String, CaseIterable, Identifiable {
 
 private enum HubLayoutMode: String, CaseIterable, Identifiable {
     case rail = "Shelf"
+    case list = "List"
     case grid = "Grid"
 
     var id: String { rawValue }
@@ -17,6 +18,11 @@ private enum HubLayoutMode: String, CaseIterable, Identifiable {
 
 private enum HubFocusTarget: Hashable {
     case search
+}
+
+private enum HubItemIcon {
+    case system(String)
+    case app(NSImage)
 }
 
 struct HubView: View {
@@ -157,12 +163,12 @@ struct HubView: View {
 
                 Picker("Layout", selection: $layoutMode) {
                     ForEach(HubLayoutMode.allCases) { mode in
-                        Label(mode.rawValue, systemImage: mode == .rail ? "square.stack.3d.down.right" : "square.grid.2x2")
+                        Label(mode.rawValue, systemImage: layoutSymbol(for: mode))
                             .tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 220)
+                .frame(width: 300)
 
                 Spacer()
 
@@ -323,6 +329,45 @@ struct HubView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            case .list:
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: HubTheme.Space.x2) {
+                            ForEach(items) { item in
+                                HubListRowView(
+                                    item: item,
+                                    isSelected: item.id == selectedItem?.id,
+                                    onSelect: {
+                                        selectedItemID = item.id
+                                    },
+                                    onCopy: {
+                                        appState.copyToClipboard(itemID: item.id)
+                                    },
+                                    onToggleFavorite: {
+                                        appState.toggleFavorite(itemID: item.id)
+                                    }
+                                )
+                                .id(item.id)
+                            }
+                        }
+                        .padding(.vertical, HubTheme.Space.x1)
+                        .padding(.horizontal, HubTheme.Space.x1)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .clipped()
+                    .onChange(of: selectedItemID) { _, newValue in
+                        guard let newValue else { return }
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            proxy.scrollTo(newValue, anchor: .center)
+                        }
+                    }
+                    .onAppear {
+                        if let selectedItemID {
+                            proxy.scrollTo(selectedItemID, anchor: .center)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             case .grid:
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -436,6 +481,15 @@ struct HubView: View {
             @unknown default:
                 step = 0
             }
+        case .list:
+            switch direction {
+            case .left, .up:
+                step = -1
+            case .right, .down:
+                step = 1
+            @unknown default:
+                step = 0
+            }
         case .grid:
             switch direction {
             case .left:
@@ -459,6 +513,17 @@ struct HubView: View {
     private func copySelectedItem() {
         guard let selectedItem else { return }
         appState.copyToClipboard(itemID: selectedItem.id)
+    }
+
+    private func layoutSymbol(for mode: HubLayoutMode) -> String {
+        switch mode {
+        case .rail:
+            return "square.stack.3d.down.right"
+        case .list:
+            return "list.bullet"
+        case .grid:
+            return "square.grid.2x2"
+        }
     }
 
     private func splitContentView(totalWidth: CGFloat, totalHeight: CGFloat) -> some View {
@@ -513,6 +578,115 @@ private struct ContentWidthReader: View {
     }
 }
 
+private struct HubListRowView: View {
+    let item: ClipboardItem
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onCopy: () -> Void
+    let onToggleFavorite: () -> Void
+
+    private var accent: Color { HubTheme.accentColor(for: item) }
+    private var rowShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
+    }
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x3) {
+            preview
+
+            VStack(alignment: .leading, spacing: HubTheme.Space.x1) {
+                Text(item.historyTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(HubTheme.textPrimary)
+                    .lineLimit(2)
+
+                HStack(spacing: HubTheme.Space.x2) {
+                    HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
+                    Text(item.relativeTimestamp)
+                        .font(.system(size: 10))
+                        .foregroundStyle(HubTheme.textTertiary)
+                }
+            }
+
+            Spacer(minLength: HubTheme.Space.x3)
+
+            Button {
+                onToggleFavorite()
+            } label: {
+                Image(systemName: item.isFavorite ? "star.fill" : "star")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(item.isFavorite ? HubTheme.accentBrand : HubTheme.textSecondary)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(HubTheme.cardFillMuted)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onCopy()
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        Circle()
+                            .fill(HubTheme.cardFillMuted)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(HubTheme.Space.x3)
+        .background(
+            rowShape
+                .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
+        )
+        .overlay(
+            rowShape
+                .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
+        )
+        .clipShape(rowShape)
+        .contentShape(rowShape)
+        .onTapGesture {
+            onSelect()
+        }
+        .onTapGesture(count: 2) {
+            onCopy()
+        }
+    }
+
+    @ViewBuilder
+    private var preview: some View {
+        switch item.payload {
+        case let .image(imageData):
+            if let image = NSImage(data: imageData.thumbnailData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 40)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else {
+                fallbackPreview
+            }
+        case .text, .fileURL:
+            fallbackPreview
+        }
+    }
+
+    private var fallbackPreview: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(HubTheme.cardFillMuted)
+
+            HubItemIconView(icon: item.kindIcon, tint: accent, size: 16)
+        }
+        .frame(width: 52, height: 40)
+    }
+}
+
 private struct HubShelfCardView: View {
     let item: ClipboardItem
     let collections: [ItemCollection]
@@ -547,7 +721,7 @@ private struct HubShelfCardView: View {
 
             VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
                 HStack(spacing: HubTheme.Space.x2) {
-                    HubMetaChip(label: item.kindLabel, icon: item.kindSymbol, tint: accent)
+                    HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
                     Text(item.relativeTimestamp)
                         .font(.system(size: 10))
                         .foregroundStyle(HubTheme.textTertiary)
@@ -645,9 +819,7 @@ private struct HubShelfCardView: View {
                 .fill(HubTheme.cardFillMuted)
 
             VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                Image(systemName: item.kindSymbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(accent)
+                HubItemIconView(icon: item.kindIcon, tint: accent, size: 16)
 
                 if case let .text(text) = item.payload {
                     Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -698,8 +870,8 @@ private struct HubDetailView: View {
             }
 
             HStack(spacing: HubTheme.Space.x2) {
-                HubMetaChip(label: item.kindLabel, icon: item.kindSymbol, tint: accent)
-                HubMetaChip(label: item.relativeTimestamp, icon: "clock", tint: HubTheme.textTertiary)
+                HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
+                HubMetaChip(label: item.relativeTimestamp, icon: .system("clock"), tint: HubTheme.textTertiary)
             }
 
             LazyVGrid(
@@ -799,13 +971,12 @@ private struct HubDetailView: View {
 
 private struct HubMetaChip: View {
     let label: String
-    let icon: String
+    let icon: HubItemIcon
     let tint: Color
 
     var body: some View {
         HStack(spacing: HubTheme.Space.x1) {
-            Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+            HubItemIconView(icon: icon, tint: tint, size: 11)
             Text(label)
                 .font(.system(size: 10, weight: .medium))
                 .lineLimit(1)
@@ -818,6 +989,30 @@ private struct HubMetaChip: View {
             Capsule(style: .continuous)
                 .fill(tint.opacity(0.12))
         )
+    }
+}
+
+private struct HubItemIconView: View {
+    let icon: HubItemIcon
+    let tint: Color
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            switch icon {
+            case let .system(name):
+                Image(systemName: name)
+                    .font(.system(size: size, weight: .semibold))
+                    .foregroundStyle(tint)
+            case let .app(image):
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: size + 3, height: size + 3)
+                    .clipShape(RoundedRectangle(cornerRadius: max(3, size * 0.3), style: .continuous))
+            }
+        }
     }
 }
 
@@ -874,19 +1069,50 @@ private extension ClipboardItem {
         }
     }
 
-    var kindSymbol: String {
+    var kindIcon: HubItemIcon {
         switch payload {
         case let .text(text):
-            return text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "link" : "text.quote"
+            if let sourceApplicationIcon {
+                return .app(sourceApplicationIcon)
+            }
+            return .system(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "link" : "text.quote")
         case .image:
-            return "photo"
+            return .system("photo")
         case .fileURL:
-            return "doc"
+            return .system("doc")
         }
+    }
+
+    var sourceApplicationIcon: NSImage? {
+        guard case .text = payload else { return nil }
+        return ClipboardSourceApplicationIconProvider.icon(for: sourceApplication)
     }
 
     var relativeTimestamp: String {
         createdAt.formatted(.relative(presentation: .named))
+    }
+}
+
+private enum ClipboardSourceApplicationIconProvider {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func icon(for sourceApplication: ClipboardSourceApplication?) -> NSImage? {
+        guard let bundleIdentifier = sourceApplication?.bundleIdentifier else {
+            return nil
+        }
+
+        let key = bundleIdentifier as NSString
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            return nil
+        }
+
+        let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+        cache.setObject(icon, forKey: key)
+        return icon
     }
 }
 
