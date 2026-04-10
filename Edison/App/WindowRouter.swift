@@ -3,10 +3,15 @@ import AppKit
 @MainActor
 final class WindowRouter {
     private weak var hubWindow: NSWindow?
+    private var openHubAction: (() -> Void)?
 
     func registerHubWindow(_ window: NSWindow?) {
         guard let window, window.canBecomeKey else { return }
         hubWindow = window
+    }
+
+    func setOpenHubAction(_ action: @escaping () -> Void) {
+        openHubAction = action
     }
 
     func openHub() {
@@ -20,6 +25,12 @@ final class WindowRouter {
             return
         }
 
+        openHubAction?()
+
+        DispatchQueue.main.async {
+            NSApp.windows.first(where: { $0.identifier?.rawValue == "hub-window" })?.makeKeyAndOrderFront(nil)
+        }
+
         NSApp.unhide(nil)
     }
 
@@ -31,6 +42,14 @@ final class WindowRouter {
     private func resolveHubWindow() -> NSWindow? {
         if let hubWindow, NSApp.windows.contains(hubWindow) {
             return hubWindow
+        }
+
+        let identifiedWindow = NSApp.windows.first {
+            $0.identifier?.rawValue == "hub-window" && $0.canBecomeKey
+        }
+        if let identifiedWindow {
+            hubWindow = identifiedWindow
+            return identifiedWindow
         }
 
         let primaryCandidate = NSApp.windows.first {

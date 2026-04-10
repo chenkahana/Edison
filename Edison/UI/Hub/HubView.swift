@@ -10,6 +10,7 @@ private enum HubFilter: String, CaseIterable, Identifiable {
 
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.openWindow) private var openWindow
     @State private var filter: HubFilter = .all
     @State private var selectedItemID: UUID?
 
@@ -56,11 +57,17 @@ struct HubView: View {
         .padding(14)
         .navigationTitle("Edison")
         .background(
-            HubWindowAccessor { window in
-                appState.windowRouter?.registerHubWindow(window)
+            ZStack {
+                WindowIDAssigner()
+                HubWindowAccessor { window in
+                    appState.windowRouter?.registerHubWindow(window)
+                }
             }
         )
         .onAppear {
+            appState.windowRouter?.setOpenHubAction {
+                openWindow(id: "hub")
+            }
             syncSelection()
         }
         .onChange(of: filter) { _, _ in
@@ -320,6 +327,24 @@ private struct HubDetailView: View {
             )
         }
         .padding(16)
+    }
+}
+
+private struct WindowIDAssigner: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+
+        DispatchQueue.main.async {
+            view.window?.identifier = NSUserInterfaceItemIdentifier("hub-window")
+        }
+
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            nsView.window?.identifier = NSUserInterfaceItemIdentifier("hub-window")
+        }
     }
 }
 
