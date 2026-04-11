@@ -58,6 +58,10 @@ final class KeyRecorderField: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    deinit {
+        removeMonitor()
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         let bg: NSColor = isRecording
             ? NSColor.selectedControlColor.withAlphaComponent(0.18)

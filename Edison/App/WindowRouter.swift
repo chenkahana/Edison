@@ -45,6 +45,7 @@ final class WindowRouter {
         hubRequestedVisible = true
         NSApp.activate(ignoringOtherApps: true)
         NSApp.unhide(nil)
+        NotificationCenter.default.post(name: .edisonHubWillOpen, object: nil)
 
         if let targetWindow = resolveHubWindow(preferVisible: false) {
             HubShelfWindowStyle.apply(to: targetWindow)
@@ -213,4 +214,8 @@ final class WindowRouter {
     private func isWindowPresented(_ window: NSWindow) -> Bool {
         window.isVisible || window.occlusionState.contains(.visible) || window.isKeyWindow
     }
+}
+
+extension Notification.Name {
+    static let edisonHubWillOpen = Notification.Name("edison.hub.will-open")
 }

@@ -1,5 +1,6 @@
 import Carbon
 import Foundation
+import OSLog
 
 final class HotKeyCenter {
     static let shared = HotKeyCenter()
@@ -8,6 +9,7 @@ final class HotKeyCenter {
     private var eventHandler: EventHandlerRef?
     private var bindings: [UInt32: ShortcutAction] = [:]
     private var callback: ((ShortcutAction) -> Void)?
+    private(set) var failedRegistrations: [ShortcutAction] = []
 
     private init() {
         installHandlerIfNeeded()
@@ -20,12 +22,13 @@ final class HotKeyCenter {
     func apply(shortcuts: ShortcutSet) {
         unregisterAll()
         bindings.removeAll()
+        failedRegistrations.removeAll()
 
         for (index, action) in ShortcutAction.allCases.enumerated() {
             guard let shortcut = shortcuts.map[action] else { continue }
             var hotKeyRef: EventHotKeyRef?
             let hotKeyID = EventHotKeyID(signature: fourCharCode(from: "EDSN"), id: UInt32(index + 1))
-            RegisterEventHotKey(
+            let status = RegisterEventHotKey(
                 shortcut.keyCode,
                 shortcut.modifiers,
                 hotKeyID,
@@ -33,6 +36,11 @@ final class HotKeyCenter {
                 0,
                 &hotKeyRef
             )
+            guard status == noErr, hotKeyRef != nil else {
+                Log.shortcuts.error("RegisterEventHotKey failed for \(action.rawValue) – OSStatus \(status)")
+                failedRegistrations.append(action)
+                continue
+            }
             hotKeyRefs.append(hotKeyRef)
             bindings[hotKeyID.id] = action
         }

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 private struct HistorySnapshot: Codable {
     let items: [ClipboardItem]
@@ -38,10 +39,17 @@ final class HistoryStore {
 
     func save(items: [ClipboardItem], collections: [ItemCollection]) {
         let snapshot = HistorySnapshot(items: items, collections: collections)
-        guard let data = try? encoder.encode(snapshot) else { return }
+        guard let data = try? encoder.encode(snapshot) else {
+            Log.store.error("HistoryStore: failed to encode snapshot")
+            return
+        }
 
         ioQueue.async { [fileURL] in
-            try? data.write(to: fileURL, options: [.atomic])
+            do {
+                try data.write(to: fileURL, options: [.atomic])
+            } catch {
+                Log.store.error("HistoryStore: save failed – \(error.localizedDescription)")
+            }
         }
     }
 

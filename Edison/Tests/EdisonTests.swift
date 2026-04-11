@@ -59,7 +59,7 @@ struct EdisonTests {
     @Test("Type filter returns only text items")
     func typeFilterReturnsOnlyTextItems() {
         let engine = HistorySearchEngine()
-        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let imageData = ClipboardImageData(imagePath: "stub.png", thumbnailPath: "stub-thumb.png")
         let items = [
             ClipboardItem(payload: .text("First note")),
             ClipboardItem(payload: .image(imageData)),
@@ -73,7 +73,7 @@ struct EdisonTests {
     @Test("Type filter composes with search query")
     func typeFilterAndQueryTogether() {
         let engine = HistorySearchEngine()
-        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let imageData = ClipboardImageData(imagePath: "stub.png", thumbnailPath: "stub-thumb.png")
         let items = [
             ClipboardItem(payload: .text("Project Edison status")),
             ClipboardItem(payload: .image(imageData))
@@ -155,7 +155,7 @@ final class EdisonTests: XCTestCase {
 
     func testTypeFilterReturnsOnlyTextItems() {
         let engine = HistorySearchEngine()
-        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let imageData = ClipboardImageData(imagePath: "stub.png", thumbnailPath: "stub-thumb.png")
         let items = [
             ClipboardItem(payload: .text("First note")),
             ClipboardItem(payload: .image(imageData)),
@@ -168,7 +168,7 @@ final class EdisonTests: XCTestCase {
 
     func testTypeFilterAndQueryTogether() {
         let engine = HistorySearchEngine()
-        let imageData = ClipboardImageData(data: Data([0x00]), thumbnailData: Data([0x00]))
+        let imageData = ClipboardImageData(imagePath: "stub.png", thumbnailPath: "stub-thumb.png")
         let items = [
             ClipboardItem(payload: .text("Project Edison status")),
             ClipboardItem(payload: .image(imageData))

@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import OSLog
 import UniformTypeIdentifiers
 
 @MainActor
@@ -19,6 +20,9 @@ final class AppState: ObservableObject {
     @Published var editorImageData: Data?
     @Published private(set) var deletedItemForUndo: ClipboardItem?
     @Published private(set) var showDeleteUndoToast = false
+    @Published var captureError: String?
+    @Published private(set) var accessibilityDenied = false
+    @Published private(set) var failedShortcutActions: [ShortcutAction] = []
 
     let shortcutStore = ShortcutStore()
     let hotKeyCenter = HotKeyCenter.shared
@@ -42,6 +46,7 @@ final class AppState: ObservableObject {
     private(set) var lastActiveApp: NSRunningApplication?
     private var activeAppObserver: NSObjectProtocol?
     private var shortcutActionRequestObserver: NSObjectProtocol?
+    private var captureFailureObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
         let searched = searchEngine.filter(
@@ -76,6 +81,7 @@ final class AppState: ObservableObject {
             }
         }
         hotKeyCenter.apply(shortcuts: shortcutStore.current)
+        failedShortcutActions = hotKeyCenter.failedRegistrations
 
         clipboardMonitor.start { [weak self] newItem in
             Task { @MainActor in
@@ -110,6 +116,17 @@ final class AppState: ObservableObject {
             }
         }
 
+        captureFailureObserver = NotificationCenter.default.addObserver(
+            forName: .edisonCaptureFailed,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            let reason = note.userInfo?["reason"] as? String ?? "Capture failed"
+            MainActor.assumeIsolated {
+                self?.captureError = reason
+            }
+        }
+
         activeAppObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
@@ -128,6 +145,7 @@ final class AppState: ObservableObject {
         let screenshotObserver = screenshotObserver
         let activeAppObserver = activeAppObserver
         let shortcutActionRequestObserver = shortcutActionRequestObserver
+        let captureFailureObserver = captureFailureObserver
         Task { @MainActor in
             clipboardMonitor.stop()
             if let screenshotObserver {
@@ -135,6 +153,9 @@ final class AppState: ObservableObject {
             }
             if let shortcutActionRequestObserver {
                 NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
+            }
+            if let captureFailureObserver {
+                NotificationCenter.default.removeObserver(captureFailureObserver)
             }
             if let activeAppObserver {
                 NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
@@ -144,6 +165,14 @@ final class AppState: ObservableObject {
 
     func handle(hotKeyAction: ShortcutAction) {
         perform(action: hotKeyAction)
+    }
+
+    /// Triggers the macOS system accessibility permission prompt.
+    /// Call from a user-initiated action (e.g., Settings button) — not from the paste hot path.
+    func requestAccessibilityAccess() {
+        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(opts)
+        // The dialog is asynchronous — re-check on next paste attempt via AXIsProcessTrusted().
     }
 
     private func perform(action: ShortcutAction) {
@@ -162,6 +191,7 @@ final class AppState: ObservableObject {
     func save(shortcuts: ShortcutSet) {
         shortcutStore.save(shortcuts)
         hotKeyCenter.apply(shortcuts: shortcuts)
+        failedShortcutActions = hotKeyCenter.failedRegistrations
     }
 
     func createCollection(named name: String) {
@@ -235,6 +265,13 @@ final class AppState: ObservableObject {
         undoTimer?.invalidate()
         undoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
+                // Undo window expired — now safe to remove image files from disk.
+                // Capture `item` at scheduling time so a subsequent delete doesn't
+                // overwrite `deletedItemForUndo` before this timer fires.
+                if case let .image(imageData) = item.payload {
+                    ImageStore.delete(relativePath: imageData.imagePath)
+                    ImageStore.delete(relativePath: imageData.thumbnailPath)
+                }
                 self?.showDeleteUndoToast = false
                 self?.deletedItemForUndo = nil
             }
@@ -257,21 +294,36 @@ final class AppState: ObservableObject {
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        var wroteToPasteboard = false
 
         switch item.payload {
         case let .text(value):
             pasteboard.setString(value, forType: .string)
+            wroteToPasteboard = true
         case let .image(image):
-            pasteboard.setData(image.data, forType: .png)
+            if let data = try? ImageStore.load(relativePath: image.imagePath) {
+                pasteboard.setData(data, forType: .png)
+                wroteToPasteboard = true
+            }
         case let .fileURL(url):
             pasteboard.writeObjects([url as NSURL])
+            wroteToPasteboard = true
+        }
+
+        if wroteToPasteboard {
+            promoteItemToFront(itemID: itemID)
         }
     }
 
     func pasteItem(itemID: UUID) {
         copyToClipboard(itemID: itemID)
 
-        guard AXIsProcessTrusted(),
+        let trusted = AXIsProcessTrusted()
+        if !trusted {
+            Log.permissions.info("Accessibility not granted; paste-back unavailable")
+            accessibilityDenied = true
+        }
+        guard trusted,
               let targetApp = lastActiveApp else {
             // Fallback: item is already in clipboard, user pastes manually
             return
@@ -290,6 +342,15 @@ final class AppState: ObservableObject {
         }
 
         windowRouter?.dismissHub()
+    }
+
+    private func promoteItemToFront(itemID: UUID) {
+        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
+
+        var item = historyItems.remove(at: index)
+        item.createdAt = .now
+        historyItems.insert(item, at: 0)
+        persistHistory()
     }
 
     func exportItem(itemID: UUID) {
@@ -348,6 +409,13 @@ final class AppState: ObservableObject {
         historyItems.insert(item, at: 0)
 
         if historyItems.count > historyLimit {
+            let excess = historyItems.suffix(historyItems.count - historyLimit)
+            for pruned in excess {
+                if case let .image(imageData) = pruned.payload {
+                    ImageStore.delete(relativePath: imageData.imagePath)
+                    ImageStore.delete(relativePath: imageData.thumbnailPath)
+                }
+            }
             historyItems.removeLast(historyItems.count - historyLimit)
         }
 
@@ -376,7 +444,7 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.suppressedClipboardPayloads.insert(.image(prepared))
                 self.addToHistory(ClipboardItem(payload: .image(prepared)), source: .internalAction)
-                self.editorImageData = prepared.data
+                self.editorImageData = try? ImageStore.load(relativePath: prepared.imagePath)
                 self.windowRouter?.openHub()
                 self.isEditorPresented = true
             }
@@ -393,7 +461,8 @@ final class AppState: ObservableObject {
             }
             return (data, "edison-export.txt", .plainText)
         case let .image(image):
-            return (image.data, "edison-image.png", .png)
+            let data = try ImageStore.load(relativePath: image.imagePath)
+            return (data, "edison-image.png", .png)
         case let .fileURL(url):
             let data = try Data(contentsOf: url)
             let filename = url.lastPathComponent.isEmpty ? "edison-file" : url.lastPathComponent
@@ -418,7 +487,8 @@ final class AppState: ObservableObject {
         case let .text(value):
             return [value]
         case let .image(image):
-            guard let nsImage = NSImage(data: image.data) else {
+            let data = try ImageStore.load(relativePath: image.imagePath)
+            guard let nsImage = NSImage(data: data) else {
                 throw CocoaError(.fileReadCorruptFile)
             }
             return [nsImage]
@@ -439,4 +509,5 @@ final class AppState: ObservableObject {
 extension Notification.Name {
     static let edisonScreenshotCaptured = Notification.Name("edison.screenshot.captured")
     static let edisonShortcutActionRequested = Notification.Name("edison.shortcut-action.requested")
+    static let edisonCaptureFailed = Notification.Name("edison.capture.failed")
 }

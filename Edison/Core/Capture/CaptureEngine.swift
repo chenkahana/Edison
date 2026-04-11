@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 final class CaptureEngine {
     static let imageDataUserInfoKey = "imageData"
@@ -58,7 +59,7 @@ final class CaptureEngine {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         process.arguments = arguments + [outputURL.path]
-        process.terminationHandler = { _ in
+        process.terminationHandler = { [weak self] process in
             DispatchQueue.main.async {
                 defer {
                     try? FileManager.default.removeItem(at: outputURL)
@@ -68,10 +69,17 @@ final class CaptureEngine {
                     process.terminationStatus == 0,
                     let imageData = try? Data(contentsOf: outputURL)
                 else {
+                    let status = process.terminationStatus
+                    Log.capture.error("screencapture exited with status \(status)")
+                    NotificationCenter.default.post(
+                        name: .edisonCaptureFailed,
+                        object: nil,
+                        userInfo: ["reason": "screencapture exited with status \(status)"]
+                    )
                     return
                 }
 
-                self.postCaptureNotification(imageData: imageData)
+                self?.postCaptureNotification(imageData: imageData)
             }
         }
 
@@ -79,6 +87,8 @@ final class CaptureEngine {
             try process.run()
         } catch {
             try? FileManager.default.removeItem(at: outputURL)
+            Log.capture.error("screencapture launch failed: \(error)")
+            NotificationCenter.default.post(name: .edisonCaptureFailed, object: nil)
         }
     }
 
