@@ -1,8 +1,9 @@
 import AppKit
 import Foundation
+import OSLog
 
 enum ImageProcessing {
-    nonisolated static func prepareImagePayload(from input: Data) -> ClipboardImageData? {
+    nonisolated static func prepareImagePayload(from input: Data, id: UUID = UUID()) -> ClipboardImageData? {
         guard let image = NSImage(data: input) else { return nil }
 
         let optimized = image.resized(maxDimension: 2200)
@@ -11,7 +12,14 @@ enum ImageProcessing {
         let thumbnail = optimized.resized(maxDimension: 200)
         guard let thumbnailData = thumbnail.pngData() else { return nil }
 
-        return ClipboardImageData(data: optimizedData, thumbnailData: thumbnailData)
+        do {
+            let imagePath = try ImageStore.save(imageData: optimizedData, id: id)
+            let thumbnailPath = try ImageStore.saveThumbnail(data: thumbnailData, id: id)
+            return ClipboardImageData(imagePath: imagePath, thumbnailPath: thumbnailPath)
+        } catch {
+            Log.store.error("ImageProcessing: failed to save image – \(error.localizedDescription)")
+            return nil
+        }
     }
 }
 

@@ -14,6 +14,33 @@ struct SettingsView: View {
                 Button("Save Shortcuts") {
                     appState.save(shortcuts: editableShortcuts)
                 }
+
+                if !appState.failedShortcutActions.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.footnote)
+                        Text("Some shortcuts couldn't be registered — they may conflict with another app.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if appState.accessibilityDenied {
+                Section("Paste Back") {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.raised.fill")
+                            .foregroundStyle(.orange)
+                            .font(.footnote)
+                        Text("Accessibility access is required to paste items automatically into other apps.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Grant Accessibility Access") {
+                        appState.requestAccessibilityAccess()
+                    }
+                }
             }
 
             Section("About") {

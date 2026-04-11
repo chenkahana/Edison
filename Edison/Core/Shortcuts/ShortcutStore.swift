@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 final class ShortcutStore {
     private let key = "edison.shortcuts.v1"
@@ -14,7 +15,11 @@ final class ShortcutStore {
     }
 
     func save(_ shortcuts: ShortcutSet) {
-        guard let data = try? JSONEncoder().encode(shortcuts) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        do {
+            let data = try JSONEncoder().encode(shortcuts)
+            UserDefaults.standard.set(data, forKey: key)
+        } catch {
+            Log.shortcuts.error("ShortcutStore: save failed – \(error.localizedDescription)")
+        }
     }
 }

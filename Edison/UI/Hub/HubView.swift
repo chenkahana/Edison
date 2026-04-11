@@ -135,6 +135,54 @@ struct HubView: View {
                 }
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
             }
+
+            // Capture error banner
+            if let errorMessage = appState.captureError {
+                VStack {
+                    HStack(spacing: HubTheme.Space.x3) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.system(size: 12))
+                        Text(errorMessage)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(HubTheme.textPrimary)
+                            .lineLimit(1)
+                        Spacer()
+                        Button("Screen Recording") {
+                            NSWorkspace.shared.open(
+                                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+                            )
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(HubTheme.accentBrand)
+                        .buttonStyle(.plain)
+                        Button {
+                            appState.captureError = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(HubTheme.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, HubTheme.Space.x5)
+                    .padding(.vertical, HubTheme.Space.x3)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(HubTheme.cardFill)
+                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
+                    )
+                    .padding(.horizontal, HubTheme.Space.x5)
+                    .padding(.top, HubTheme.Space.x5)
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.captureError != nil)
+            }
         }
         .background(
             Group {
@@ -652,7 +700,10 @@ struct HubView: View {
             return url
         case let .image(imageData):
             let url = tmp.appendingPathComponent("edison-ql-\(item.id).png")
-            try? imageData.data.write(to: url, options: .atomic)
+            guard let data = try? ImageStore.load(relativePath: imageData.imagePath),
+                  (try? data.write(to: url, options: .atomic)) != nil else {
+                return nil
+            }
             return url
         case let .fileURL(url):
             return url
@@ -759,7 +810,8 @@ private struct HubListRowView: View {
     private var preview: some View {
         switch item.payload {
         case let .image(imageData):
-            if let image = NSImage(data: imageData.thumbnailData) {
+            if let thumbData = try? ImageStore.load(relativePath: imageData.thumbnailPath),
+               let image = NSImage(data: thumbData) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
@@ -965,7 +1017,8 @@ private struct HubShelfCardView: View {
     private var preview: some View {
         switch item.payload {
         case let .image(imageData):
-            if let image = NSImage(data: imageData.thumbnailData) {
+            if let thumbData = try? ImageStore.load(relativePath: imageData.thumbnailPath),
+               let image = NSImage(data: thumbData) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
@@ -1120,7 +1173,8 @@ private struct HubDetailView: View {
                         .textSelection(.enabled)
                 }
             case let .image(imageData):
-                if let image = NSImage(data: imageData.data) {
+                if let rawData = try? ImageStore.load(relativePath: imageData.imagePath),
+                   let image = NSImage(data: rawData) {
                     GeometryReader { proxy in
                         Image(nsImage: image)
                             .resizable()
@@ -1285,7 +1339,8 @@ private extension ClipboardItem {
             let words = text.split(separator: " ").count
             return "\(count) chars \u{00B7} \(words) words"
         case let .image(imageData):
-            if let src = CGImageSourceCreateWithData(imageData.data as CFData, nil),
+            if let rawData = try? ImageStore.load(relativePath: imageData.imagePath),
+               let src = CGImageSourceCreateWithData(rawData as CFData, nil),
                let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
                let w = props[kCGImagePropertyPixelWidth] as? Int,
                let h = props[kCGImagePropertyPixelHeight] as? Int {
