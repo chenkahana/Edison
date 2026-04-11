@@ -105,6 +105,30 @@ struct EdisonTests {
         #expect(decodedWithSource.sourceApplication?.bundleIdentifier == "com.apple.Safari")
         #expect(decodedWithoutSource.sourceApplication == nil)
     }
+
+    @Test("Compact relative timestamp formatter uses short units")
+    func compactRelativeTimestampFormatter() {
+        let reference = Date(timeIntervalSince1970: 1_000_000)
+
+        #expect(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-30), relativeTo: reference) == "now")
+        #expect(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-120), relativeTo: reference) == "2m")
+        #expect(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-10_800), relativeTo: reference) == "3h")
+        #expect(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-345_600), relativeTo: reference) == "4d")
+    }
+
+    @Test("Structured text formatter pretty prints JSON")
+    func structuredTextFormatterPrettyPrintsJSON() {
+        let formatted = HubStructuredTextFormatter.prettyPrintedJSON(from: #"{"b":1,"a":{"c":2}}"#)
+
+        #expect(formatted == """
+        {
+          "a" : {
+            "c" : 2
+          },
+          "b" : 1
+        }
+        """)
+    }
 }
 #elseif canImport(XCTest)
 import XCTest
@@ -198,6 +222,28 @@ final class EdisonTests: XCTestCase {
 
         XCTAssertEqual(decodedWithSource.sourceApplication?.bundleIdentifier, "com.apple.Safari")
         XCTAssertNil(decodedWithoutSource.sourceApplication)
+    }
+
+    func testCompactRelativeTimestampFormatter() {
+        let reference = Date(timeIntervalSince1970: 1_000_000)
+
+        XCTAssertEqual(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-30), relativeTo: reference), "now")
+        XCTAssertEqual(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-120), relativeTo: reference), "2m")
+        XCTAssertEqual(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-10_800), relativeTo: reference), "3h")
+        XCTAssertEqual(HubRelativeTimeFormatter.string(for: reference.addingTimeInterval(-345_600), relativeTo: reference), "4d")
+    }
+
+    func testStructuredTextFormatterPrettyPrintsJSON() {
+        let formatted = HubStructuredTextFormatter.prettyPrintedJSON(from: #"{"b":1,"a":{"c":2}}"#)
+
+        XCTAssertEqual(formatted, """
+        {
+          "a" : {
+            "c" : 2
+          },
+          "b" : 1
+        }
+        """)
     }
 }
 #endif

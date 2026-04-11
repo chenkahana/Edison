@@ -36,6 +36,7 @@ struct HubView: View {
     @State private var selectedItemID: UUID?
     @State private var newCollectionName = ""
     @State private var contentWidth: CGFloat = 0
+    @State private var contentHeight: CGFloat = 0
     @State private var showQuickLook = false
     @State private var hubOpenSequence = 0
 
@@ -61,7 +62,7 @@ struct HubView: View {
     }
 
     private var gridColumnCount: Int {
-        let minimumCardWidth: CGFloat = 216
+        let minimumCardWidth = HubTheme.cardSide(for: contentHeight)
         let spacing = HubTheme.Space.x4
         let usableWidth = max(contentWidth, minimumCardWidth)
         return max(1, Int((usableWidth + spacing) / (minimumCardWidth + spacing)))
@@ -159,40 +160,16 @@ struct HubView: View {
 
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
-            resizeHandle
             header
 
             if items.isEmpty {
                 emptyState
             } else {
-                GeometryReader { proxy in
-                    splitContentView(
-                        totalWidth: proxy.size.width,
-                        totalHeight: proxy.size.height
-                    )
-                }
+                contentColumn
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .padding(HubTheme.Space.x5)
-    }
-
-    private var resizeHandle: some View {
-        HStack {
-            Spacer()
-            RoundedRectangle(cornerRadius: 999)
-                .fill(HubTheme.textTertiary.opacity(0.4))
-                .frame(width: 36, height: 4)
-            Spacer()
-        }
-        .frame(height: 20)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    appState.windowRouter?.adjustShelfHeight(by: value.translation.height)
-                }
-        )
-        .background(ResizeCursorView())
     }
 
     @ViewBuilder
@@ -232,66 +209,58 @@ struct HubView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
+        ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: HubTheme.Space.x3) {
                 searchPill
+                    .frame(minWidth: 240, idealWidth: 320, maxWidth: 360)
+                    .layoutPriority(1)
 
-                Picker("Filter", selection: $filter) {
-                    ForEach(HubFilter.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
+                Spacer(minLength: 0)
 
-                Picker("Type", selection: $appState.selectedTypeFilter) {
-                    ForEach(HistoryItemTypeFilter.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 210)
-
-                Picker("Layout", selection: $layoutMode) {
-                    ForEach(HubLayoutMode.allCases) { mode in
-                        Label(mode.rawValue, systemImage: layoutSymbol(for: mode))
-                            .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 300)
-
-                Spacer()
-
-                Label("Return pastes selected item", systemImage: "return")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(HubTheme.textTertiary)
+                trailingControls
             }
 
-            HStack(spacing: HubTheme.Space.x3) {
-                collectionMenu
-
-                HStack(spacing: HubTheme.Space.x2) {
-                    TextField("New collection", text: $newCollectionName)
-                        .textFieldStyle(.plain)
-                    Button("Create") {
-                        appState.createCollection(named: newCollectionName)
-                        newCollectionName = ""
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(HubTheme.accentBrand)
-                    .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
+                HStack(alignment: .center, spacing: HubTheme.Space.x3) {
+                    searchPill
+                    Spacer(minLength: 0)
+                    filterControls
                 }
-                .padding(.horizontal, HubTheme.Space.x3)
-                .frame(height: HubTheme.searchPillHeight)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(HubTheme.cardFillMuted)
-                )
 
-                Spacer()
+                collectionControls
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var filterControls: some View {
+        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
+            filterPicker
+                .frame(width: 112)
+            typePicker
+                .frame(width: 162)
+            layoutPicker
+                .frame(width: 150)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var collectionControls: some View {
+        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
+            collectionMenu
+                .frame(width: 134)
+            newCollectionComposer
+                .frame(width: 198)
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var trailingControls: some View {
+        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
+            filterControls
+            collectionControls
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var searchPill: some View {
@@ -310,7 +279,58 @@ struct HubView: View {
             Capsule(style: .continuous)
                 .fill(HubTheme.cardFillMuted)
         )
-        .frame(maxWidth: 360)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var filterPicker: some View {
+        Picker("Filter", selection: $filter) {
+            ForEach(HubFilter.allCases) { option in
+                Text(option.rawValue).tag(option)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+    }
+
+    private var typePicker: some View {
+        Picker("Type", selection: $appState.selectedTypeFilter) {
+            ForEach(HistoryItemTypeFilter.allCases) { option in
+                Text(option.rawValue).tag(option)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+    }
+
+    private var layoutPicker: some View {
+        Picker("Layout", selection: $layoutMode) {
+            ForEach(HubLayoutMode.allCases) { mode in
+                Label(mode.rawValue, systemImage: layoutSymbol(for: mode))
+                    .tag(mode)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+    }
+
+    private var newCollectionComposer: some View {
+        HStack(spacing: HubTheme.Space.x2) {
+            TextField("New collection", text: $newCollectionName)
+                .textFieldStyle(.plain)
+            Button("Create") {
+                appState.createCollection(named: newCollectionName)
+                newCollectionName = ""
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(HubTheme.accentBrand)
+            .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .padding(.horizontal, HubTheme.Space.x3)
+        .frame(height: HubTheme.searchPillHeight)
+        .background(
+            Capsule(style: .continuous)
+                .fill(HubTheme.cardFillMuted)
+        )
     }
 
     private var collectionMenu: some View {
@@ -366,196 +386,185 @@ struct HubView: View {
     }
 
     private var contentColumn: some View {
-        Group {
-            switch layoutMode {
-            case .rail:
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
-                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                                HubShelfCardView(
-                                    item: item,
-                                    collections: appState.collections,
-                                    isSelected: item.id == selectedItem?.id,
-                                    isInCollection: { collectionID in
-                                        appState.collectionContains(item.id, collectionID: collectionID)
-                                    },
-                                    onSelect: {
-                                        selectedItemID = item.id
-                                    },
-                                    onActivate: {
-                                        appState.pasteItem(itemID: item.id)
-                                    },
-                                    onCopy: {
-                                        appState.copyToClipboard(itemID: item.id)
-                                    },
-                                    onToggleFavorite: {
-                                        appState.toggleFavorite(itemID: item.id)
-                                    },
-                                    onToggleCollectionMembership: { collectionID in
-                                        appState.toggleItem(item.id, inCollection: collectionID)
-                                    },
-                                    onExport: {
-                                        appState.exportItem(itemID: item.id)
-                                    },
-                                    onShare: {
-                                        appState.shareItem(itemID: item.id)
-                                    },
-                                    badgeNumber: appState.activeQuery.isEmpty ? (index < 9 ? index + 1 : nil) : nil,
-                                    collectionAccentHex: appState.collections.first(where: { $0.id == appState.selectedCollectionID })?.accentHex,
-                                    onDelete: {
-                                        appState.deleteItem(itemID: item.id)
-                                    }
-                                )
-                                .id(item.id)
-                            }
-                        }
-                        .padding(.vertical, HubTheme.Space.x1)
-                        .padding(.horizontal, HubTheme.Space.x1)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .clipped()
-                    .onChange(of: selectedItemID) { _, newValue in
-                        scrollSelection(with: proxy, to: newValue, in: .rail)
-                    }
-                    .onChange(of: hubOpenSequence) { _, _ in
-                        scrollSelection(with: proxy, to: selectedItemID, in: .rail, opening: true)
-                    }
-                    .onAppear {
-                        scrollSelection(with: proxy, to: selectedItemID, in: .rail, opening: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            case .list:
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: HubTheme.Space.x2) {
-                            ForEach(items) { item in
-                                HubListRowView(
-                                    item: item,
-                                    isSelected: item.id == selectedItem?.id,
-                                    onSelect: {
-                                        selectedItemID = item.id
-                                    },
-                                    onActivate: {
-                                        appState.pasteItem(itemID: item.id)
-                                    },
-                                    onCopy: {
-                                        appState.copyToClipboard(itemID: item.id)
-                                    },
-                                    onToggleFavorite: {
-                                        appState.toggleFavorite(itemID: item.id)
-                                    }
-                                )
-                                .id(item.id)
-                            }
-                        }
-                        .padding(.vertical, HubTheme.Space.x1)
-                        .padding(.horizontal, HubTheme.Space.x1)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .clipped()
-                    .onChange(of: selectedItemID) { _, newValue in
-                        scrollSelection(with: proxy, to: newValue, in: .list)
-                    }
-                    .onChange(of: hubOpenSequence) { _, _ in
-                        scrollSelection(with: proxy, to: selectedItemID, in: .list, opening: true)
-                    }
-                    .onAppear {
-                        scrollSelection(with: proxy, to: selectedItemID, in: .list, opening: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            case .grid:
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 216), spacing: HubTheme.Space.x4)], spacing: HubTheme.Space.x4) {
-                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                                HubShelfCardView(
-                                    item: item,
-                                    collections: appState.collections,
-                                    isSelected: item.id == selectedItem?.id,
-                                    isInCollection: { collectionID in
-                                        appState.collectionContains(item.id, collectionID: collectionID)
-                                    },
-                                    onSelect: {
-                                        selectedItemID = item.id
-                                    },
-                                    onActivate: {
-                                        appState.pasteItem(itemID: item.id)
-                                    },
-                                    onCopy: {
-                                        appState.copyToClipboard(itemID: item.id)
-                                    },
-                                    onToggleFavorite: {
-                                        appState.toggleFavorite(itemID: item.id)
-                                    },
-                                    onToggleCollectionMembership: { collectionID in
-                                        appState.toggleItem(item.id, inCollection: collectionID)
-                                    },
-                                    onExport: {
-                                        appState.exportItem(itemID: item.id)
-                                    },
-                                    onShare: {
-                                        appState.shareItem(itemID: item.id)
-                                    },
-                                    badgeNumber: appState.activeQuery.isEmpty ? (index < 9 ? index + 1 : nil) : nil,
-                                    collectionAccentHex: appState.collections.first(where: { $0.id == appState.selectedCollectionID })?.accentHex,
-                                    onDelete: {
-                                        appState.deleteItem(itemID: item.id)
-                                    }
-                                )
-                                .id(item.id)
-                            }
-                        }
-                        .padding(.horizontal, HubTheme.Space.x1)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(.vertical, HubTheme.Space.x1)
-                    .clipped()
-                    .onChange(of: selectedItemID) { _, newValue in
-                        scrollSelection(with: proxy, to: newValue, in: .grid)
-                    }
-                    .onChange(of: hubOpenSequence) { _, _ in
-                        scrollSelection(with: proxy, to: selectedItemID, in: .grid, opening: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-        }
-        .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .clipped()
-        .background(ContentWidthReader(width: $contentWidth))
-    }
+        GeometryReader { proxy in
+            let cardSide = HubTheme.cardSide(for: proxy.size.height)
 
-    private var detailColumn: some View {
-        Group {
-            if let selectedItem {
-                HubDetailView(
-                    item: selectedItem,
-                    collections: appState.collections,
-                    isInCollection: { collectionID in
-                        appState.collectionContains(selectedItem.id, collectionID: collectionID)
-                    },
-                    onCopy: {
-                        appState.copyToClipboard(itemID: selectedItem.id)
-                    },
-                    onToggleFavorite: {
-                        appState.toggleFavorite(itemID: selectedItem.id)
-                    },
-                    onToggleCollectionMembership: { collectionID in
-                        appState.toggleItem(selectedItem.id, inCollection: collectionID)
-                    },
-                    onExport: {
-                        appState.exportItem(itemID: selectedItem.id)
-                    },
-                    onShare: {
-                        appState.shareItem(itemID: selectedItem.id)
+            Group {
+                switch layoutMode {
+                case .rail:
+                    ScrollViewReader { listProxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
+                                ForEach(Array(items.enumerated()), id: \.element.id) { _, item in
+                                    HubShelfCardView(
+                                        item: item,
+                                        sideLength: cardSide,
+                                        collections: appState.collections,
+                                        isSelected: item.id == selectedItem?.id,
+                                        isInCollection: { collectionID in
+                                            appState.collectionContains(item.id, collectionID: collectionID)
+                                        },
+                                        onSelect: {
+                                            selectedItemID = item.id
+                                        },
+                                        onActivate: {
+                                            appState.pasteItem(itemID: item.id)
+                                        },
+                                        onCopy: {
+                                            appState.copyToClipboard(itemID: item.id)
+                                        },
+                                        onToggleFavorite: {
+                                            appState.toggleFavorite(itemID: item.id)
+                                        },
+                                        onToggleCollectionMembership: { collectionID in
+                                            appState.toggleItem(item.id, inCollection: collectionID)
+                                        },
+                                        onExport: {
+                                            appState.exportItem(itemID: item.id)
+                                        },
+                                        onShare: {
+                                            appState.shareItem(itemID: item.id)
+                                        },
+                                        onDelete: {
+                                            appState.deleteItem(itemID: item.id)
+                                        }
+                                    )
+                                    .id(item.id)
+                                }
+                            }
+                            .padding(.horizontal, HubTheme.Space.x1)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .clipped()
+                        .onChange(of: selectedItemID) { _, newValue in
+                            scrollSelection(with: listProxy, to: newValue, in: .rail)
+                        }
+                        .onChange(of: hubOpenSequence) { _, _ in
+                            scrollSelection(with: listProxy, to: selectedItemID, in: .rail, opening: true)
+                        }
+                        .onAppear {
+                            scrollSelection(with: listProxy, to: selectedItemID, in: .rail, opening: true)
+                        }
                     }
-                )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                case .list:
+                    ScrollViewReader { listProxy in
+                        ScrollView {
+                            LazyVStack(spacing: HubTheme.Space.x2) {
+                                ForEach(items) { item in
+                                    HubListRowView(
+                                        item: item,
+                                        collections: appState.collections,
+                                        isSelected: item.id == selectedItem?.id,
+                                        isInCollection: { collectionID in
+                                            appState.collectionContains(item.id, collectionID: collectionID)
+                                        },
+                                        onSelect: {
+                                            selectedItemID = item.id
+                                        },
+                                        onActivate: {
+                                            appState.pasteItem(itemID: item.id)
+                                        },
+                                        onCopy: {
+                                            appState.copyToClipboard(itemID: item.id)
+                                        },
+                                        onToggleFavorite: {
+                                            appState.toggleFavorite(itemID: item.id)
+                                        },
+                                        onToggleCollectionMembership: { collectionID in
+                                            appState.toggleItem(item.id, inCollection: collectionID)
+                                        },
+                                        onExport: {
+                                            appState.exportItem(itemID: item.id)
+                                        },
+                                        onShare: {
+                                            appState.shareItem(itemID: item.id)
+                                        },
+                                        onDelete: {
+                                            appState.deleteItem(itemID: item.id)
+                                        }
+                                    )
+                                    .id(item.id)
+                                }
+                            }
+                            .padding(.vertical, HubTheme.Space.x1)
+                            .padding(.horizontal, HubTheme.Space.x1)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .clipped()
+                        .onChange(of: selectedItemID) { _, newValue in
+                            scrollSelection(with: listProxy, to: newValue, in: .list)
+                        }
+                        .onChange(of: hubOpenSequence) { _, _ in
+                            scrollSelection(with: listProxy, to: selectedItemID, in: .list, opening: true)
+                        }
+                        .onAppear {
+                            scrollSelection(with: listProxy, to: selectedItemID, in: .list, opening: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                case .grid:
+                    ScrollViewReader { listProxy in
+                        ScrollView {
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: cardSide), spacing: HubTheme.Space.x4)],
+                                spacing: HubTheme.Space.x4
+                            ) {
+                                ForEach(Array(items.enumerated()), id: \.element.id) { _, item in
+                                    HubShelfCardView(
+                                        item: item,
+                                        sideLength: cardSide,
+                                        collections: appState.collections,
+                                        isSelected: item.id == selectedItem?.id,
+                                        isInCollection: { collectionID in
+                                            appState.collectionContains(item.id, collectionID: collectionID)
+                                        },
+                                        onSelect: {
+                                            selectedItemID = item.id
+                                        },
+                                        onActivate: {
+                                            appState.pasteItem(itemID: item.id)
+                                        },
+                                        onCopy: {
+                                            appState.copyToClipboard(itemID: item.id)
+                                        },
+                                        onToggleFavorite: {
+                                            appState.toggleFavorite(itemID: item.id)
+                                        },
+                                        onToggleCollectionMembership: { collectionID in
+                                            appState.toggleItem(item.id, inCollection: collectionID)
+                                        },
+                                        onExport: {
+                                            appState.exportItem(itemID: item.id)
+                                        },
+                                        onShare: {
+                                            appState.shareItem(itemID: item.id)
+                                        },
+                                        onDelete: {
+                                            appState.deleteItem(itemID: item.id)
+                                        }
+                                    )
+                                    .id(item.id)
+                                }
+                            }
+                            .padding(.horizontal, HubTheme.Space.x1)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .clipped()
+                        .onChange(of: selectedItemID) { _, newValue in
+                            scrollSelection(with: listProxy, to: newValue, in: .grid)
+                        }
+                        .onChange(of: hubOpenSequence) { _, _ in
+                            scrollSelection(with: listProxy, to: selectedItemID, in: .grid, opening: true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
             }
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+            .background(ContentSizeReader(width: $contentWidth, height: $contentHeight))
         }
-        .frame(width: HubTheme.previewPaneWidth, alignment: .topLeading)
     }
 
     private func syncSelection() {
@@ -664,31 +673,6 @@ struct HubView: View {
         }
     }
 
-    private func splitContentView(totalWidth: CGFloat, totalHeight: CGFloat) -> some View {
-        let railWidth = contentColumnWidth(for: totalWidth)
-
-        return HStack(spacing: HubTheme.Space.x5) {
-            contentColumn
-                .frame(width: railWidth, alignment: .topLeading)
-                .frame(maxHeight: .infinity, alignment: .topLeading)
-                .layoutPriority(1)
-
-            Divider()
-                .overlay(HubTheme.dividerOnGlass)
-
-            detailColumn
-        }
-        .frame(width: totalWidth, height: totalHeight, alignment: .topLeading)
-        .clipped()
-    }
-
-    private func contentColumnWidth(for totalWidth: CGFloat) -> CGFloat {
-        let spacing = HubTheme.Space.x5 * 2
-        let dividerWidth: CGFloat = 1
-        let reservedWidth = HubTheme.previewPaneWidth + spacing + dividerWidth
-        return max(0, totalWidth - reservedWidth)
-    }
-
     private func appendToSearch(_ text: String) {
         guard !text.isEmpty else { return }
         appState.activeQuery.append(text)
@@ -719,17 +703,20 @@ struct HubView: View {
     }
 }
 
-private struct ContentWidthReader: View {
+private struct ContentSizeReader: View {
     @Binding var width: CGFloat
+    @Binding var height: CGFloat
 
     var body: some View {
         GeometryReader { proxy in
             Color.clear
                 .onAppear {
                     width = proxy.size.width
+                    height = proxy.size.height
                 }
-                .onChange(of: proxy.size.width) { _, newValue in
-                    width = newValue
+                .onChange(of: proxy.size) { _, newValue in
+                    width = newValue.width
+                    height = newValue.height
                 }
         }
     }
@@ -737,11 +724,17 @@ private struct ContentWidthReader: View {
 
 private struct HubListRowView: View {
     let item: ClipboardItem
+    let collections: [ItemCollection]
     let isSelected: Bool
+    let isInCollection: (UUID) -> Bool
     let onSelect: () -> Void
     let onActivate: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
+    let onDelete: () -> Void
 
     private var accent: Color { HubTheme.accentColor(for: item) }
     private var rowShape: RoundedRectangle {
@@ -749,54 +742,28 @@ private struct HubListRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: HubTheme.Space.x3) {
-            preview
-
+        HStack(alignment: .center, spacing: HubTheme.Space.x3) {
+            if case .image = item.payload {
+                preview
+            }
             VStack(alignment: .leading, spacing: HubTheme.Space.x1) {
-                Text(item.historyTitle)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(HubTheme.textPrimary)
-                    .lineLimit(2)
-
-                HStack(spacing: HubTheme.Space.x2) {
-                    HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
-                    Text(item.relativeTimestamp)
-                        .font(.system(size: 10))
-                        .foregroundStyle(HubTheme.textTertiary)
+                if let primaryText = item.primaryContentText {
+                    HubClipboardTextView(
+                        text: primaryText,
+                        fontSize: 13,
+                        fontWeight: .medium,
+                        lineLimit: item.isFilePayload ? 3 : 2
+                    )
+                        .lineLimit(item.isFilePayload ? 3 : 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            }
 
-            Spacer(minLength: HubTheme.Space.x3)
-
-            Button {
-                onToggleFavorite()
-            } label: {
-                Image(systemName: item.isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(item.isFavorite ? HubTheme.accentBrand : HubTheme.textSecondary)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle()
-                            .fill(HubTheme.cardFillMuted)
-                    )
+                HubCardFooter(item: item)
             }
-            .buttonStyle(.plain)
-
-            Button {
-                onCopy()
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(accent)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Circle()
-                            .fill(HubTheme.cardFillMuted)
-                    )
-            }
-            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(HubTheme.Space.x3)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
         .background(
             rowShape
                 .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
@@ -813,41 +780,74 @@ private struct HubListRowView: View {
         .onTapGesture(count: 2) {
             onActivate()
         }
+        .contextMenu {
+            Button("Copy") {
+                onCopy()
+            }
+            Divider()
+            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
+                onToggleFavorite()
+            }
+            if !collections.isEmpty {
+                Menu("Collections") {
+                    ForEach(collections) { collection in
+                        Button {
+                            onToggleCollectionMembership(collection.id)
+                        } label: {
+                            Label(
+                                collection.name,
+                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                            )
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Export") {
+                onExport()
+            }
+            Button("Share") {
+                onShare()
+            }
+            Divider()
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .accessibilityLabel(item.accessibilityTitle)
+        .accessibilityValue(item.compactRelativeTimestamp)
     }
 
     @ViewBuilder
     private var preview: some View {
-        switch item.payload {
-        case let .image(imageData):
-            if let thumbData = try? ImageStore.load(relativePath: imageData.thumbnailPath),
-               let image = NSImage(data: thumbData) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 40)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            } else {
-                fallbackPreview
-            }
-        case .text, .fileURL:
-            fallbackPreview
+        if case let .image(imageData) = item.payload {
+            HubImagePreviewView(
+                dataPath: imageData.thumbnailPath,
+                fallbackSymbol: item.fallbackPreviewSymbol,
+                accent: accent,
+                cornerRadius: 12,
+                padding: HubTheme.Space.x1,
+                fixedSize: CGSize(width: 72, height: 52)
+            )
         }
     }
 
     private var fallbackPreview: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(HubTheme.cardFillMuted)
 
-            HubItemIconView(icon: item.kindIcon, tint: accent, size: 16)
+            HubItemIconView(icon: .system(item.fallbackPreviewSymbol), tint: accent, size: 16)
         }
-        .frame(width: 52, height: 40)
+        .frame(width: 72, height: 52)
     }
 }
 
 private struct HubShelfCardView: View {
     let item: ClipboardItem
+    let sideLength: CGFloat
     let collections: [ItemCollection]
     let isSelected: Bool
     let isInCollection: (UUID) -> Bool
@@ -858,109 +858,30 @@ private struct HubShelfCardView: View {
     let onToggleCollectionMembership: (UUID) -> Void
     let onExport: () -> Void
     let onShare: () -> Void
-    let badgeNumber: Int?
-    let collectionAccentHex: String?
     let onDelete: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovered = false
 
     private var accent: Color { HubTheme.accentColor(for: item) }
-    private var cardSize: CGSize { HubTheme.cardSize(for: item) }
-    private var previewWidth: CGFloat { max(0, cardSize.width - (HubTheme.Space.x4 * 2)) }
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
     }
     private var previewShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
     }
-
-    private var barColor: Color {
-        if let hex = collectionAccentHex {
-            return Color(hexString: hex)
-        }
-        return accent
+    private var textLineLimit: Int {
+        max(3, Int((sideLength - 48) / 22))
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
-                RoundedRectangle(cornerRadius: 999, style: .continuous)
-                    .fill(barColor)
-                    .frame(width: 34, height: 4)
+        VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-                preview
-
-                VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                    HStack(spacing: HubTheme.Space.x2) {
-                        HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
-                        Text(item.relativeTimestamp)
-                            .font(.system(size: 10))
-                            .foregroundStyle(HubTheme.textTertiary)
-                        Spacer()
-                        if item.isFavorite {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(HubTheme.accentBrand)
-                        }
-                    }
-
-                    Text(item.historyTitle)
-                        .font(.system(size: 12))
-                        .foregroundStyle(HubTheme.textPrimary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    if let meta = item.metaFooterLabel {
-                        Text(meta)
-                            .font(.system(size: 10))
-                            .foregroundStyle(HubTheme.textTertiary)
-                            .lineLimit(1)
-                    }
-
-                    if let appName = item.sourceApplication?.localizedName {
-                        Text(appName)
-                            .font(.system(size: 10))
-                            .foregroundStyle(HubTheme.textTertiary)
-                            .lineLimit(1)
-                    }
-                }
-            }
-            .padding(HubTheme.Space.x4)
-            .frame(width: cardSize.width, alignment: .topLeading)
-            .frame(minHeight: cardSize.height, alignment: .topLeading)
-
-            // Source app icon badge
-            if let appIcon = item.sourceApplicationIcon {
-                ZStack {
-                    Circle()
-                        .fill(HubTheme.cardFillMuted)
-                        .frame(width: 26, height: 26)
-                    Image(nsImage: appIcon)
-                        .resizable()
-                        .interpolation(.high)
-                        .scaledToFit()
-                        .frame(width: 18, height: 18)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                }
-                .padding(HubTheme.Space.x2)
-            }
-
-            // Quick paste number badge
-            if let num = badgeNumber {
-                Text("\u{2318}\(num)")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(HubTheme.textTertiary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(HubTheme.cardFillMuted)
-                    )
-                    .padding(HubTheme.Space.x2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
+            HubCardFooter(item: item)
         }
+        .padding(HubTheme.Space.x4)
+        .frame(width: sideLength, height: sideLength, alignment: .topLeading)
         .background(
             cardShape
                 .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
@@ -973,9 +894,7 @@ private struct HubShelfCardView: View {
         .shadow(color: HubTheme.cardShadowAmbient(colorScheme: colorScheme), radius: 10, y: 2)
         .shadow(color: HubTheme.cardShadowKey(colorScheme: colorScheme), radius: 28, x: 0, y: 10)
         .contentShape(cardShape)
-        .scaleEffect(isHovered && !isSelected ? 1.015 : 1.0)
-        .animation(.spring(response: 0.22, dampingFraction: 0.80), value: isHovered)
-        .onHover { isHovered = $0 }
+        .clipped()
         .draggable(item)
         .onTapGesture {
             onSelect()
@@ -1019,47 +938,43 @@ private struct HubShelfCardView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .accessibilityLabel("\(item.kindLabel) \(item.historyTitle)")
-        .accessibilityValue(item.relativeTimestamp)
+        .accessibilityLabel(item.accessibilityTitle)
+        .accessibilityValue(item.compactRelativeTimestamp)
     }
 
     @ViewBuilder
-    private var preview: some View {
+    private var content: some View {
         switch item.payload {
+        case let .text(text):
+            HubClipboardTextView(
+                text: text,
+                fontSize: 15,
+                fontWeight: .medium,
+                lineLimit: textLineLimit
+            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         case let .image(imageData):
-            if let thumbData = try? ImageStore.load(relativePath: imageData.thumbnailPath),
-               let image = NSImage(data: thumbData) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: previewWidth, height: 102)
-                    .clipped()
-                    .clipShape(previewShape)
-            } else {
-                fallbackPreview
+            HubImagePreviewView(
+                dataPath: imageData.thumbnailPath,
+                fallbackSymbol: item.fallbackPreviewSymbol,
+                accent: accent,
+                cornerRadius: 14,
+                padding: HubTheme.Space.x2
+            )
+        case let .fileURL(url):
+            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
+                Text(url.lastPathComponent)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(HubTheme.textPrimary)
+                    .lineLimit(2)
+                Text(url.path)
+                    .font(.system(size: 12))
+                    .foregroundStyle(HubTheme.textSecondary)
+                    .lineLimit(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-        case .text, .fileURL:
-            if let hexColor = item.hexColorSwatch {
-                hexColorPreview(hexColor)
-            } else {
-                fallbackPreview
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-    }
-
-    private func hexColorPreview(_ color: Color) -> some View {
-        ZStack {
-            previewShape.fill(color)
-            VStack(spacing: 4) {
-                if case let .text(text) = item.payload {
-                    Text(text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(color.accessibleForeground)
-                }
-            }
-        }
-        .frame(width: previewWidth, height: 84)
-        .clipShape(previewShape)
     }
 
     private var fallbackPreview: some View {
@@ -1067,170 +982,101 @@ private struct HubShelfCardView: View {
             previewShape
                 .fill(HubTheme.cardFillMuted)
 
-            HubItemIconView(icon: previewIcon, tint: accent, size: 20)
+            HubItemIconView(icon: .system(item.fallbackPreviewSymbol), tint: accent, size: 20)
         }
-        .frame(width: previewWidth, height: 84)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(previewShape)
     }
-
-    private var previewIcon: HubItemIcon {
-        switch item.payload {
-        case let .text(text):
-            return .system(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "link" : "text.quote")
-        case .image:
-            return .system("photo")
-        case .fileURL:
-            return .system("doc")
-        }
-    }
 }
 
-private struct HubDetailView: View {
-    let item: ClipboardItem
-    let collections: [ItemCollection]
-    let isInCollection: (UUID) -> Bool
-    let onCopy: () -> Void
-    let onToggleFavorite: () -> Void
-    let onToggleCollectionMembership: (UUID) -> Void
-    let onExport: () -> Void
-    let onShare: () -> Void
+private struct HubClipboardTextView: View {
+    let fontSize: CGFloat
+    let fontWeight: Font.Weight
+    let lineLimit: Int?
 
-    private var accent: Color { HubTheme.accentColor(for: item) }
+    private let content: HubStructuredTextContent
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
-            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                Text("Selected Item")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(HubTheme.textPrimary)
-
-                Text(item.historyTitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(HubTheme.textSecondary)
-                    .lineLimit(3)
-            }
-
-            HStack(spacing: HubTheme.Space.x2) {
-                HubMetaChip(label: item.kindLabel, icon: item.kindIcon, tint: accent)
-                HubMetaChip(label: item.relativeTimestamp, icon: .system("clock"), tint: HubTheme.textTertiary)
-            }
-
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: HubTheme.Space.x2), count: 2),
-                spacing: HubTheme.Space.x2
-            ) {
-                HubActionButton(title: "Copy", systemImage: "doc.on.doc", tint: accent, action: onCopy)
-                HubActionButton(title: "Export", systemImage: "square.and.arrow.down", tint: HubTheme.textPrimary, action: onExport)
-                HubActionButton(title: "Share", systemImage: "square.and.arrow.up", tint: HubTheme.textPrimary, action: onShare)
-                HubActionButton(
-                    title: item.isFavorite ? "Unstar" : "Star",
-                    systemImage: item.isFavorite ? "star.fill" : "star",
-                    tint: item.isFavorite ? HubTheme.accentBrand : HubTheme.textPrimary,
-                    action: onToggleFavorite
-                )
-            }
-
-            if !collections.isEmpty {
-                Menu {
-                    ForEach(collections) { collection in
-                        Button {
-                            onToggleCollectionMembership(collection.id)
-                        } label: {
-                            Label(
-                                collection.name,
-                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
-                            )
-                        }
-                    }
-                } label: {
-                    Label("Collections", systemImage: "square.stack.3d.up")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(HubTheme.textPrimary)
-                        .padding(.horizontal, HubTheme.Space.x3)
-                        .frame(height: 32)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(HubTheme.cardFillMuted)
-                        )
-                }
-                .menuStyle(.borderlessButton)
-            }
-
-            detailPreview
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    init(text: String, fontSize: CGFloat, fontWeight: Font.Weight, lineLimit: Int?) {
+        self.fontSize = fontSize
+        self.fontWeight = fontWeight
+        self.lineLimit = lineLimit
+        self.content = HubStructuredTextFormatter.content(for: text)
     }
 
-    @ViewBuilder
-    private var detailPreview: some View {
+    var body: some View {
         Group {
-            switch item.payload {
-            case let .text(text):
-                ScrollView {
-                    Text(text)
-                        .font(.system(size: 12))
-                        .foregroundStyle(HubTheme.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                }
-            case let .image(imageData):
-                if let rawData = try? ImageStore.load(relativePath: imageData.imagePath),
-                   let image = NSImage(data: rawData) {
-                    GeometryReader { proxy in
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: proxy.size.width, height: proxy.size.height)
-                    }
-                } else {
-                    ContentUnavailableView("Image Preview Unavailable", systemImage: "photo")
-                }
-            case let .fileURL(url):
-                VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                    Text(url.lastPathComponent)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(HubTheme.textPrimary)
-                    Text(url.path)
-                        .font(.system(size: 11))
-                        .foregroundStyle(HubTheme.textSecondary)
-                        .textSelection(.enabled)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            switch content {
+            case let .plain(text):
+                Text(text)
+                    .font(.system(size: fontSize, weight: fontWeight))
+                    .foregroundStyle(HubTheme.textPrimary)
+            case let .json(text):
+                Text(text)
+                    .font(.system(size: max(fontSize - 1, 12), weight: .regular, design: .monospaced))
+                    .foregroundStyle(HubTheme.textPrimary)
+            case let .markdown(text):
+                Text(text)
+                    .font(.system(size: fontSize, weight: fontWeight))
+                    .foregroundStyle(HubTheme.textPrimary)
+                    .tint(HubTheme.accentBrand)
             }
         }
-        .padding(HubTheme.Space.x4)
-        .background(
-            RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
-                .fill(HubTheme.cardFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
-                .strokeBorder(HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
-        )
+        .multilineTextAlignment(.leading)
+        .lineLimit(lineLimit)
     }
 }
 
-private struct HubMetaChip: View {
-    let label: String
-    let icon: HubItemIcon
-    let tint: Color
+private struct HubImagePreviewView: View {
+    let dataPath: String
+    let fallbackSymbol: String
+    let accent: Color
+    let cornerRadius: CGFloat
+    let padding: CGFloat
+    var fixedSize: CGSize? = nil
+
+    private var previewShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
 
     var body: some View {
-        HStack(spacing: HubTheme.Space.x1) {
-            HubItemIconView(icon: icon, tint: tint, size: 11)
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
+        ZStack {
+            previewShape
+                .fill(HubTheme.cardFillMuted)
+
+            if let imageData = try? ImageStore.load(relativePath: dataPath),
+               let image = NSImage(data: imageData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .padding(padding)
+            } else {
+                HubItemIconView(icon: .system(fallbackSymbol), tint: accent, size: 20)
+            }
         }
-        .foregroundStyle(tint)
-        .padding(.horizontal, HubTheme.Space.x2)
-        .frame(height: 24)
-        .background(
-            Capsule(style: .continuous)
-                .fill(tint.opacity(0.12))
+        .frame(
+            width: fixedSize?.width,
+            height: fixedSize?.height
         )
+        .frame(maxWidth: fixedSize == nil ? .infinity : nil, maxHeight: fixedSize == nil ? .infinity : nil)
+        .clipShape(previewShape)
+    }
+}
+
+private struct HubCardFooter: View {
+    let item: ClipboardItem
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x2) {
+            if let appIcon = item.sourceApplicationIcon {
+                HubItemIconView(icon: .app(appIcon), tint: HubTheme.textTertiary, size: 16)
+            }
+            Text(item.compactRelativeTimestamp)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(HubTheme.textTertiary)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
     }
 }
 
@@ -1258,32 +1104,94 @@ private struct HubItemIconView: View {
     }
 }
 
-private struct HubActionButton: View {
-    let title: String
-    let systemImage: String
-    let tint: Color
-    let action: () -> Void
+enum HubStructuredTextFormatter {
+    static func content(for text: String) -> HubStructuredTextContent {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return .plain("Text item") }
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: HubTheme.Space.x1) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .semibold))
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
+        if let json = prettyPrintedJSON(from: trimmed) {
+            return .json(json)
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(tint)
-        .padding(.horizontal, HubTheme.Space.x3)
-        .frame(height: 32)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFillMuted)
+
+        if looksLikeMarkdown(trimmed),
+           let markdown = attributedMarkdown(from: trimmed) {
+            return .markdown(markdown)
+        }
+
+        return .plain(trimmed)
+    }
+
+    static func prettyPrintedJSON(from text: String) -> String? {
+        guard let firstCharacter = text.first,
+              firstCharacter == "{" || firstCharacter == "[" else {
+            return nil
+        }
+
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              JSONSerialization.isValidJSONObject(object),
+              let prettyData = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys]
+              ),
+              let prettyText = String(data: prettyData, encoding: .utf8) else {
+            return nil
+        }
+
+        return prettyText
+    }
+
+    private static func attributedMarkdown(from text: String) -> AttributedString? {
+        try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .full,
+                failurePolicy: .returnPartiallyParsedIfPossible
+            )
         )
+    }
+
+    private static func looksLikeMarkdown(_ text: String) -> Bool {
+        let indicators = [
+            "```",
+            "# ",
+            "## ",
+            "### ",
+            "> ",
+            "- ",
+            "* ",
+            "`",
+            "**",
+            "__",
+            "](",
+            "\n1. "
+        ]
+
+        return indicators.contains { text.contains($0) }
+    }
+}
+
+enum HubStructuredTextContent {
+    case plain(String)
+    case json(String)
+    case markdown(AttributedString)
+}
+
+enum HubRelativeTimeFormatter {
+    static func string(for date: Date, relativeTo reference: Date = .now) -> String {
+        let calendar = Calendar.autoupdatingCurrent
+        let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: reference)
+
+        if let day = components.day, day >= 1 {
+            return "\(day)d"
+        }
+        if let hour = components.hour, hour >= 1 {
+            return "\(hour)h"
+        }
+        if let minute = components.minute, minute >= 1 {
+            return "\(minute)m"
+        }
+        return "now"
     }
 }
 
@@ -1300,72 +1208,54 @@ private extension ClipboardItem {
         }
     }
 
-    var kindLabel: String {
+    var primaryContentText: String? {
         switch payload {
         case let .text(text):
-            return text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "Link" : "Text"
+            let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return compact.isEmpty ? "Text item" : compact
         case .image:
-            return "Image"
-        case .fileURL:
-            return "File"
+            return nil
+        case let .fileURL(url):
+            return url.path
         }
     }
 
-    var kindIcon: HubItemIcon {
+    var isFilePayload: Bool {
+        if case .fileURL = payload {
+            return true
+        }
+        return false
+    }
+
+    var fallbackPreviewSymbol: String {
         switch payload {
-        case let .text(text):
-            if let sourceApplicationIcon {
-                return .app(sourceApplicationIcon)
-            }
-            return .system(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "link" : "text.quote")
+        case .text:
+            return "text.alignleft"
         case .image:
-            return .system("photo")
+            return "photo"
         case .fileURL:
-            return .system("doc")
+            return "doc"
         }
     }
 
     var sourceApplicationIcon: NSImage? {
-        guard case .text = payload else { return nil }
-        return ClipboardSourceApplicationIconProvider.icon(for: sourceApplication)
+        ClipboardSourceApplicationIconProvider.icon(for: sourceApplication)
     }
 
-    var relativeTimestamp: String {
-        createdAt.formatted(.relative(presentation: .named))
+    var compactRelativeTimestamp: String {
+        HubRelativeTimeFormatter.string(for: createdAt)
     }
 
-    var metaFooterLabel: String? {
+    var accessibilityTitle: String {
         switch payload {
         case let .text(text):
-            let count = text.unicodeScalars.count
-            let words = text.split(separator: " ").count
-            return "\(count) chars \u{00B7} \(words) words"
-        case let .image(imageData):
-            if let rawData = try? ImageStore.load(relativePath: imageData.imagePath),
-               let src = CGImageSourceCreateWithData(rawData as CFData, nil),
-               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
-               let w = props[kCGImagePropertyPixelWidth] as? Int,
-               let h = props[kCGImagePropertyPixelHeight] as? Int {
-                return "\(w) \u{00D7} \(h)"
-            }
-            return "Image"
+            let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return compact.isEmpty ? "Clipboard text" : compact
+        case .image:
+            return "Clipboard image"
         case let .fileURL(url):
-            if let resources = try? url.resourceValues(forKeys: [.fileSizeKey]),
-               let size = resources.fileSize {
-                return ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
-            }
-            return url.pathExtension.uppercased()
+            return url.lastPathComponent
         }
-    }
-
-    var hexColorSwatch: Color? {
-        guard case let .text(text) = payload else { return nil }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 4, trimmed.count <= 7, trimmed.hasPrefix("#") else { return nil }
-        let hex = String(trimmed.dropFirst())
-        guard hex.count == 3 || hex.count == 6 else { return nil }
-        guard hex.allSatisfy({ $0.isHexDigit }) else { return nil }
-        return Color(hexString: trimmed)
     }
 }
 
@@ -1411,8 +1301,11 @@ private struct HubWindowAccessor: NSViewRepresentable {
     func makeNSView(context: Context) -> HubWindowReaderView {
         let view = HubWindowReaderView()
         view.onResolveWindow = onResolveWindow
-        view.onAttachWindow = { [weak coordinator = context.coordinator] window in
-            coordinator?.attach(to: window)
+        view.onAttachWindow = { [weak coordinator = context.coordinator] hostView, window in
+            coordinator?.attach(view: hostView, to: window)
+        }
+        view.onKeyDown = { [weak coordinator = context.coordinator] event in
+            coordinator?.handleKeyDown(event) ?? false
         }
         return view
     }
@@ -1420,35 +1313,37 @@ private struct HubWindowAccessor: NSViewRepresentable {
     func updateNSView(_ nsView: HubWindowReaderView, context: Context) {
         context.coordinator.parent = self
         nsView.onResolveWindow = onResolveWindow
+        nsView.onKeyDown = { [weak coordinator = context.coordinator] event in
+            coordinator?.handleKeyDown(event) ?? false
+        }
         nsView.resolveWindow()
     }
 
     final class Coordinator: NSObject, NSWindowDelegate {
         var parent: HubWindowAccessor
         private weak var window: NSWindow?
-        private var keyMonitor: Any?
+        private weak var readerView: HubWindowReaderView?
 
         init(parent: HubWindowAccessor) {
             self.parent = parent
         }
 
-        deinit {
-            if let keyMonitor {
-                NSEvent.removeMonitor(keyMonitor)
-            }
-        }
-
-        func attach(to window: NSWindow?) {
-            guard self.window !== window else {
+        func attach(view: HubWindowReaderView, to window: NSWindow?) {
+            guard self.window !== window || self.readerView !== view else {
                 parent.onResolveWindow(window)
                 return
             }
 
             self.window?.delegate = nil
+            self.readerView = view
             self.window = window
             self.window?.delegate = self
             parent.onResolveWindow(window)
-            installKeyMonitorIfNeeded()
+            focusKeyboardHost()
+        }
+
+        func windowDidBecomeKey(_ notification: Notification) {
+            focusKeyboardHost()
         }
 
         func windowDidResignKey(_ notification: Notification) {
@@ -1465,44 +1360,31 @@ private struct HubWindowAccessor: NSViewRepresentable {
             return false
         }
 
-        private func installKeyMonitorIfNeeded() {
-            guard keyMonitor == nil else { return }
-            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                self?.handle(event) ?? event
+        private func focusKeyboardHost() {
+            guard let window,
+                  let readerView else { return }
+
+            DispatchQueue.main.async {
+                guard window.isKeyWindow else { return }
+                window.makeFirstResponder(readerView)
             }
         }
 
-        private func handle(_ event: NSEvent) -> NSEvent? {
-            guard let window, event.window == window else { return event }
-
-            if let fieldEditor = window.firstResponder as? NSTextView,
-               fieldEditor.isFieldEditor {
-                if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
-                   event.charactersIgnoringModifiers?.lowercased() == "f" {
-                    parent.onFocusSearch()
-                    return nil
-                }
-
-                if event.keyCode == 53 {
-                    window.makeFirstResponder(nil)
-                    parent.onDismiss()
-                    return nil
-                }
-
-                return event
-            }
+        func handleKeyDown(_ event: NSEvent) -> Bool {
+            guard let window,
+                  event.window == window || window.isKeyWindow else { return false }
 
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
                event.charactersIgnoringModifiers?.lowercased() == "f" {
                 parent.onFocusSearch()
-                return nil
+                return true
             }
 
             // Cmd+Delete → delete selected item
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
                event.keyCode == 51 {
                 parent.onDeleteItem()
-                return nil
+                return true
             }
 
             // Cmd+1-9 → quick paste
@@ -1510,41 +1392,41 @@ private struct HubWindowAccessor: NSViewRepresentable {
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
                let idx = quickPasteKeyCodes[event.keyCode] {
                 parent.onQuickPaste(idx)
-                return nil
+                return true
             }
 
             if let text = printableSearchText(from: event) {
                 parent.onTypeSearch(text)
-                return nil
+                return true
             }
 
             switch event.keyCode {
             case 49: // Space → Quick Look
                 parent.onQuickLook()
-                return nil
+                return true
             case 51, 117:
                 parent.onDeleteSearchCharacter()
-                return nil
+                return true
             case 123:
                 parent.onMoveCommand(.left)
-                return nil
+                return true
             case 124:
                 parent.onMoveCommand(.right)
-                return nil
+                return true
             case 125:
                 parent.onMoveCommand(.down)
-                return nil
+                return true
             case 126:
                 parent.onMoveCommand(.up)
-                return nil
+                return true
             case 36, 76:
                 parent.onConfirmSelection()
-                return nil
+                return true
             case 53:
                 parent.onDismiss()
-                return nil
+                return true
             default:
-                return event
+                return false
             }
         }
 
@@ -1561,19 +1443,28 @@ private struct HubWindowAccessor: NSViewRepresentable {
 
     final class HubWindowReaderView: NSView {
         var onResolveWindow: (NSWindow?) -> Void = { _ in }
-        var onAttachWindow: (NSWindow?) -> Void = { _ in }
+        var onAttachWindow: (HubWindowReaderView, NSWindow?) -> Void = { _, _ in }
+        var onKeyDown: (NSEvent) -> Bool = { _ in false }
+
+        override var acceptsFirstResponder: Bool { true }
+        override var canBecomeKeyView: Bool { true }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             resolveWindow()
         }
 
-        func resolveWindow() {
-            DispatchQueue.main.async { [weak self] in
-                let window = self?.window
-                self?.onAttachWindow(window)
-                self?.onResolveWindow(window)
+        override func keyDown(with event: NSEvent) {
+            if onKeyDown(event) {
+                return
             }
+            super.keyDown(with: event)
+        }
+
+        func resolveWindow() {
+            let window = self.window
+            onAttachWindow(self, window)
+            onResolveWindow(window)
         }
     }
 }
@@ -1697,19 +1588,6 @@ private struct QuickLookBridge: NSViewRepresentable {
 
         func previewPanelDidClose(_ panel: QLPreviewPanel!) {
             parent.isPresented = false
-        }
-    }
-}
-
-// MARK: - Resize Cursor View
-
-private struct ResizeCursorView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { CursorView() }
-    func updateNSView(_ v: NSView, context: Context) {}
-
-    final class CursorView: NSView {
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: .resizeUpDown)
         }
     }
 }

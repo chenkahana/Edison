@@ -6,23 +6,6 @@ final class WindowRouter {
     private var openHubAction: (() -> Void)?
     private var hubRequestedVisible = false
 
-    // MARK: - Shelf height persistence
-
-    private static let shelfHeightKey = "edison.shelfHeight"
-    private static let minShelfHeight: CGFloat = 156
-    private static let maxShelfHeight: CGFloat = 480
-
-    private var storedShelfHeight: CGFloat {
-        get {
-            let stored = CGFloat(UserDefaults.standard.double(forKey: Self.shelfHeightKey))
-            guard stored >= Self.minShelfHeight else { return 360 }
-            return min(stored, Self.maxShelfHeight)
-        }
-        set {
-            UserDefaults.standard.set(Double(newValue), forKey: Self.shelfHeightKey)
-        }
-    }
-
     func toggleHub() {
         if isHubPresented {
             dismissHub()
@@ -35,6 +18,17 @@ final class WindowRouter {
         guard let window, window.canBecomeKey else { return }
         HubShelfWindowStyle.apply(to: window)
         hubWindow = window
+
+        guard hubRequestedVisible else { return }
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        if !isWindowPresented(window) {
+            animateWindowIn(window)
+        } else {
+            window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
+        }
     }
 
     func setOpenHubAction(_ action: @escaping () -> Void) {
@@ -56,7 +50,6 @@ final class WindowRouter {
             } else {
                 targetWindow.makeKeyAndOrderFront(nil)
                 targetWindow.orderFrontRegardless()
-                targetWindow.makeFirstResponder(nil)
             }
             return
         }
@@ -65,7 +58,12 @@ final class WindowRouter {
         DispatchQueue.main.async {
             guard let hubWindow = self.resolveHubWindow(preferVisible: false) else { return }
             HubShelfWindowStyle.apply(to: hubWindow)
-            self.animateWindowIn(hubWindow)
+            if hubWindow.isVisible {
+                hubWindow.makeKeyAndOrderFront(nil)
+                hubWindow.orderFrontRegardless()
+            } else {
+                self.animateWindowIn(hubWindow)
+            }
         }
     }
 
@@ -85,20 +83,6 @@ final class WindowRouter {
         for window in windows {
             animateWindowOut(window)
         }
-    }
-
-    func adjustShelfHeight(by delta: CGFloat) {
-        guard let window = resolveHubWindow() else { return }
-        let currentHeight = window.frame.height
-        let newHeight = min(Self.maxShelfHeight, max(Self.minShelfHeight, currentHeight - delta))
-        guard abs(newHeight - currentHeight) > 0.5 else { return }
-
-        let newOriginY = window.frame.maxY - newHeight
-        var newFrame = window.frame
-        newFrame.origin.y = newOriginY
-        newFrame.size.height = newHeight
-        window.setFrame(newFrame, display: true, animate: false)
-        storedShelfHeight = newHeight
     }
 
     private var isHubPresented: Bool {
@@ -165,7 +149,7 @@ final class WindowRouter {
 
         let finalFrame = window.frame
         var startFrame = finalFrame
-        startFrame.origin.y = screen.frame.minY - finalFrame.height
+        startFrame.origin.y = screen.visibleFrame.minY - finalFrame.height
 
         window.setFrame(startFrame, display: false)
         window.orderFront(nil)
@@ -176,7 +160,6 @@ final class WindowRouter {
             window.animator().setFrame(finalFrame, display: true)
         } completionHandler: {
             window.makeKeyAndOrderFront(nil)
-            window.makeFirstResponder(nil)
         }
     }
 
@@ -188,7 +171,7 @@ final class WindowRouter {
 
         let startFrame = window.frame
         var endFrame = startFrame
-        endFrame.origin.y = screen.frame.minY - startFrame.height
+        endFrame.origin.y = screen.visibleFrame.minY - startFrame.height
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.18

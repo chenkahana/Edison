@@ -18,9 +18,10 @@ enum HubTheme {
         static let x6: CGFloat = 24
     }
 
-    static let shelfWindowSize = CGSize(width: 1440, height: 360)
+    static let shelfWindowSize = CGSize(width: 1440, height: 278)
     static let searchPillHeight: CGFloat = 36
-    static let previewPaneWidth: CGFloat = 360
+    static let minimumCardSide: CGFloat = 148
+    static let maximumCardSide: CGFloat = 220
 
     enum Anim {
         static let fast: Double = 0.12
@@ -30,13 +31,9 @@ enum HubTheme {
         static let fastSpring = Animation.spring(response: 0.22, dampingFraction: 0.80, blendDuration: 0)
     }
 
-    static func cardSize(for item: ClipboardItem) -> CGSize {
-        switch item.payload {
-        case .image:
-            return CGSize(width: 196, height: 196)
-        case .text, .fileURL:
-            return CGSize(width: 220, height: 206)
-        }
+    static func cardSide(for availableHeight: CGFloat) -> CGFloat {
+        let target = floor(availableHeight - (Space.x2 + Space.x1))
+        return min(maximumCardSide, max(minimumCardSide, target))
     }
 
     static func accentColor(for item: ClipboardItem) -> Color {
@@ -204,9 +201,7 @@ enum HubShelfWindowStyle {
         guard let screen = window.screen ?? NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
         let width = visibleFrame.width
-        let stored = CGFloat(UserDefaults.standard.double(forKey: "edison.shelfHeight"))
-        let preferredHeight: CGFloat = stored >= 156 ? min(stored, 480) : HubTheme.shelfWindowSize.height
-        let height = min(preferredHeight, visibleFrame.height)
+        let height = min(HubTheme.shelfWindowSize.height, visibleFrame.height)
         let frame = NSRect(
             x: visibleFrame.minX,
             y: visibleFrame.minY,

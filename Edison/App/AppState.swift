@@ -317,6 +317,7 @@ final class AppState: ObservableObject {
 
     func pasteItem(itemID: UUID) {
         copyToClipboard(itemID: itemID)
+        windowRouter?.dismissHub()
 
         let trusted = AXIsProcessTrusted()
         if !trusted {
@@ -330,6 +331,7 @@ final class AppState: ObservableObject {
         }
 
         let pid = targetApp.processIdentifier
+        targetApp.activate(options: [])
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             guard let source = CGEventSource(stateID: .hidSystemState) else { return }
             let vKeyCode: CGKeyCode = 9 // kVK_ANSI_V
@@ -340,8 +342,6 @@ final class AppState: ObservableObject {
             keyDown?.postToPid(pid)
             keyUp?.postToPid(pid)
         }
-
-        windowRouter?.dismissHub()
     }
 
     private func promoteItemToFront(itemID: UUID) {
