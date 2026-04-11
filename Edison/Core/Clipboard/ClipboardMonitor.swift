@@ -103,16 +103,25 @@ final class ClipboardMonitor {
 
         if let tiffData = pasteboard.data(forType: .tiff),
            let prepared = ImageProcessing.prepareImagePayload(from: tiffData) {
-            return ClipboardItem(payload: .image(prepared))
+            return ClipboardItem(
+                sourceApplication: sourceApplication,
+                payload: .image(prepared)
+            )
         }
 
         if let fileURL = pasteboard.readObjects(forClasses: [NSURL.self], options: nil)?.first as? URL {
-            return ClipboardItem(payload: .fileURL(fileURL))
+            return ClipboardItem(
+                sourceApplication: sourceApplication,
+                payload: .fileURL(fileURL)
+            )
         }
 
         if let value = pasteboard.string(forType: .fileURL),
            let url = URL(string: value) {
-            return ClipboardItem(payload: .fileURL(url))
+            return ClipboardItem(
+                sourceApplication: sourceApplication,
+                payload: .fileURL(url)
+            )
         }
 
         return nil
