@@ -27,17 +27,36 @@ jobs:
         run: swift test
 
   xcode-test:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and test (Xcode scheme)
+      - name: Select Xcode 26
         run: |
-          xcodebuild test \
+          XCODE_APP="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def version_key(path: Path) -> tuple[int, ...]:
+              match = re.search(r"Xcode_(\d+(?:\.\d+)*)", path.stem)
+              if not match:
+                  return (0,)
+              return tuple(int(part) for part in match.group(1).split("."))
+
+          apps = sorted(Path("/Applications").glob("Xcode_26*.app"), key=version_key)
+          print(apps[-1] if apps else Path("/Applications/Xcode.app"))
+          PY
+          )"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build (Xcode scheme)
+        run: |
+          xcodebuild build \
             -project Edison.xcodeproj \
-            -scheme "Edison - Clipboard Manager" \
+            -scheme "Edison" \
             -destination "platform=macOS" \
             -configuration Debug \
             CODE_SIGN_IDENTITY="" \
