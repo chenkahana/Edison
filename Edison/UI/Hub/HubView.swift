@@ -37,6 +37,7 @@ struct HubView: View {
     @State private var newCollectionName = ""
     @State private var contentWidth: CGFloat = 0
     @State private var showQuickLook = false
+    @State private var hubOpenSequence = 0
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -70,119 +71,9 @@ struct HubView: View {
         ZStack {
             HubGlassBackground()
 
-            VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
-                // Resize handle
-                HStack {
-                    Spacer()
-                    RoundedRectangle(cornerRadius: 999)
-                        .fill(HubTheme.textTertiary.opacity(0.4))
-                        .frame(width: 36, height: 4)
-                    Spacer()
-                }
-                .frame(height: 20)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(coordinateSpace: .global)
-                        .onChanged { value in
-                            appState.windowRouter?.adjustShelfHeight(by: value.translation.height)
-                        }
-                )
-                .background(ResizeCursorView())
-
-                header
-
-                if items.isEmpty {
-                    emptyState
-                } else {
-                    GeometryReader { proxy in
-                        splitContentView(
-                            totalWidth: proxy.size.width,
-                            totalHeight: proxy.size.height
-                        )
-                    }
-                }
-            }
-            .padding(HubTheme.Space.x5)
-
-            // Undo toast
-            if appState.showDeleteUndoToast {
-                VStack {
-                    Spacer()
-                    HStack(spacing: HubTheme.Space.x3) {
-                        Text("Item deleted")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(HubTheme.textPrimary)
-                        Button("Undo") {
-                            appState.undoDelete()
-                        }
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(HubTheme.accentBrand)
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, HubTheme.Space.x5)
-                    .padding(.vertical, HubTheme.Space.x3)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(HubTheme.cardFill)
-                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
-                    )
-                    .padding(.bottom, HubTheme.Space.x5)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
-            }
-
-            // Capture error banner
-            if let errorMessage = appState.captureError {
-                VStack {
-                    HStack(spacing: HubTheme.Space.x3) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .font(.system(size: 12))
-                        Text(errorMessage)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(HubTheme.textPrimary)
-                            .lineLimit(1)
-                        Spacer()
-                        Button("Screen Recording") {
-                            NSWorkspace.shared.open(
-                                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
-                            )
-                        }
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(HubTheme.accentBrand)
-                        .buttonStyle(.plain)
-                        Button {
-                            appState.captureError = nil
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(HubTheme.textSecondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, HubTheme.Space.x5)
-                    .padding(.vertical, HubTheme.Space.x3)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(HubTheme.cardFill)
-                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
-                    )
-                    .padding(.horizontal, HubTheme.Space.x5)
-                    .padding(.top, HubTheme.Space.x5)
-                    Spacer()
-                }
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.captureError != nil)
-            }
+            mainContent
+            undoToastOverlay
+            captureErrorOverlay
         }
         .background(
             Group {
@@ -201,7 +92,7 @@ struct HubView: View {
                     appState.windowRouter?.registerHubWindow(window)
                 },
                 onMoveCommand: handleMoveCommand,
-                onConfirmSelection: copySelectedItem,
+                onConfirmSelection: pasteSelectedItem,
                 onDismiss: {
                     focusedField = nil
                     appState.windowRouter?.dismissHub()
@@ -236,6 +127,12 @@ struct HubView: View {
             focusedField = nil
             syncSelection()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .edisonHubWillOpen)) { _ in
+            focusedField = nil
+            showQuickLook = false
+            resetSelectionToLatest()
+            hubOpenSequence += 1
+        }
         .onChange(of: filter) { _, _ in
             syncSelection()
         }
@@ -257,6 +154,80 @@ struct HubView: View {
                 appState.closeEditor()
             }
             .frame(minWidth: 840, minHeight: 560)
+        }
+    }
+
+    private var mainContent: some View {
+        VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
+            resizeHandle
+            header
+
+            if items.isEmpty {
+                emptyState
+            } else {
+                GeometryReader { proxy in
+                    splitContentView(
+                        totalWidth: proxy.size.width,
+                        totalHeight: proxy.size.height
+                    )
+                }
+            }
+        }
+        .padding(HubTheme.Space.x5)
+    }
+
+    private var resizeHandle: some View {
+        HStack {
+            Spacer()
+            RoundedRectangle(cornerRadius: 999)
+                .fill(HubTheme.textTertiary.opacity(0.4))
+                .frame(width: 36, height: 4)
+            Spacer()
+        }
+        .frame(height: 20)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(coordinateSpace: .global)
+                .onChanged { value in
+                    appState.windowRouter?.adjustShelfHeight(by: value.translation.height)
+                }
+        )
+        .background(ResizeCursorView())
+    }
+
+    @ViewBuilder
+    private var undoToastOverlay: some View {
+        if appState.showDeleteUndoToast {
+            VStack {
+                Spacer()
+                HubToastView(
+                    title: "Item deleted",
+                    buttonTitle: "Undo",
+                    action: appState.undoDelete
+                )
+                .padding(.bottom, HubTheme.Space.x5)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
+        }
+    }
+
+    @ViewBuilder
+    private var captureErrorOverlay: some View {
+        if let errorMessage = appState.captureError {
+            VStack {
+                HubCaptureErrorBanner(
+                    message: errorMessage,
+                    dismiss: {
+                        appState.captureError = nil
+                    }
+                )
+                .padding(.horizontal, HubTheme.Space.x5)
+                .padding(.top, HubTheme.Space.x5)
+                Spacer()
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.captureError != nil)
         }
     }
 
@@ -292,7 +263,7 @@ struct HubView: View {
 
                 Spacer()
 
-                Label("Return copies selected item", systemImage: "return")
+                Label("Return pastes selected item", systemImage: "return")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(HubTheme.textTertiary)
             }
@@ -412,6 +383,9 @@ struct HubView: View {
                                     onSelect: {
                                         selectedItemID = item.id
                                     },
+                                    onActivate: {
+                                        appState.pasteItem(itemID: item.id)
+                                    },
                                     onCopy: {
                                         appState.copyToClipboard(itemID: item.id)
                                     },
@@ -442,15 +416,13 @@ struct HubView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
-                        guard let newValue else { return }
-                        withAnimation(.easeInOut(duration: 0.16)) {
-                            proxy.scrollTo(newValue, anchor: .center)
-                        }
+                        scrollSelection(with: proxy, to: newValue, in: .rail)
+                    }
+                    .onChange(of: hubOpenSequence) { _, _ in
+                        scrollSelection(with: proxy, to: selectedItemID, in: .rail, opening: true)
                     }
                     .onAppear {
-                        if let selectedItemID {
-                            proxy.scrollTo(selectedItemID, anchor: .center)
-                        }
+                        scrollSelection(with: proxy, to: selectedItemID, in: .rail, opening: true)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -464,6 +436,9 @@ struct HubView: View {
                                     isSelected: item.id == selectedItem?.id,
                                     onSelect: {
                                         selectedItemID = item.id
+                                    },
+                                    onActivate: {
+                                        appState.pasteItem(itemID: item.id)
                                     },
                                     onCopy: {
                                         appState.copyToClipboard(itemID: item.id)
@@ -481,15 +456,13 @@ struct HubView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
-                        guard let newValue else { return }
-                        withAnimation(.easeInOut(duration: 0.16)) {
-                            proxy.scrollTo(newValue, anchor: .center)
-                        }
+                        scrollSelection(with: proxy, to: newValue, in: .list)
+                    }
+                    .onChange(of: hubOpenSequence) { _, _ in
+                        scrollSelection(with: proxy, to: selectedItemID, in: .list, opening: true)
                     }
                     .onAppear {
-                        if let selectedItemID {
-                            proxy.scrollTo(selectedItemID, anchor: .center)
-                        }
+                        scrollSelection(with: proxy, to: selectedItemID, in: .list, opening: true)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -507,6 +480,9 @@ struct HubView: View {
                                     },
                                     onSelect: {
                                         selectedItemID = item.id
+                                    },
+                                    onActivate: {
+                                        appState.pasteItem(itemID: item.id)
                                     },
                                     onCopy: {
                                         appState.copyToClipboard(itemID: item.id)
@@ -538,10 +514,10 @@ struct HubView: View {
                     .padding(.vertical, HubTheme.Space.x1)
                     .clipped()
                     .onChange(of: selectedItemID) { _, newValue in
-                        guard let newValue else { return }
-                        withAnimation(.easeInOut(duration: 0.16)) {
-                            proxy.scrollTo(newValue, anchor: .center)
-                        }
+                        scrollSelection(with: proxy, to: newValue, in: .grid)
+                    }
+                    .onChange(of: hubOpenSequence) { _, _ in
+                        scrollSelection(with: proxy, to: selectedItemID, in: .grid, opening: true)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -596,6 +572,10 @@ struct HubView: View {
         selectedItemID = items.first?.id
     }
 
+    private func resetSelectionToLatest() {
+        selectedItemID = items.first?.id
+    }
+
     private func handleMoveCommand(_ direction: MoveCommandDirection) {
         guard !items.isEmpty else { return }
         let currentIndex = items.firstIndex { $0.id == selectedItem?.id } ?? 0
@@ -640,9 +620,37 @@ struct HubView: View {
         selectedItemID = items[nextIndex].id
     }
 
-    private func copySelectedItem() {
+    private func pasteSelectedItem() {
         guard let selectedItem else { return }
-        appState.copyToClipboard(itemID: selectedItem.id)
+        appState.pasteItem(itemID: selectedItem.id)
+    }
+
+    private func scrollSelection(
+        with proxy: ScrollViewProxy,
+        to itemID: UUID?,
+        in layoutMode: HubLayoutMode,
+        opening: Bool = false
+    ) {
+        guard let itemID else { return }
+
+        let isLeadingItem = itemID == items.first?.id
+        let anchor: UnitPoint
+        switch layoutMode {
+        case .rail:
+            anchor = (opening || isLeadingItem) ? .leading : .center
+        case .list:
+            anchor = (opening || isLeadingItem) ? .top : .center
+        case .grid:
+            anchor = (opening || isLeadingItem) ? .topLeading : .center
+        }
+
+        if opening {
+            proxy.scrollTo(itemID, anchor: anchor)
+        } else {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                proxy.scrollTo(itemID, anchor: anchor)
+            }
+        }
     }
 
     private func layoutSymbol(for mode: HubLayoutMode) -> String {
@@ -731,6 +739,7 @@ private struct HubListRowView: View {
     let item: ClipboardItem
     let isSelected: Bool
     let onSelect: () -> Void
+    let onActivate: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
 
@@ -802,7 +811,7 @@ private struct HubListRowView: View {
             onSelect()
         }
         .onTapGesture(count: 2) {
-            onCopy()
+            onActivate()
         }
     }
 
@@ -843,6 +852,7 @@ private struct HubShelfCardView: View {
     let isSelected: Bool
     let isInCollection: (UUID) -> Bool
     let onSelect: () -> Void
+    let onActivate: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
     let onToggleCollectionMembership: (UUID) -> Void
@@ -971,7 +981,7 @@ private struct HubShelfCardView: View {
             onSelect()
         }
         .onTapGesture(count: 2) {
-            onCopy()
+            onActivate()
         }
         .contextMenu {
             Button("Copy") {
@@ -1053,33 +1063,25 @@ private struct HubShelfCardView: View {
     }
 
     private var fallbackPreview: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack {
             previewShape
                 .fill(HubTheme.cardFillMuted)
 
-            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                HubItemIconView(icon: item.kindIcon, tint: accent, size: 16)
-
-                if case let .text(text) = item.payload {
-                    Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                        .font(.system(size: 10))
-                        .foregroundStyle(HubTheme.textSecondary)
-                        .lineLimit(3)
-                } else if case let .fileURL(url) = item.payload {
-                    Text(url.lastPathComponent)
-                        .font(.system(size: 10))
-                        .foregroundStyle(HubTheme.textSecondary)
-                        .lineLimit(3)
-                } else {
-                    Text(item.kindLabel)
-                        .font(.system(size: 10))
-                        .foregroundStyle(HubTheme.textSecondary)
-                }
-            }
-            .padding(HubTheme.Space.x3)
+            HubItemIconView(icon: previewIcon, tint: accent, size: 20)
         }
-        .frame(width: previewWidth, height: 84, alignment: .topLeading)
+        .frame(width: previewWidth, height: 84)
         .clipShape(previewShape)
+    }
+
+    private var previewIcon: HubItemIcon {
+        switch item.payload {
+        case let .text(text):
+            return .system(text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("http") ? "link" : "text.quote")
+        case .image:
+            return .system("photo")
+        case .fileURL:
+            return .system("doc")
+        }
     }
 }
 
@@ -1573,6 +1575,78 @@ private struct HubWindowAccessor: NSViewRepresentable {
                 self?.onResolveWindow(window)
             }
         }
+    }
+}
+
+private struct HubToastView: View {
+    let title: String
+    let buttonTitle: String
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x3) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(HubTheme.textPrimary)
+            Button(buttonTitle, action: action)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(HubTheme.accentBrand)
+                .buttonStyle(.plain)
+        }
+        .padding(.horizontal, HubTheme.Space.x5)
+        .padding(.vertical, HubTheme.Space.x3)
+        .background(
+            Capsule(style: .continuous)
+                .fill(HubTheme.cardFill)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
+        )
+    }
+}
+
+private struct HubCaptureErrorBanner: View {
+    let message: String
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x3) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.system(size: 12))
+            Text(message)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(HubTheme.textPrimary)
+                .lineLimit(1)
+            Spacer()
+            Button("Screen Recording") {
+                NSWorkspace.shared.open(
+                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+                )
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(HubTheme.accentBrand)
+            .buttonStyle(.plain)
+            Button(action: dismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(HubTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, HubTheme.Space.x5)
+        .padding(.vertical, HubTheme.Space.x3)
+        .background(
+            Capsule(style: .continuous)
+                .fill(HubTheme.cardFill)
+                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
+        )
     }
 }
 

@@ -294,16 +294,24 @@ final class AppState: ObservableObject {
 
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        var wroteToPasteboard = false
 
         switch item.payload {
         case let .text(value):
             pasteboard.setString(value, forType: .string)
+            wroteToPasteboard = true
         case let .image(image):
             if let data = try? ImageStore.load(relativePath: image.imagePath) {
                 pasteboard.setData(data, forType: .png)
+                wroteToPasteboard = true
             }
         case let .fileURL(url):
             pasteboard.writeObjects([url as NSURL])
+            wroteToPasteboard = true
+        }
+
+        if wroteToPasteboard {
+            promoteItemToFront(itemID: itemID)
         }
     }
 
@@ -334,6 +342,15 @@ final class AppState: ObservableObject {
         }
 
         windowRouter?.dismissHub()
+    }
+
+    private func promoteItemToFront(itemID: UUID) {
+        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
+
+        var item = historyItems.remove(at: index)
+        item.createdAt = .now
+        historyItems.insert(item, at: 0)
+        persistHistory()
     }
 
     func exportItem(itemID: UUID) {

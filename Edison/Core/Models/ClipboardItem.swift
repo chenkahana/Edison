@@ -67,7 +67,7 @@ enum ClipboardPayload: Codable, Hashable {
 
 struct ClipboardItem: Codable, Identifiable, Hashable {
     let id: UUID
-    let createdAt: Date
+    var createdAt: Date
     var isFavorite: Bool
     let sourceApplication: ClipboardSourceApplication?
     let payload: ClipboardPayload
