@@ -39,6 +39,7 @@ struct HubView: View {
     @State private var contentHeight: CGFloat = 0
     @State private var showQuickLook = false
     @State private var hubOpenSequence = 0
+    @State private var showAccessibilityAlert = false
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -93,10 +94,12 @@ struct HubView: View {
                     appState.windowRouter?.registerHubWindow(window)
                 },
                 onMoveCommand: handleMoveCommand,
-                onConfirmSelection: pasteSelectedItem,
+                onConfirmSelection: {
+                    pasteSelectedItem()
+                },
                 onDismiss: {
                     focusedField = nil
-                    appState.windowRouter?.dismissHub()
+                    appState.dismissHub()
                 },
                 onFocusSearch: {
                     focusedField = .search
@@ -149,12 +152,24 @@ struct HubView: View {
         .onChange(of: items.map(\.id)) { _, _ in
             syncSelection()
         }
+        .onChange(of: appState.accessibilityDenied) { _, isDenied in
+            guard isDenied else { return }
+            showAccessibilityAlert = true
+        }
         .onMoveCommand(perform: handleMoveCommand)
         .sheet(isPresented: $appState.isEditorPresented) {
             EditorWindowView(imageData: appState.editorImageData) {
                 appState.closeEditor()
             }
             .frame(minWidth: 840, minHeight: 560)
+        }
+        .alert("Allow Accessibility Access", isPresented: $showAccessibilityAlert) {
+            Button("Open Accessibility Settings") {
+                appState.requestAccessibilityAccess()
+            }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text("Edison needs Accessibility access to paste into other apps. Approve Edison in the macOS Accessibility settings, then retry the paste.")
         }
     }
 
@@ -408,7 +423,7 @@ struct HubView: View {
                                             selectedItemID = item.id
                                         },
                                         onActivate: {
-                                            appState.pasteItem(itemID: item.id)
+                                            pasteSelectedItem(selecting: item.id)
                                         },
                                         onCopy: {
                                             appState.copyToClipboard(itemID: item.id)
@@ -463,7 +478,7 @@ struct HubView: View {
                                             selectedItemID = item.id
                                         },
                                         onActivate: {
-                                            appState.pasteItem(itemID: item.id)
+                                            pasteSelectedItem(selecting: item.id)
                                         },
                                         onCopy: {
                                             appState.copyToClipboard(itemID: item.id)
@@ -523,7 +538,7 @@ struct HubView: View {
                                             selectedItemID = item.id
                                         },
                                         onActivate: {
-                                            appState.pasteItem(itemID: item.id)
+                                            pasteSelectedItem(selecting: item.id)
                                         },
                                         onCopy: {
                                             appState.copyToClipboard(itemID: item.id)
@@ -629,9 +644,12 @@ struct HubView: View {
         selectedItemID = items[nextIndex].id
     }
 
-    private func pasteSelectedItem() {
-        guard let selectedItem else { return }
-        appState.pasteItem(itemID: selectedItem.id)
+    private func pasteSelectedItem(selecting itemID: UUID? = nil) {
+        if let itemID {
+            selectedItemID = itemID
+        }
+
+        appState.pasteSelection(from: items, selectedItemID: itemID ?? selectedItemID)
     }
 
     private func scrollSelection(

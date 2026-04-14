@@ -38,12 +38,20 @@ final class AppState: ObservableObject {
     )
 
     private let historyLimit = 250
+    private let enableRuntimeServices: Bool
+    private let frontmostApplicationProvider: () -> NSRunningApplication?
+    private let pasteBackCoordinatorOverride: PasteBackCoordinator?
+    private let accessibilityPromptRequester: () -> Void
+    private let accessibilitySettingsOpener: () -> Void
     private var suppressedClipboardPayloads = Set<ClipboardPayload>()
     private var undoTimer: Timer?
+    private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
     weak var windowRouter: WindowRouter?
     private var screenshotObserver: NSObjectProtocol?
     private(set) var lastActiveApp: NSRunningApplication?
+    private var pasteBackTargetApp: NSRunningApplication?
+    private(set) var isPasteInFlight = false
     private var activeAppObserver: NSObjectProtocol?
     private var shortcutActionRequestObserver: NSObjectProtocol?
     private var captureFailureObserver: NSObjectProtocol?
@@ -67,7 +75,32 @@ final class AppState: ObservableObject {
         filteredItems.filter(\.isFavorite)
     }
 
-    init() {
+    init(
+        enableRuntimeServices: Bool = true,
+        frontmostApplicationProvider: @escaping () -> NSRunningApplication? = { NSWorkspace.shared.frontmostApplication },
+        pasteBackCoordinatorOverride: PasteBackCoordinator? = nil,
+        initialLastActiveApp: NSRunningApplication? = nil,
+        accessibilityPromptRequester: (() -> Void)? = nil,
+        accessibilitySettingsOpener: (() -> Void)? = nil
+    ) {
+        self.enableRuntimeServices = enableRuntimeServices
+        self.frontmostApplicationProvider = frontmostApplicationProvider
+        self.pasteBackCoordinatorOverride = pasteBackCoordinatorOverride
+        self.lastActiveApp = initialLastActiveApp
+        self.accessibilityPromptRequester = accessibilityPromptRequester ?? {
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(opts)
+            // The dialog is asynchronous — re-check on next paste attempt via AXIsProcessTrusted().
+        }
+        self.accessibilitySettingsOpener = accessibilitySettingsOpener ?? {
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+                return
+            }
+            NSWorkspace.shared.open(url)
+        }
+
+        guard enableRuntimeServices else { return }
+
         historyStore.loadAsync { [weak self] loadedItems, loadedCollections in
             Task { @MainActor in
                 self?.historyItems = loadedItems
@@ -170,15 +203,14 @@ final class AppState: ObservableObject {
     /// Triggers the macOS system accessibility permission prompt.
     /// Call from a user-initiated action (e.g., Settings button) — not from the paste hot path.
     func requestAccessibilityAccess() {
-        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(opts)
-        // The dialog is asynchronous — re-check on next paste attempt via AXIsProcessTrusted().
+        accessibilityPromptRequester()
+        accessibilitySettingsOpener()
     }
 
     private func perform(action: ShortcutAction) {
         switch action {
         case .openHub:
-            windowRouter?.toggleHub()
+            toggleHubFromShortcut()
         case .captureArea:
             captureEngine.captureArea()
         case .captureWindow:
@@ -290,58 +322,23 @@ final class AppState: ObservableObject {
 
     func copyToClipboard(itemID: UUID) {
         guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
-        suppressedClipboardPayloads.insert(item.payload)
-
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        var wroteToPasteboard = false
-
-        switch item.payload {
-        case let .text(value):
-            pasteboard.setString(value, forType: .string)
-            wroteToPasteboard = true
-        case let .image(image):
-            if let data = try? ImageStore.load(relativePath: image.imagePath) {
-                pasteboard.setData(data, forType: .png)
-                wroteToPasteboard = true
-            }
-        case let .fileURL(url):
-            pasteboard.writeObjects([url as NSURL])
-            wroteToPasteboard = true
-        }
-
-        if wroteToPasteboard {
-            promoteItemToFront(itemID: itemID)
-        }
+        _ = writeItemToClipboard(item)
     }
 
     func pasteItem(itemID: UUID) {
-        copyToClipboard(itemID: itemID)
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        pasteResolvedItem(item)
+    }
+
+    func pasteSelection(from items: [ClipboardItem], selectedItemID: UUID?) {
+        guard let item = PasteSelectionResolver.resolve(from: items, selectedItemID: selectedItemID) else { return }
+        pasteResolvedItem(item)
+    }
+
+    func dismissHub() {
+        guard !isPasteInFlight else { return }
+        clearPasteBackContext()
         windowRouter?.dismissHub()
-
-        let trusted = AXIsProcessTrusted()
-        if !trusted {
-            Log.permissions.info("Accessibility not granted; paste-back unavailable")
-            accessibilityDenied = true
-        }
-        guard trusted,
-              let targetApp = lastActiveApp else {
-            // Fallback: item is already in clipboard, user pastes manually
-            return
-        }
-
-        let pid = targetApp.processIdentifier
-        targetApp.activate(options: [])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            guard let source = CGEventSource(stateID: .hidSystemState) else { return }
-            let vKeyCode: CGKeyCode = 9 // kVK_ANSI_V
-            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: true)
-            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKeyCode, keyDown: false)
-            keyDown?.flags = .maskCommand
-            keyUp?.flags = .maskCommand
-            keyDown?.postToPid(pid)
-            keyUp?.postToPid(pid)
-        }
     }
 
     private func promoteItemToFront(itemID: UUID) {
@@ -429,6 +426,99 @@ final class AppState: ObservableObject {
 
     private func persistHistory() {
         historyStore.save(items: historyItems, collections: collections)
+    }
+
+    private func toggleHubFromShortcut() {
+        guard let windowRouter else { return }
+
+        if windowRouter.isHubPresented {
+            dismissHub()
+        } else {
+            capturePasteBackTargetApp()
+            windowRouter.openHub()
+        }
+    }
+
+    private func capturePasteBackTargetApp() {
+        let frontmostApplication = frontmostApplicationProvider()
+        if let frontmostApplication,
+           frontmostApplication.bundleIdentifier != Bundle.main.bundleIdentifier {
+            pasteBackTargetApp = frontmostApplication
+        } else {
+            pasteBackTargetApp = lastActiveApp
+        }
+    }
+
+    private func clearPasteBackContext() {
+        pasteBackTargetApp = nil
+    }
+
+    private func pasteResolvedItem(_ item: ClipboardItem) {
+        guard !isPasteInFlight else { return }
+
+        isPasteInFlight = true
+        accessibilityDenied = false
+        let targetApp = pasteBackTargetApp ?? lastActiveApp
+
+        pasteBackCoordinator.run(
+            item: item,
+            targetApp: targetApp,
+            onAccessibilityDenied: { [weak self] in
+                self?.handleAccessibilityDeniedForPasteBack()
+            },
+            completion: { [weak self] in
+                self?.finishPasteBack()
+            }
+        )
+    }
+
+    private func finishPasteBack() {
+        isPasteInFlight = false
+        clearPasteBackContext()
+    }
+
+    private func handleAccessibilityDeniedForPasteBack() {
+        Log.permissions.info("Accessibility not granted; paste-back unavailable")
+        accessibilityDenied = true
+    }
+
+    @discardableResult
+    private func writeItemToClipboard(_ item: ClipboardItem) -> Bool {
+        suppressedClipboardPayloads.insert(item.payload)
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        let wroteToPasteboard: Bool
+
+        switch item.payload {
+        case let .text(value):
+            wroteToPasteboard = pasteboard.setString(value, forType: .string)
+        case let .image(image):
+            if let data = try? ImageStore.load(relativePath: image.imagePath) {
+                wroteToPasteboard = pasteboard.setData(data, forType: .png)
+            } else {
+                wroteToPasteboard = false
+            }
+        case let .fileURL(url):
+            wroteToPasteboard = pasteboard.writeObjects([url as NSURL])
+        }
+
+        if wroteToPasteboard {
+            promoteItemToFront(itemID: item.id)
+        }
+
+        return wroteToPasteboard
+    }
+
+    private func makePasteBackCoordinator() -> PasteBackCoordinator {
+        PasteBackCoordinator(
+            writeItemToClipboard: { [weak self] item in
+                self?.writeItemToClipboard(item) ?? false
+            },
+            closeHub: { [weak self] in
+                self?.windowRouter?.dismissHubForPasteBack()
+            }
+        )
     }
 
     private func handleScreenshotCapture(_ capturedData: Data?) {

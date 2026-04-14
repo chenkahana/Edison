@@ -85,7 +85,25 @@ final class WindowRouter {
         }
     }
 
-    private var isHubPresented: Bool {
+    func dismissHubImmediately() {
+        hubRequestedVisible = false
+        let windows = hubWindows()
+        guard !windows.isEmpty else {
+            hubWindow?.orderOut(nil)
+            return
+        }
+
+        for window in windows {
+            window.orderOut(nil)
+        }
+    }
+
+    func dismissHubForPasteBack() {
+        dismissHubImmediately()
+        NSApp.hide(nil)
+    }
+
+    var isHubPresented: Bool {
         if hubWindows().contains(where: isWindowPresented(_:)) {
             return true
         }
