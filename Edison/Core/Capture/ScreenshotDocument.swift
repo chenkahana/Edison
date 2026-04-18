@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CoreImage
 import Foundation
 
@@ -13,7 +14,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct ScreenshotDraft: Identifiable, Hashable {
+struct ScreenshotDraft: Identifiable {
     let id: UUID
     let baseImageData: Data
     let fileNameHint: String
@@ -48,6 +49,20 @@ struct ScreenshotAnnotationHandle: Hashable {
     var annotationID: UUID
     var handle: ScreenshotResizeHandle
     var point: CGPoint
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.annotationID == rhs.annotationID
+            && lhs.handle == rhs.handle
+            && lhs.point.x == rhs.point.x
+            && lhs.point.y == rhs.point.y
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(annotationID)
+        hasher.combine(handle)
+        hasher.combine(point.x)
+        hasher.combine(point.y)
+    }
 }
 
 enum ScreenshotAnnotationKind: String, Hashable {
@@ -57,7 +72,7 @@ enum ScreenshotAnnotationKind: String, Hashable {
     case redact
 }
 
-struct ScreenshotAnnotation: Identifiable, Hashable {
+struct ScreenshotAnnotation: Identifiable, Equatable {
     var id = UUID()
     var kind: ScreenshotAnnotationKind
     var rect: CGRect
@@ -254,7 +269,7 @@ struct ScreenshotAnnotation: Identifiable, Hashable {
     }
 }
 
-struct ScreenshotDocumentSnapshot: Hashable {
+struct ScreenshotDocumentSnapshot: Equatable {
     var cropRect: CGRect?
     var annotations: [ScreenshotAnnotation]
 

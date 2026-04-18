@@ -92,15 +92,6 @@ final class CaptureEngine {
             return .cancelled
         }
 
-        if #available(macOS 15.2, *) {
-            do {
-                let image = try await Self.captureImage(in: standardized)
-                return .success(data: image, displayID: displayID, rect: standardized)
-            } catch {
-                Log.capture.error("ScreenCaptureKit area capture failed – \(error.localizedDescription)")
-            }
-        }
-
         if let displayID,
            let data = try? await captureAreaOnDisplay(standardized, displayID: displayID) {
             return .success(data: data, displayID: displayID, rect: standardized)
@@ -247,26 +238,6 @@ final class CaptureEngine {
         }
     }
 
-    @available(macOS 15.2, *)
-    private static func captureImage(in rect: CGRect) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            SCScreenshotManager.captureImage(in: rect) { image, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let image else {
-                    continuation.resume(throwing: CocoaError(.fileReadUnknown))
-                    return
-                }
-                guard let data = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
-                    continuation.resume(throwing: CocoaError(.fileWriteUnknown))
-                    return
-                }
-                continuation.resume(returning: data)
-            }
-        }
-    }
 }
 
 private enum SelectionMode {
