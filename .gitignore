@@ -3,6 +3,4 @@
 .swiftpm/
 xcuserdata/
 .codex-recovery/
-.omc/project-memory.json
-.omc/sessions/
-.omc/state/
+.omc/

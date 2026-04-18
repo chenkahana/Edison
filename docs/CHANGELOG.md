@@ -21,15 +21,12 @@
 
 ### Tooling
 - Add `Edison/Configs/Release.xcconfig` with `GCC_TREAT_WARNINGS_AS_ERRORS=YES` and `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`. Wiring to Xcode Release configuration is a manual follow-up (see TODO in the xcconfig).
-- Add `docs/performance-baselines.md` with measurement protocol (3 warm-state trials, median) and the AC7 regression threshold (p95 ≤ baseline median × 1.20).
-- Add `docs/v1.5-qa-checklist.md` as a copy of the manual QA items from the plan, for reviewer convenience.
 
 ### Internal
 - No user-facing feature changes. No product scope changes. No new dependencies.
 
 ### Follow-ups deferred from v1.5
 - Wire `Edison/Configs/Release.xcconfig` into `Edison.xcodeproj` Release configuration.
-- Fill `docs/performance-baselines.md` tables with real measurements before tagging.
 - Evaluate `CaptureEngine` protocol extraction if capture bugs emerge (was Option B; deferred per P2 "no new abstractions without clear need").
 - Consider SwiftUI `@Observable` migration when minimum deployment target moves to macOS 17+.
 
