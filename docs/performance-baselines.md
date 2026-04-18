@@ -35,6 +35,28 @@ Build: Release
 
 ## Post-refactor comparison (to be filled during W7)
 
+> **Methodology reminder:** Follow the same protocol as the baseline above — 3 warm-state trials, discard first, report median. Same physical hardware as the baseline run. Release build, Instruments attached, no other high-CPU processes.
+>
+> **Fill in during manual QA before tagging v1.5.**
+
 Date: TBD
-Commit: TBD
+Commit: `40d856e12411f6ec666f7f61b0b09e56d0a7ffe5` (post-W5 HEAD; update to `<v1.5 release SHA>` when tag is cut)
 Delta: (target ≤ +20% on p95 medians)
+
+| Metric | p50 | p95 | Delta vs baseline p95 | Pass? |
+|--------|-----|-----|-----------------------|-------|
+| Hub toggle (shortcut → window visible) | TBD | TBD | TBD | TBD |
+| History load (cold launch → items ready) | TBD | TBD | TBD | TBD |
+| Search filter (keystroke → rendered results) | TBD | TBD | TBD | TBD |
+| Capture start-to-result (area screenshot) | TBD | TBD | TBD | TBD |
+
+### AC7 Verification Checklist
+
+Before tagging v1.5, confirm each item:
+
+- [ ] p95 hub open time ≤ baseline p95 median × 1.20
+- [ ] p95 search filter time ≤ baseline p95 median × 1.20
+- [ ] p95 history load time ≤ baseline p95 median × 1.20
+- [ ] If any threshold is exceeded: root cause investigated and either fixed or documented with a justification note in this file.
+
+Threshold: post-refactor p95 must not exceed the W1 baseline median by more than 20% (AC7).
