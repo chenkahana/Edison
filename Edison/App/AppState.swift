@@ -16,20 +16,28 @@ final class AppState: ObservableObject {
     @Published private(set) var historyItems: [ClipboardItem] = []
     @Published private(set) var collections: [ItemCollection] = []
     @Published var selectedCollectionID: UUID?
-    @Published var isEditorPresented = false
-    @Published var editorImageData: Data?
+    @Published private(set) var settings: AppSettings
+    @Published private(set) var activeScreenshotSession: ScreenshotSession?
+    @Published private(set) var lastScreenshotSession: ScreenshotSession?
+    @Published var showEditorDiscardAlert = false
     @Published private(set) var deletedItemForUndo: ClipboardItem?
     @Published private(set) var showDeleteUndoToast = false
     @Published var captureError: String?
     @Published private(set) var accessibilityDenied = false
     @Published private(set) var failedShortcutActions: [ShortcutAction] = []
+    @Published private(set) var screenRecordingAccessGranted: Bool
+    @Published private(set) var lastCaptureFailureReason: String?
+    @Published private(set) var launchAtLoginStatusDescription = "Unavailable"
+    @Published private(set) var launchAtLoginErrorMessage: String?
 
     let shortcutStore = ShortcutStore()
+    let settingsStore = SettingsStore()
     let hotKeyCenter = HotKeyCenter.shared
     let captureEngine = CaptureEngine()
 
     private let historyStore = HistoryStore()
     private let clipboardMonitor = ClipboardMonitor()
+    private let launchAtLoginController = LaunchAtLoginController()
     private let searchEngine = HistorySearchEngine()
     private let missingWindowError = NSError(
         domain: "Edison.Share",
@@ -37,24 +45,22 @@ final class AppState: ObservableObject {
         userInfo: [NSLocalizedDescriptionKey: "No active window available for sharing."]
     )
 
-    private let historyLimit = 250
     private let enableRuntimeServices: Bool
     private let frontmostApplicationProvider: () -> NSRunningApplication?
     private let pasteBackCoordinatorOverride: PasteBackCoordinator?
     private let accessibilityPromptRequester: () -> Void
     private let accessibilitySettingsOpener: () -> Void
+    private let screenRecordingSettingsOpener: () -> Void
     private var suppressedClipboardPayloads = Set<ClipboardPayload>()
     private var undoTimer: Timer?
     private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
     weak var windowRouter: WindowRouter?
-    private var screenshotObserver: NSObjectProtocol?
     private(set) var lastActiveApp: NSRunningApplication?
     private var pasteBackTargetApp: NSRunningApplication?
     private(set) var isPasteInFlight = false
     private var activeAppObserver: NSObjectProtocol?
     private var shortcutActionRequestObserver: NSObjectProtocol?
-    private var captureFailureObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
         let searched = searchEngine.filter(
@@ -81,12 +87,15 @@ final class AppState: ObservableObject {
         pasteBackCoordinatorOverride: PasteBackCoordinator? = nil,
         initialLastActiveApp: NSRunningApplication? = nil,
         accessibilityPromptRequester: (() -> Void)? = nil,
-        accessibilitySettingsOpener: (() -> Void)? = nil
+        accessibilitySettingsOpener: (() -> Void)? = nil,
+        screenRecordingSettingsOpener: (() -> Void)? = nil
     ) {
         self.enableRuntimeServices = enableRuntimeServices
         self.frontmostApplicationProvider = frontmostApplicationProvider
         self.pasteBackCoordinatorOverride = pasteBackCoordinatorOverride
         self.lastActiveApp = initialLastActiveApp
+        self.settings = settingsStore.current
+        self.screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
         self.accessibilityPromptRequester = accessibilityPromptRequester ?? {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
@@ -98,6 +107,14 @@ final class AppState: ObservableObject {
             }
             NSWorkspace.shared.open(url)
         }
+        self.screenRecordingSettingsOpener = screenRecordingSettingsOpener ?? {
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") else {
+                return
+            }
+            NSWorkspace.shared.open(url)
+        }
+
+        refreshLaunchAtLoginStatus()
 
         guard enableRuntimeServices else { return }
 
@@ -122,20 +139,6 @@ final class AppState: ObservableObject {
             }
         }
 
-        screenshotObserver = NotificationCenter.default.addObserver(
-            forName: .edisonScreenshotCaptured,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let self else { return }
-            let capturedData = (note.userInfo?[CaptureEngine.imageDataUserInfoKey] as? Data)
-                ?? NSPasteboard.general.data(forType: .tiff)
-
-            MainActor.assumeIsolated {
-                self.handleScreenshotCapture(capturedData)
-            }
-        }
-
         shortcutActionRequestObserver = NotificationCenter.default.addObserver(
             forName: .edisonShortcutActionRequested,
             object: nil,
@@ -146,17 +149,6 @@ final class AppState: ObservableObject {
 
             MainActor.assumeIsolated {
                 self?.perform(action: action)
-            }
-        }
-
-        captureFailureObserver = NotificationCenter.default.addObserver(
-            forName: .edisonCaptureFailed,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let reason = note.userInfo?["reason"] as? String ?? "Capture failed"
-            MainActor.assumeIsolated {
-                self?.captureError = reason
             }
         }
 
@@ -175,20 +167,12 @@ final class AppState: ObservableObject {
 
     deinit {
         let clipboardMonitor = clipboardMonitor
-        let screenshotObserver = screenshotObserver
         let activeAppObserver = activeAppObserver
         let shortcutActionRequestObserver = shortcutActionRequestObserver
-        let captureFailureObserver = captureFailureObserver
         Task { @MainActor in
             clipboardMonitor.stop()
-            if let screenshotObserver {
-                NotificationCenter.default.removeObserver(screenshotObserver)
-            }
             if let shortcutActionRequestObserver {
                 NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
-            }
-            if let captureFailureObserver {
-                NotificationCenter.default.removeObserver(captureFailureObserver)
             }
             if let activeAppObserver {
                 NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
@@ -207,16 +191,32 @@ final class AppState: ObservableObject {
         accessibilitySettingsOpener()
     }
 
+    func requestScreenRecordingAccess() {
+        _ = captureEngine.requestScreenRecordingPermission()
+        screenRecordingSettingsOpener()
+        refreshPermissionStatuses()
+    }
+
+    func refreshPermissionStatuses() {
+        screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
+    }
+
     private func perform(action: ShortcutAction) {
         switch action {
         case .openHub:
             toggleHubFromShortcut()
-        case .captureArea:
-            captureEngine.captureArea()
+        case .captureScreenshot:
+            Task { await startCapture(.screenshot) }
         case .captureWindow:
-            captureEngine.captureWindow()
+            Task { await startCapture(.window) }
         case .captureFullScreen:
-            captureEngine.captureFullScreen()
+            Task { await startCapture(.fullScreen) }
+        case .capturePreviousArea:
+            Task { await startCapture(.previousArea) }
+        case .editLastScreenshot:
+            editLastScreenshot()
+        case .openSettings:
+            windowRouter?.openSettings()
         }
     }
 
@@ -224,6 +224,17 @@ final class AppState: ObservableObject {
         shortcutStore.save(shortcuts)
         hotKeyCenter.apply(shortcuts: shortcuts)
         failedShortcutActions = hotKeyCenter.failedRegistrations
+    }
+
+    func save(settings: AppSettings) {
+        self.settings = settings
+        settingsStore.save(settings)
+        refreshLaunchAtLogin(settings.general.launchAtLogin)
+        trimHistoryToSettingsLimit()
+    }
+
+    func restoreDefaultSettings() {
+        save(settings: .default)
     }
 
     func createCollection(named name: String) {
@@ -393,8 +404,114 @@ final class AppState: ObservableObject {
         }
     }
 
-    func closeEditor() {
-        isEditorPresented = false
+    func requestEditorClose() {
+        guard let activeScreenshotSession else {
+            closeEditorImmediately()
+            return
+        }
+        if activeScreenshotSession.hasUnsavedChanges {
+            showEditorDiscardAlert = true
+            return
+        }
+        lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+        closeEditorImmediately()
+    }
+
+    func discardAndCloseEditor() {
+        if let activeScreenshotSession {
+            lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+        }
+        showEditorDiscardAlert = false
+        closeEditorImmediately()
+    }
+
+    func closeEditorImmediately() {
+        showEditorDiscardAlert = false
+        windowRouter?.dismissEditor()
+        activeScreenshotSession = nil
+    }
+
+    func editLastScreenshot() {
+        guard let lastScreenshotSession else {
+            captureError = "There is no previous screenshot to edit yet."
+            return
+        }
+        openEditor(with: lastScreenshotSession.duplicateForEditing())
+    }
+
+    func keepActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+    }
+
+    func copyActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        commitScreenshotSession(activeScreenshotSession, copyToClipboard: true)
+    }
+
+    func saveActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        do {
+            let png = try activeScreenshotSession.renderedPNGData()
+            let panel = NSSavePanel()
+            panel.canCreateDirectories = true
+            panel.allowedContentTypes = [.png]
+            panel.nameFieldStringValue = "\(settings.defaultFileName()).png"
+            if let defaultSaveFolderPath = settings.capture.defaultSaveFolderPath {
+                panel.directoryURL = URL(fileURLWithPath: defaultSaveFolderPath, isDirectory: true)
+            }
+
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            try png.write(to: url, options: .atomic)
+            commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+        } catch {
+            present(error: error, title: "Save Failed")
+        }
+    }
+
+    func clearHistory() {
+        historyItems.forEach { item in
+            if case let .image(imageData) = item.payload {
+                ImageStore.delete(relativePath: imageData.imagePath)
+                ImageStore.delete(relativePath: imageData.thumbnailPath)
+            }
+        }
+        historyItems.removeAll()
+        collections.removeAll()
+        selectedCollectionID = nil
+        persistHistory()
+    }
+
+    func revealStorageFolder() {
+        NSWorkspace.shared.activateFileViewerSelecting([HistoryStore.storageDirectory])
+    }
+
+    func exportDiagnostics() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "edison-diagnostics.txt"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let diagnostics = """
+        Edison Diagnostics
+        Generated: \(ISO8601DateFormatter().string(from: .now))
+        Screen Recording Access: \(screenRecordingAccessGranted)
+        Accessibility Access: \(AXIsProcessTrusted())
+        Failed Shortcuts: \(failedShortcutActions.map(\.title).joined(separator: ", "))
+        History Count: \(historyItems.count)
+        Collections Count: \(collections.count)
+        Last Capture Failure: \(lastCaptureFailureReason ?? "None")
+        Launch At Login: \(launchAtLoginStatusDescription)
+        Settings: \(String(describing: settings))
+        """
+
+        do {
+            try diagnostics.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            present(error: error, title: "Diagnostics Export Failed")
+        }
     }
 
     private func addToHistory(_ item: ClipboardItem, source: HistorySource = .clipboard) {
@@ -405,15 +522,15 @@ final class AppState: ObservableObject {
         historyItems.removeAll { $0.payload == item.payload }
         historyItems.insert(item, at: 0)
 
-        if historyItems.count > historyLimit {
-            let excess = historyItems.suffix(historyItems.count - historyLimit)
+        if historyItems.count > settings.privacy.historyLimit {
+            let excess = historyItems.suffix(historyItems.count - settings.privacy.historyLimit)
             for pruned in excess {
                 if case let .image(imageData) = pruned.payload {
                     ImageStore.delete(relativePath: imageData.imagePath)
                     ImageStore.delete(relativePath: imageData.thumbnailPath)
                 }
             }
-            historyItems.removeLast(historyItems.count - historyLimit)
+            historyItems.removeLast(historyItems.count - settings.privacy.historyLimit)
         }
 
         let liveItemIDs = Set(historyItems.map(\.id))
@@ -426,6 +543,31 @@ final class AppState: ObservableObject {
 
     private func persistHistory() {
         historyStore.save(items: historyItems, collections: collections)
+    }
+
+    private func trimHistoryToSettingsLimit() {
+        guard historyItems.count > settings.privacy.historyLimit else { return }
+        let excess = historyItems.suffix(historyItems.count - settings.privacy.historyLimit)
+        for pruned in excess {
+            if case let .image(imageData) = pruned.payload {
+                ImageStore.delete(relativePath: imageData.imagePath)
+                ImageStore.delete(relativePath: imageData.thumbnailPath)
+            }
+        }
+        historyItems.removeLast(historyItems.count - settings.privacy.historyLimit)
+        persistHistory()
+    }
+
+    private func refreshLaunchAtLogin(_ isEnabled: Bool) {
+        launchAtLoginController.setEnabled(isEnabled)
+        launchAtLoginErrorMessage = launchAtLoginController.lastErrorMessage
+        refreshLaunchAtLoginStatus()
+    }
+
+    private func refreshLaunchAtLoginStatus() {
+        launchAtLoginController.refreshStatus()
+        launchAtLoginErrorMessage = launchAtLoginController.lastErrorMessage
+        launchAtLoginStatusDescription = launchAtLoginController.statusDescription
     }
 
     private func toggleHubFromShortcut() {
@@ -521,23 +663,116 @@ final class AppState: ObservableObject {
         )
     }
 
-    private func handleScreenshotCapture(_ capturedData: Data?) {
-        guard let capturedData else { return }
+    private func startCapture(_ request: CaptureRequest) async {
+        refreshPermissionStatuses()
+        let result = await captureEngine.capture(request, settings: settings)
+        await handleCaptureResult(result)
+    }
 
-        Task { [weak self] in
-            let prepared = await Task.detached(priority: .utility) {
-                ImageProcessing.prepareImagePayload(from: capturedData)
-            }.value
+    private func handleCaptureResult(_ result: CaptureResult) async {
+        switch result {
+        case let .success(data, displayID, rect):
+            captureError = nil
+            lastCaptureFailureReason = nil
+            let draft = ScreenshotDraft(
+                baseImageData: data,
+                fileNameHint: settings.defaultFileName(),
+                captureDisplayID: displayID,
+                captureRect: rect
+            )
+            let session = ScreenshotSession(draft: draft)
 
-            guard let prepared else { return }
-            await MainActor.run {
-                guard let self else { return }
-                self.suppressedClipboardPayloads.insert(.image(prepared))
-                self.addToHistory(ClipboardItem(payload: .image(prepared)), source: .internalAction)
-                self.editorImageData = try? ImageStore.load(relativePath: prepared.imagePath)
-                self.windowRouter?.openHub()
-                self.isEditorPresented = true
+            if settings.capture.openEditorAfterCapture || settings.capture.defaultResult != .keepInHistory {
+                openEditor(with: session)
+            } else {
+                activeScreenshotSession = session
+                keepActiveScreenshot()
             }
+
+        case .cancelled:
+            captureError = nil
+        case .permissionDenied:
+            screenRecordingAccessGranted = false
+            lastCaptureFailureReason = "Screen Recording permission is required before Edison can capture screenshots."
+            captureError = lastCaptureFailureReason
+            presentScreenRecordingPermissionAlert()
+        case let .failure(reason):
+            lastCaptureFailureReason = reason
+            captureError = reason
+            Log.capture.error("Capture failed – \(reason)")
+        }
+    }
+
+    private func openEditor(with session: ScreenshotSession) {
+        activeScreenshotSession = session
+        lastScreenshotSession = session.duplicateForEditing()
+        windowRouter?.openEditor()
+    }
+
+    private func commitScreenshotSession(_ session: ScreenshotSession, copyToClipboard: Bool) {
+        do {
+            let pngData = try session.renderedPNGData()
+            let item = try persistScreenshotImage(pngData, existingItemID: session.committedItemID)
+            session.recordCommit(itemID: item.id)
+            lastScreenshotSession = session.duplicateForEditing()
+
+            if copyToClipboard {
+                writeImageDataToClipboard(pngData, payload: item.payload)
+            }
+
+            if settings.editor.closeAfterCopySave {
+                closeEditorImmediately()
+            }
+        } catch {
+            present(error: error, title: "Screenshot Commit Failed")
+        }
+    }
+
+    private func persistScreenshotImage(_ data: Data, existingItemID: UUID?) throws -> ClipboardItem {
+        guard let prepared = ImageProcessing.prepareImagePayload(from: data, id: existingItemID ?? UUID()) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+
+        if let existingItemID,
+           let index = historyItems.firstIndex(where: { $0.id == existingItemID }) {
+            let oldItem = historyItems[index]
+            if case let .image(oldImage) = oldItem.payload {
+                ImageStore.delete(relativePath: oldImage.imagePath)
+                ImageStore.delete(relativePath: oldImage.thumbnailPath)
+            }
+
+            historyItems[index] = ClipboardItem(
+                id: existingItemID,
+                createdAt: .now,
+                isFavorite: oldItem.isFavorite,
+                sourceApplication: oldItem.sourceApplication,
+                payload: .image(prepared)
+            )
+            promoteItemToFront(itemID: existingItemID)
+            return historyItems.first(where: { $0.id == existingItemID }) ?? historyItems[0]
+        }
+
+        let item = ClipboardItem(payload: .image(prepared))
+        addToHistory(item, source: .internalAction)
+        return item
+    }
+
+    private func writeImageDataToClipboard(_ data: Data, payload: ClipboardPayload) {
+        suppressedClipboardPayloads.insert(payload)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        _ = pasteboard.setData(data, forType: .png)
+    }
+
+    private func presentScreenRecordingPermissionAlert() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Allow Screen Recording"
+        alert.informativeText = "Edison needs Screen Recording access to capture screenshots. Open System Settings and enable Edison under Privacy & Security > Screen Recording."
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Not Now")
+        if alert.runModal() == .alertFirstButtonReturn {
+            requestScreenRecordingAccess()
         }
     }
 

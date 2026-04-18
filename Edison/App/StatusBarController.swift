@@ -4,9 +4,11 @@ import AppKit
 final class StatusBarController: NSObject {
     struct Actions {
         let openHub: () -> Void
-        let captureArea: () -> Void
+        let captureScreenshot: () -> Void
         let captureWindow: () -> Void
         let captureFullScreen: () -> Void
+        let capturePreviousArea: () -> Void
+        let editLastScreenshot: () -> Void
         let openSettings: () -> Void
         let quit: () -> Void
     }
@@ -32,9 +34,11 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Open Hub", action: #selector(openHub), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Capture Area", action: #selector(captureArea), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture Screenshot", action: #selector(captureScreenshot), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Capture Previous Area", action: #selector(capturePreviousArea), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Edit Last Screenshot", action: #selector(editLastScreenshot), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
@@ -51,8 +55,8 @@ final class StatusBarController: NSObject {
         actions.openSettings()
     }
 
-    @objc private func captureArea() {
-        actions.captureArea()
+    @objc private func captureScreenshot() {
+        actions.captureScreenshot()
     }
 
     @objc private func captureWindow() {
@@ -61,6 +65,14 @@ final class StatusBarController: NSObject {
 
     @objc private func captureFullScreen() {
         actions.captureFullScreen()
+    }
+
+    @objc private func capturePreviousArea() {
+        actions.capturePreviousArea()
+    }
+
+    @objc private func editLastScreenshot() {
+        actions.editLastScreenshot()
     }
 
     @objc private func quit() {

@@ -4,18 +4,24 @@ import Foundation
 
 enum ShortcutAction: String, CaseIterable, Codable, Hashable, Identifiable {
     case openHub
-    case captureArea
+    case captureScreenshot
     case captureWindow
     case captureFullScreen
+    case capturePreviousArea
+    case editLastScreenshot
+    case openSettings
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .openHub: return "Open Edison"
-        case .captureArea: return "Capture Area"
+        case .captureScreenshot: return "Capture Screenshot"
         case .captureWindow: return "Capture Window"
         case .captureFullScreen: return "Capture Full Screen"
+        case .capturePreviousArea: return "Capture Previous Area"
+        case .editLastScreenshot: return "Edit Last Screenshot"
+        case .openSettings: return "Open Settings"
         }
     }
 }
@@ -29,6 +35,11 @@ struct Shortcut: Codable, Hashable {
         modifiers: UInt32(cmdKey | shiftKey)
     )
 
+    static let defaultCaptureScreenshot = Shortcut(
+        keyCode: UInt32(kVK_ANSI_S),
+        modifiers: UInt32(cmdKey | shiftKey)
+    )
+
     static func commandShift(_ keyCode: Int) -> Shortcut {
         Shortcut(keyCode: UInt32(keyCode), modifiers: UInt32(cmdKey | shiftKey))
     }
@@ -39,13 +50,22 @@ struct ShortcutSet: Codable, Hashable {
 
     static let `default` = ShortcutSet(map: [
         .openHub: .defaultOpenHub,
-        .captureArea: .commandShift(kVK_ANSI_2),
-        .captureWindow: .commandShift(kVK_ANSI_3),
-        .captureFullScreen: .commandShift(kVK_ANSI_4)
+        .captureScreenshot: .defaultCaptureScreenshot
     ])
 
-    subscript(action: ShortcutAction) -> Shortcut {
-        get { map[action] ?? Shortcut.defaultOpenHub }
+    static func defaultShortcut(for action: ShortcutAction) -> Shortcut? {
+        switch action {
+        case .openHub:
+            return .defaultOpenHub
+        case .captureScreenshot:
+            return .defaultCaptureScreenshot
+        case .captureWindow, .captureFullScreen, .capturePreviousArea, .editLastScreenshot, .openSettings:
+            return nil
+        }
+    }
+
+    subscript(action: ShortcutAction) -> Shortcut? {
+        get { map[action] }
         set { map[action] = newValue }
     }
 }

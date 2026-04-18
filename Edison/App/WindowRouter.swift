@@ -3,7 +3,9 @@ import AppKit
 @MainActor
 final class WindowRouter {
     private weak var hubWindow: NSWindow?
+    private weak var storedEditorWindow: NSWindow?
     private var openHubAction: (() -> Void)?
+    private var openEditorAction: (() -> Void)?
     private var hubRequestedVisible = false
 
     func toggleHub() {
@@ -33,6 +35,10 @@ final class WindowRouter {
 
     func setOpenHubAction(_ action: @escaping () -> Void) {
         openHubAction = action
+    }
+
+    func setOpenEditorAction(_ action: @escaping () -> Void) {
+        openEditorAction = action
     }
 
     func openHub() {
@@ -70,6 +76,41 @@ final class WindowRouter {
     func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    var editorWindow: NSWindow? {
+        resolveEditorWindow()
+    }
+
+    func registerEditorWindow(_ window: NSWindow?) {
+        guard let window else { return }
+        window.identifier = NSUserInterfaceItemIdentifier("editor-window")
+        storedEditorWindow = window
+    }
+
+    func openEditor() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.unhide(nil)
+
+        if let editorWindow = resolveEditorWindow() {
+            if editorWindow.isMiniaturized {
+                editorWindow.deminiaturize(nil)
+            }
+            editorWindow.makeKeyAndOrderFront(nil)
+            editorWindow.orderFrontRegardless()
+            return
+        }
+
+        openEditorAction?()
+        DispatchQueue.main.async {
+            guard let editorWindow = self.resolveEditorWindow() else { return }
+            editorWindow.makeKeyAndOrderFront(nil)
+            editorWindow.orderFrontRegardless()
+        }
+    }
+
+    func dismissEditor() {
+        resolveEditorWindow()?.orderOut(nil)
     }
 
     func dismissHub() {
@@ -155,6 +196,18 @@ final class WindowRouter {
         let fallback = NSApp.windows.first { $0.canBecomeKey && !($0 is NSPanel) }
         if let fallback {
             hubWindow = fallback
+        }
+        return fallback
+    }
+
+    private func resolveEditorWindow() -> NSWindow? {
+        if let storedEditorWindow, NSApp.windows.contains(storedEditorWindow) {
+            return storedEditorWindow
+        }
+
+        let fallback = NSApp.windows.first { $0.identifier?.rawValue == "editor-window" }
+        if let fallback {
+            storedEditorWindow = fallback
         }
         return fallback
     }

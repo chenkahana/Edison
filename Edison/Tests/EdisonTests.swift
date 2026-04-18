@@ -5,10 +5,33 @@ import AppKit
 
 #if canImport(Testing)
 import Testing
+import Carbon
 @testable import Edison
 
 private func makeTextItem(_ value: String) -> ClipboardItem {
     ClipboardItem(payload: .text(value))
+}
+
+private func makeTestImageData(size: NSSize = NSSize(width: 80, height: 60)) -> Data {
+    let image = NSImage(size: size)
+    image.lockFocus()
+    NSColor.systemBlue.setFill()
+    NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+    image.unlockFocus()
+
+    let rep = NSBitmapImageRep(data: image.tiffRepresentation!)!
+    return rep.representation(using: .png, properties: [:])!
+}
+
+private enum LegacyShortcutActionTest: String, Codable, Hashable {
+    case openHub
+    case captureArea
+    case captureWindow
+    case captureFullScreen
+}
+
+private struct LegacyShortcutSetTest: Codable, Hashable {
+    var map: [LegacyShortcutActionTest: Shortcut]
 }
 
 struct EdisonTests {
@@ -363,13 +386,124 @@ struct EdisonTests {
         #expect(promptRequests == 1)
         #expect(settingsOpenRequests == 1)
     }
+
+    @Test("Filename template expands date and time tokens")
+    func filenameTemplateExpandsTokens() {
+        var settings = AppSettings.default
+        settings.capture.filenameTemplate = "Capture {date} {time}"
+
+        let name = settings.defaultFileName(at: Date(timeIntervalSince1970: 1_700_000_000))
+
+        #expect(name.contains("Capture"))
+        #expect(name.contains("2023"))
+    }
+
+    @Test("Shortcut store migrates legacy capture area binding to capture screenshot")
+    func shortcutStoreMigratesLegacyBindings() {
+        let suiteName = "EdisonTests.Shortcuts.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let legacy = LegacyShortcutSetTest(map: [
+            .openHub: .defaultOpenHub,
+            .captureArea: .commandShift(kVK_ANSI_2),
+            .captureWindow: .commandShift(kVK_ANSI_3),
+            .captureFullScreen: .commandShift(kVK_ANSI_4)
+        ])
+
+        defaults.set(try! JSONEncoder().encode(legacy), forKey: "edison.shortcuts.v1")
+
+        let store = ShortcutStore(defaults: defaults)
+        let shortcuts = store.current
+
+        #expect(shortcuts[.captureScreenshot] == Shortcut.commandShift(kVK_ANSI_2))
+        #expect(shortcuts[.captureWindow] == Shortcut.commandShift(kVK_ANSI_3))
+        #expect(defaults.data(forKey: "edison.shortcuts.v2") != nil)
+    }
+
+    @Test("Shortcut validator catches duplicates and reserved shortcuts")
+    func shortcutValidatorReportsConflicts() {
+        let duplicate = Shortcut.defaultOpenHub
+        let shortcuts = ShortcutSet(map: [
+            .openHub: duplicate,
+            .captureScreenshot: duplicate,
+            .openSettings: Shortcut(keyCode: UInt32(kVK_ANSI_Comma), modifiers: UInt32(cmdKey))
+        ])
+
+        let issues = ShortcutValidator.validationIssues(for: shortcuts)
+
+        #expect(issues[ShortcutAction.captureScreenshot]?.contains(ShortcutValidationIssue.duplicate(with: .openHub)) == true)
+        #expect(issues[ShortcutAction.openSettings]?.contains(ShortcutValidationIssue.reservedShortcut) == true)
+    }
+
+    @MainActor
+    @Test("Screenshot session undo and redo preserve annotation history")
+    func screenshotSessionUndoRedo() {
+        let draft = ScreenshotDraft(
+            baseImageData: makeTestImageData(),
+            fileNameHint: "Test"
+        )
+        let session = ScreenshotSession(draft: draft)
+        var snapshot = session.currentSnapshot
+        snapshot.annotations.append(.rectangle(CGRect(x: 10, y: 10, width: 20, height: 12), style: .default))
+        session.commit(snapshot: snapshot)
+
+        #expect(session.currentSnapshot.annotations.count == 1)
+        #expect(session.canUndo)
+
+        session.undo()
+        #expect(session.currentSnapshot.annotations.isEmpty)
+        #expect(session.canRedo)
+
+        session.redo()
+        #expect(session.currentSnapshot.annotations.count == 1)
+    }
+
+    @MainActor
+    @Test("Screenshot session records commit state")
+    func screenshotSessionCommitState() {
+        let draft = ScreenshotDraft(
+            baseImageData: makeTestImageData(),
+            fileNameHint: "Test"
+        )
+        let session = ScreenshotSession(draft: draft)
+
+        #expect(session.hasUnsavedChanges)
+
+        session.recordCommit(itemID: UUID())
+
+        #expect(!session.hasUnsavedChanges)
+    }
 }
 #elseif canImport(XCTest)
 import XCTest
+import Carbon
 @testable import Edison
 
 private func makeTextItem(_ value: String) -> ClipboardItem {
     ClipboardItem(payload: .text(value))
+}
+
+private func makeTestImageData(size: NSSize = NSSize(width: 80, height: 60)) -> Data {
+    let image = NSImage(size: size)
+    image.lockFocus()
+    NSColor.systemBlue.setFill()
+    NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+    image.unlockFocus()
+
+    let rep = NSBitmapImageRep(data: image.tiffRepresentation!)!
+    return rep.representation(using: .png, properties: [:])!
+}
+
+private enum LegacyShortcutActionTest: String, Codable, Hashable {
+    case openHub
+    case captureArea
+    case captureWindow
+    case captureFullScreen
+}
+
+private struct LegacyShortcutSetTest: Codable, Hashable {
+    var map: [LegacyShortcutActionTest: Shortcut]
 }
 
 final class EdisonTests: XCTestCase {
@@ -708,6 +842,86 @@ final class EdisonTests: XCTestCase {
 
         XCTAssertEqual(promptRequests, 1)
         XCTAssertEqual(settingsOpenRequests, 1)
+    }
+
+    func testFilenameTemplateExpandsTokens() {
+        var settings = AppSettings.default
+        settings.capture.filenameTemplate = "Capture {date} {time}"
+
+        let name = settings.defaultFileName(at: Date(timeIntervalSince1970: 1_700_000_000))
+
+        XCTAssertTrue(name.contains("Capture"))
+        XCTAssertTrue(name.contains("2023"))
+    }
+
+    func testShortcutStoreMigratesLegacyBindings() {
+        let suiteName = "EdisonTests.Shortcuts.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let legacy = LegacyShortcutSetTest(map: [
+            .openHub: .defaultOpenHub,
+            .captureArea: .commandShift(kVK_ANSI_2),
+            .captureWindow: .commandShift(kVK_ANSI_3),
+            .captureFullScreen: .commandShift(kVK_ANSI_4)
+        ])
+        defaults.set(try! JSONEncoder().encode(legacy), forKey: "edison.shortcuts.v1")
+
+        let store = ShortcutStore(defaults: defaults)
+        let shortcuts = store.current
+
+        XCTAssertEqual(shortcuts[.captureScreenshot], Shortcut.commandShift(kVK_ANSI_2))
+        XCTAssertEqual(shortcuts[.captureWindow], Shortcut.commandShift(kVK_ANSI_3))
+        XCTAssertNotNil(defaults.data(forKey: "edison.shortcuts.v2"))
+    }
+
+    func testShortcutValidatorReportsConflicts() {
+        let duplicate = Shortcut.defaultOpenHub
+        let shortcuts = ShortcutSet(map: [
+            .openHub: duplicate,
+            .captureScreenshot: duplicate,
+            .openSettings: Shortcut(keyCode: UInt32(kVK_ANSI_Comma), modifiers: UInt32(cmdKey))
+        ])
+
+        let issues = ShortcutValidator.validationIssues(for: shortcuts)
+
+        XCTAssertTrue(issues[ShortcutAction.captureScreenshot]?.contains(ShortcutValidationIssue.duplicate(with: .openHub)) == true)
+        XCTAssertTrue(issues[ShortcutAction.openSettings]?.contains(ShortcutValidationIssue.reservedShortcut) == true)
+    }
+
+    @MainActor
+    func testScreenshotSessionUndoRedo() {
+        let draft = ScreenshotDraft(
+            baseImageData: makeTestImageData(),
+            fileNameHint: "Test"
+        )
+        let session = ScreenshotSession(draft: draft)
+        var snapshot = session.currentSnapshot
+        snapshot.annotations.append(.rectangle(CGRect(x: 10, y: 10, width: 20, height: 12), style: .default))
+        session.commit(snapshot: snapshot)
+
+        XCTAssertEqual(session.currentSnapshot.annotations.count, 1)
+        XCTAssertTrue(session.canUndo)
+
+        session.undo()
+        XCTAssertTrue(session.currentSnapshot.annotations.isEmpty)
+        XCTAssertTrue(session.canRedo)
+
+        session.redo()
+        XCTAssertEqual(session.currentSnapshot.annotations.count, 1)
+    }
+
+    @MainActor
+    func testScreenshotSessionCommitState() {
+        let draft = ScreenshotDraft(
+            baseImageData: makeTestImageData(),
+            fileNameHint: "Test"
+        )
+        let session = ScreenshotSession(draft: draft)
+
+        XCTAssertTrue(session.hasUnsavedChanges)
+        session.recordCommit(itemID: UUID())
+        XCTAssertFalse(session.hasUnsavedChanges)
     }
 }
 #endif

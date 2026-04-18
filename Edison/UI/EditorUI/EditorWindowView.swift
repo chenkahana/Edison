@@ -1,407 +1,487 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
-
-private enum EditorTool: String, CaseIterable, Identifiable {
-    case crop = "Crop"
-    case arrow = "Arrow"
-    case rectangle = "Rectangle"
-    case text = "Text"
-
-    var id: String { rawValue }
-}
 
 struct EditorWindowView: View {
-    let imageData: Data?
-    let onClose: () -> Void
-
-    @State private var tool: EditorTool = .arrow
-    @State private var history: [NSImage] = []
-    @State private var historyIndex = 0
-
-    @State private var dragStart: CGPoint?
-    @State private var dragCurrent: CGPoint?
-
-    @State private var pendingText = ""
-    @State private var textInsertionPoint: CGPoint?
-
-    private let accentColor = NSColor.systemRed
-
-    private var currentImage: NSImage? {
-        guard history.indices.contains(historyIndex) else { return nil }
-        return history[historyIndex]
-    }
-
-    private var canUndo: Bool { historyIndex > 0 }
-    private var canRedo: Bool { historyIndex < history.count - 1 }
+    @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            topBar
-
-            if let image = currentImage {
-                editorCanvas(image: image)
+        Group {
+            if let session = appState.activeScreenshotSession {
+                EditorSessionView(session: session)
+                    .environmentObject(appState)
             } else {
                 ContentUnavailableView("No Screenshot", systemImage: "photo")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding()
-        .onAppear {
-            initializeImageIfNeeded()
+        .background(
+            EditorWindowAccessor(
+                onResolveWindow: { window in
+                    guard let window else { return }
+                    window.identifier = NSUserInterfaceItemIdentifier("editor-window")
+                    window.minSize = NSSize(width: 920, height: 620)
+                    appState.windowRouter?.registerEditorWindow(window)
+                },
+                onShouldClose: {
+                    appState.requestEditorClose()
+                    return false
+                }
+            )
+        )
+    }
+}
+
+private struct EditorSessionView: View {
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject var session: ScreenshotSession
+
+    @State private var tool: ScreenshotTool = .select
+    @State private var draftSnapshot: ScreenshotDocumentSnapshot?
+    @State private var dragContext: EditorDragContext?
+    @State private var pendingText = ""
+    @State private var textInsertionPoint: CGPoint?
+
+    private let presetColors: [CodableColor] = [
+        .systemRed,
+        .systemOrange,
+        CodableColor(nsColor: .systemBlue),
+        CodableColor(nsColor: .systemGreen),
+        CodableColor(nsColor: .labelColor)
+    ]
+
+    private var displayedSnapshot: ScreenshotDocumentSnapshot {
+        draftSnapshot ?? session.currentSnapshot
+    }
+
+    private var visibleImageRect: CGRect {
+        displayedSnapshot.cropRect ?? CGRect(origin: .zero, size: session.canvasSize)
+    }
+
+    private var currentSelection: ScreenshotAnnotation? {
+        guard let selectedID = session.selectedAnnotationID else { return nil }
+        return displayedSnapshot.annotations.first(where: { $0.id == selectedID })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
+            toolbar
+            inspector
+            canvas
         }
-        .onChange(of: imageData) { _, _ in
-            initializeImageIfNeeded(force: true)
+        .padding(HubTheme.Space.x5)
+        .background(HubGlassBackground())
+        .alert("Discard Changes?", isPresented: $appState.showEditorDiscardAlert) {
+            Button("Discard", role: .destructive) {
+                appState.discardAndCloseEditor()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This screenshot has changes that haven't been copied, saved, or kept yet.")
+        }
+        .onChange(of: session.id) { _, _ in
+            resetTransientState()
+        }
+        .onDeleteCommand {
+            session.deleteSelectedAnnotation()
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 10) {
+    private var toolbar: some View {
+        HStack(spacing: HubTheme.Space.x3) {
             Text("Screenshot Editor")
                 .font(.headline)
 
             Picker("Tool", selection: $tool) {
-                ForEach(EditorTool.allCases) { option in
-                    Text(option.rawValue).tag(option)
+                ForEach(ScreenshotTool.allCases) { item in
+                    Text(item.rawValue).tag(item)
                 }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-
-            Button("Undo") { undo() }
-                .disabled(!canUndo)
-
-            Button("Redo") { redo() }
-                .disabled(!canRedo)
-
-            Button("Copy") { copyToClipboard() }
-                .disabled(currentImage == nil)
-
-            Button("Save") { saveToFile() }
-                .disabled(currentImage == nil)
+            .frame(maxWidth: 520)
 
             Spacer()
 
-            Button("Done") { onClose() }
+            Button("Undo") {
+                commitPreviewIfNeeded()
+                session.undo()
+            }
+            .keyboardShortcut("z", modifiers: .command)
+            .disabled(!session.canUndo)
+
+            Button("Redo") {
+                commitPreviewIfNeeded()
+                session.redo()
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .disabled(!session.canRedo)
+
+            Button("Copy") {
+                commitPreviewIfNeeded()
+                appState.copyActiveScreenshot()
+            }
+            .keyboardShortcut("c", modifiers: .command)
+
+            Button("Save") {
+                commitPreviewIfNeeded()
+                appState.saveActiveScreenshot()
+            }
+            .keyboardShortcut("s", modifiers: .command)
+
+            Button("Keep") {
+                commitPreviewIfNeeded()
+                appState.keepActiveScreenshot()
+            }
+
+            Button("Done") {
+                commitPreviewIfNeeded()
+                appState.requestEditorClose()
+            }
+            .keyboardShortcut(.cancelAction)
         }
     }
 
-    private func editorCanvas(image: NSImage) -> some View {
-        GeometryReader { proxy in
-            let frame = fittedImageRect(in: proxy.size, imageSize: image.size)
+    @ViewBuilder
+    private var inspector: some View {
+        if let selection = currentSelection {
+            HStack(spacing: HubTheme.Space.x3) {
+                Text("Inspector")
+                    .font(.subheadline.weight(.semibold))
 
-            ZStack(alignment: .topLeading) {
-                Color.black.opacity(0.06)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                Image(nsImage: image)
-                    .resizable()
-                    .frame(width: frame.width, height: frame.height)
-                    .position(x: frame.midX, y: frame.midY)
-
-                if let overlayPath = dragPreviewPath(displayRect: frame, imageSize: image.size) {
-                    overlayPath
-                        .stroke(Color(accentColor), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                HStack(spacing: HubTheme.Space.x2) {
+                    ForEach(presetColors, id: \.self) { color in
+                        Button {
+                            updateSelectedAnnotation { annotation in
+                                annotation.color = color
+                            }
+                        } label: {
+                            Circle()
+                                .fill(color.color)
+                                .frame(width: 16, height: 16)
+                                .overlay(
+                                    Circle()
+                                        .stroke(selection.color == color ? Color.white : Color.clear, lineWidth: 2)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
-                if tool == .text, let point = textInsertionPoint {
-                    VStack(alignment: .leading, spacing: 6) {
-                        TextField("Text", text: $pendingText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220)
-                        HStack {
-                            Button("Add") {
-                                commitText(at: point)
-                            }
-                            Button("Cancel") {
-                                pendingText = ""
-                                textInsertionPoint = nil
-                            }
+                labeledStepper("Stroke", value: selection.lineWidth, range: 1...24) { newValue in
+                    updateSelectedAnnotation { annotation in
+                        annotation.lineWidth = newValue
+                    }
+                }
+
+                if selection.kind == .text {
+                    labeledStepper("Font", value: selection.fontSize, range: 14...96) { newValue in
+                        updateSelectedAnnotation { annotation in
+                            annotation.fontSize = newValue
                         }
                     }
-                    .padding(8)
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .position(
-                        x: toDisplayPoint(point, displayRect: frame, imageSize: image.size).x + 120,
-                        y: toDisplayPoint(point, displayRect: frame, imageSize: image.size).y + 40
-                    )
+                }
+
+                if selection.kind == .redact {
+                    labeledStepper("Blur", value: selection.blurRadius, range: 4...40) { newValue in
+                        updateSelectedAnnotation { annotation in
+                            annotation.blurRadius = newValue
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button("Delete") {
+                    session.deleteSelectedAnnotation()
+                }
+            }
+            .padding(.horizontal, HubTheme.Space.x3)
+            .padding(.vertical, HubTheme.Space.x2)
+            .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))
+        }
+    }
+
+    private var canvas: some View {
+        GeometryReader { proxy in
+            let baseFrame = fittedImageRect(in: proxy.size, imageSize: visibleImageRect.size)
+
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
+                    .fill(HubTheme.cardFillMuted)
+
+                if let image = previewImage() {
+                    Image(nsImage: image)
+                        .resizable()
+                        .frame(width: baseFrame.width, height: baseFrame.height)
+                        .position(x: baseFrame.midX, y: baseFrame.midY)
+                }
+
+                annotationOverlay(displayRect: baseFrame)
+
+                if let insertionPoint = textInsertionPoint {
+                    textPopover(at: insertionPoint, displayRect: baseFrame)
                 }
 
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
-                    .gesture(dragGesture(displayRect: frame, imageSize: image.size))
+                    .gesture(dragGesture(displayRect: baseFrame))
             }
         }
     }
 
-    private func dragGesture(displayRect: CGRect, imageSize: CGSize) -> some Gesture {
+    private func annotationOverlay(displayRect: CGRect) -> some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(displayedSnapshot.annotations) { annotation in
+                annotationShape(annotation, displayRect: displayRect)
+            }
+            if let selected = currentSelection {
+                selectionOverlay(for: selected, displayRect: displayRect)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func annotationShape(_ annotation: ScreenshotAnnotation, displayRect: CGRect) -> some View {
+        switch annotation.kind {
+        case .arrow:
+            if let start = annotation.startPoint, let end = annotation.endPoint {
+                Path { path in
+                    path.move(to: toDisplayPoint(start, displayRect: displayRect))
+                    path.addLine(to: toDisplayPoint(end, displayRect: displayRect))
+                }
+                .stroke(annotation.color.color, style: StrokeStyle(lineWidth: annotation.lineWidth, lineCap: .round, lineJoin: .round))
+            }
+
+        case .rectangle:
+            Rectangle()
+                .path(in: frameFor(rect: annotation.rect, displayRect: displayRect))
+                .stroke(annotation.color.color, lineWidth: annotation.lineWidth)
+
+        case .text:
+            Text(annotation.text)
+                .font(.system(size: annotation.fontSize, weight: .semibold))
+                .foregroundStyle(annotation.color.color)
+                .position(center(of: frameFor(rect: annotation.rect, displayRect: displayRect)))
+
+        case .redact:
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.black.opacity(0.22))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(annotation.color.color.opacity(0.8), lineWidth: 2)
+                )
+                .frame(
+                    width: frameFor(rect: annotation.rect, displayRect: displayRect).width,
+                    height: frameFor(rect: annotation.rect, displayRect: displayRect).height
+                )
+                .position(center(of: frameFor(rect: annotation.rect, displayRect: displayRect)))
+        }
+    }
+
+    private func selectionOverlay(for annotation: ScreenshotAnnotation, displayRect: CGRect) -> some View {
+        let rect = frameFor(rect: annotation.bounds, displayRect: displayRect)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.white.opacity(0.8), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                .frame(width: rect.width, height: rect.height)
+                .position(center(of: rect))
+
+            ForEach(annotation.handles(), id: \.self) { handle in
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 10, height: 10)
+                    .position(toDisplayPoint(handle.point, displayRect: displayRect))
+            }
+        }
+    }
+
+    private func textPopover(at point: CGPoint, displayRect: CGRect) -> some View {
+        VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
+            TextField("Text", text: $pendingText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 240)
+            HStack {
+                Button("Add") {
+                    commitText(at: point)
+                }
+                Button("Cancel") {
+                    pendingText = ""
+                    textInsertionPoint = nil
+                }
+            }
+        }
+        .padding(HubTheme.Space.x3)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: HubTheme.Radius.menu, style: .continuous))
+        .position(
+            x: min(toDisplayPoint(point, displayRect: displayRect).x + 120, max(displayRect.maxX - 140, 140)),
+            y: max(toDisplayPoint(point, displayRect: displayRect).y + 50, 70)
+        )
+    }
+
+    private func dragGesture(displayRect: CGRect) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                guard pointInsideImage(value.location, displayRect: displayRect) else { return }
-                let imagePoint = toImagePoint(value.location, displayRect: displayRect, imageSize: imageSize)
+                let imagePoint = toImagePoint(value.location, displayRect: displayRect)
+                guard visibleImageRect.contains(imagePoint) else { return }
 
-                if dragStart == nil {
-                    dragStart = imagePoint
-                    dragCurrent = imagePoint
-
-                    if tool == .text {
-                        textInsertionPoint = imagePoint
-                        pendingText = ""
-                    }
+                if dragContext == nil {
+                    beginDrag(at: imagePoint)
                 } else {
-                    dragCurrent = imagePoint
+                    updateDrag(to: imagePoint)
                 }
             }
             .onEnded { value in
-                defer {
-                    if tool != .text {
-                        dragStart = nil
-                        dragCurrent = nil
-                    }
-                }
-
-                guard tool != .text else { return }
-                guard pointInsideImage(value.location, displayRect: displayRect) else { return }
-                guard let start = dragStart else { return }
-                let end = toImagePoint(value.location, displayRect: displayRect, imageSize: imageSize)
-                applyToolAction(from: start, to: end)
+                let imagePoint = toImagePoint(value.location, displayRect: displayRect)
+                finishDrag(at: imagePoint)
             }
     }
 
-    private func dragPreviewPath(displayRect: CGRect, imageSize: CGSize) -> Path? {
-        guard let start = dragStart, let end = dragCurrent else { return nil }
-
-        let startDisplay = toDisplayPoint(start, displayRect: displayRect, imageSize: imageSize)
-        let endDisplay = toDisplayPoint(end, displayRect: displayRect, imageSize: imageSize)
-
+    private func beginDrag(at point: CGPoint) {
         switch tool {
-        case .crop, .rectangle:
-            let rect = normalizedRect(start: startDisplay, end: endDisplay)
-            return Path { path in
-                path.addRect(rect)
+        case .select:
+            if let handle = handle(at: point) {
+                dragContext = .resize(handle: handle, start: point, base: displayedSnapshot)
+                return
             }
-        case .arrow:
-            return Path { path in
-                path.move(to: startDisplay)
-                path.addLine(to: endDisplay)
+
+            if let annotation = annotation(at: point) {
+                session.selectedAnnotationID = annotation.id
+                dragContext = .move(annotationID: annotation.id, start: point, base: displayedSnapshot)
+            } else {
+                session.selectedAnnotationID = nil
             }
+
+        case .arrow, .rectangle, .redact, .crop:
+            dragContext = .draw(tool: tool, start: point, base: displayedSnapshot)
+            updateDraftPreview(for: tool, start: point, end: point, base: displayedSnapshot)
+
         case .text:
-            return nil
+            session.selectedAnnotationID = nil
+            textInsertionPoint = point
+            pendingText = ""
         }
     }
 
-    private func applyToolAction(from start: CGPoint, to end: CGPoint) {
-        guard let image = currentImage else { return }
+    private func updateDrag(to point: CGPoint) {
+        guard let dragContext else { return }
 
-        let result: NSImage?
+        switch dragContext {
+        case let .move(annotationID, start, base):
+            let delta = CGSize(width: point.x - start.x, height: point.y - start.y)
+            var snapshot = base
+            guard let index = snapshot.annotations.firstIndex(where: { $0.id == annotationID }) else { return }
+            snapshot.annotations[index] = snapshot.annotations[index].moved(by: delta)
+            draftSnapshot = snapshot
+
+        case let .resize(handle, _, base):
+            var snapshot = base
+            guard let index = snapshot.annotations.firstIndex(where: { $0.id == handle.annotationID }) else { return }
+            snapshot.annotations[index] = snapshot.annotations[index].resized(handle: handle.handle, to: point)
+            draftSnapshot = snapshot
+
+        case let .draw(tool, start, base):
+            updateDraftPreview(for: tool, start: start, end: point, base: base)
+        }
+    }
+
+    private func finishDrag(at point: CGPoint) {
+        guard let dragContext else {
+            return
+        }
+
+        switch dragContext {
+        case .move, .resize, .draw:
+            if let draftSnapshot, draftSnapshot != session.currentSnapshot {
+                session.commit(snapshot: draftSnapshot)
+            }
+            self.draftSnapshot = nil
+        }
+
+        self.dragContext = nil
+    }
+
+    private func updateDraftPreview(for tool: ScreenshotTool, start: CGPoint, end: CGPoint, base: ScreenshotDocumentSnapshot) {
+        var snapshot = base
+        let rect = normalizedRect(start: start, end: end)
         switch tool {
-        case .crop:
-            result = crop(image: image, start: start, end: end)
+        case .arrow:
+            snapshot.annotations.append(
+                .arrow(start: start, end: end, style: appState.settings.editor.defaultStyle)
+            )
         case .rectangle:
-            result = drawRectangle(image: image, start: start, end: end)
-        case .arrow:
-            result = drawArrow(image: image, start: start, end: end)
-        case .text:
-            result = nil
+            snapshot.annotations.append(.rectangle(rect, style: appState.settings.editor.defaultStyle))
+        case .redact:
+            snapshot.annotations.append(.redact(rect, style: appState.settings.editor.defaultStyle))
+        case .crop:
+            snapshot.cropRect = rect
+        case .select, .text:
+            break
         }
 
-        if let result {
-            pushHistory(result)
+        if tool != .crop {
+            snapshot.annotations = Array(base.annotations) + snapshot.annotations.suffix(1)
         }
+        draftSnapshot = snapshot
+    }
+
+    private func commitPreviewIfNeeded() {
+        if let draftSnapshot, draftSnapshot != session.currentSnapshot {
+            session.commit(snapshot: draftSnapshot)
+        }
+        draftSnapshot = nil
+        dragContext = nil
     }
 
     private func commitText(at point: CGPoint) {
-        guard let image = currentImage else { return }
         let trimmed = pendingText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            pendingText = ""
             textInsertionPoint = nil
             return
         }
 
-        if let result = drawText(image: image, text: trimmed, at: point) {
-            pushHistory(result)
-        }
-
-        pendingText = ""
-        textInsertionPoint = nil
-        dragStart = nil
-        dragCurrent = nil
-    }
-
-    private func initializeImageIfNeeded(force: Bool = false) {
-        guard let imageData, let image = NSImage(data: imageData) else { return }
-        if !history.isEmpty && !force { return }
-
-        history = [image]
-        historyIndex = 0
-        dragStart = nil
-        dragCurrent = nil
+        var snapshot = session.currentSnapshot
+        snapshot.annotations.append(.text(trimmed, origin: point, style: appState.settings.editor.defaultStyle))
+        session.commit(snapshot: snapshot)
         pendingText = ""
         textInsertionPoint = nil
     }
 
-    private func pushHistory(_ image: NSImage) {
-        var next = Array(history.prefix(historyIndex + 1))
-        next.append(image)
-        if next.count > 50 {
-            next.removeFirst(next.count - 50)
+    private func updateSelectedAnnotation(_ mutate: (inout ScreenshotAnnotation) -> Void) {
+        guard let currentSelection else { return }
+        var snapshot = session.currentSnapshot
+        guard let index = snapshot.annotations.firstIndex(where: { $0.id == currentSelection.id }) else { return }
+        mutate(&snapshot.annotations[index])
+        session.commit(snapshot: snapshot)
+    }
+
+    private func annotation(at point: CGPoint) -> ScreenshotAnnotation? {
+        displayedSnapshot.annotations.reversed().first(where: { $0.contains(point) })
+    }
+
+    private func handle(at point: CGPoint) -> ScreenshotAnnotationHandle? {
+        guard let selected = currentSelection else { return nil }
+        return selected.handles().first(where: { hypot($0.point.x - point.x, $0.point.y - point.y) <= 12 })
+    }
+
+    private func previewImage() -> NSImage? {
+        guard let baseImage = session.baseImage,
+              let cgImage = baseImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
         }
-        history = next
-        historyIndex = history.count - 1
-    }
 
-    private func undo() {
-        guard canUndo else { return }
-        historyIndex -= 1
-    }
-
-    private func redo() {
-        guard canRedo else { return }
-        historyIndex += 1
-    }
-
-    private func copyToClipboard() {
-        guard let image = currentImage, let png = image.pngData() else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setData(png, forType: .png)
-    }
-
-    private func saveToFile() {
-        guard let image = currentImage, let png = image.pngData() else { return }
-
-        let panel = NSSavePanel()
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "edited-screenshot.png"
-        panel.allowedContentTypes = [.png]
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? png.write(to: url, options: .atomic)
-    }
-
-    private func drawRectangle(image: NSImage, start: CGPoint, end: CGPoint) -> NSImage? {
-        guard let output = image.cloned() else { return nil }
-        let rect = normalizedRect(start: start, end: end)
-        guard rect.width > 2, rect.height > 2 else { return output }
-
-        output.lockFocus()
-        accentColor.setStroke()
-        let path = NSBezierPath(rect: rect)
-        path.lineWidth = 6
-        path.stroke()
-        output.unlockFocus()
-        return output
-    }
-
-    private func drawArrow(image: NSImage, start: CGPoint, end: CGPoint) -> NSImage? {
-        guard let output = image.cloned() else { return nil }
-
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        let length = hypot(dx, dy)
-        guard length > 4 else { return output }
-
-        let ux = dx / length
-        let uy = dy / length
-        let headLength: CGFloat = min(30, max(12, length * 0.2))
-        let headWidth: CGFloat = headLength * 0.7
-
-        let baseX = end.x - ux * headLength
-        let baseY = end.y - uy * headLength
-        let perpX = -uy
-        let perpY = ux
-
-        let left = CGPoint(x: baseX + perpX * headWidth * 0.5, y: baseY + perpY * headWidth * 0.5)
-        let right = CGPoint(x: baseX - perpX * headWidth * 0.5, y: baseY - perpY * headWidth * 0.5)
-
-        output.lockFocus()
-        accentColor.setStroke()
-        accentColor.setFill()
-
-        let shaft = NSBezierPath()
-        shaft.move(to: start)
-        shaft.line(to: CGPoint(x: baseX, y: baseY))
-        shaft.lineWidth = 6
-        shaft.lineCapStyle = .round
-        shaft.stroke()
-
-        let head = NSBezierPath()
-        head.move(to: end)
-        head.line(to: left)
-        head.line(to: right)
-        head.close()
-        head.fill()
-
-        output.unlockFocus()
-        return output
-    }
-
-    private func drawText(image: NSImage, text: String, at point: CGPoint) -> NSImage? {
-        guard let output = image.cloned() else { return nil }
-
-        output.lockFocus()
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 34, weight: .semibold),
-            .foregroundColor: accentColor
-        ]
-        let attributed = NSAttributedString(string: text, attributes: attributes)
-        attributed.draw(at: point)
-        output.unlockFocus()
-        return output
-    }
-
-    private func crop(image: NSImage, start: CGPoint, end: CGPoint) -> NSImage? {
-        let rect = normalizedRect(start: start, end: end)
-        guard rect.width > 2, rect.height > 2 else { return nil }
-
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-
-        let scaleX = CGFloat(cgImage.width) / image.size.width
-        let scaleY = CGFloat(cgImage.height) / image.size.height
+        let cropRect = visibleImageRect
+        let scaleX = CGFloat(cgImage.width) / baseImage.size.width
+        let scaleY = CGFloat(cgImage.height) / baseImage.size.height
         let scaledRect = CGRect(
-            x: rect.origin.x * scaleX,
-            y: rect.origin.y * scaleY,
-            width: rect.width * scaleX,
-            height: rect.height * scaleY
+            x: cropRect.origin.x * scaleX,
+            y: cropRect.origin.y * scaleY,
+            width: cropRect.width * scaleX,
+            height: cropRect.height * scaleY
         ).integral
 
         guard let cropped = cgImage.cropping(to: scaledRect) else { return nil }
-        return NSImage(cgImage: cropped, size: NSSize(width: scaledRect.width / scaleX, height: scaledRect.height / scaleY))
-    }
-
-    private func pointInsideImage(_ location: CGPoint, displayRect: CGRect) -> Bool {
-        displayRect.contains(location)
-    }
-
-    private func toImagePoint(_ location: CGPoint, displayRect: CGRect, imageSize: CGSize) -> CGPoint {
-        guard displayRect.width > 0, displayRect.height > 0 else { return .zero }
-
-        let normalizedX = ((location.x - displayRect.minX) / displayRect.width).clamped(to: 0...1)
-        let normalizedY = ((location.y - displayRect.minY) / displayRect.height).clamped(to: 0...1)
-        let imageX = normalizedX * imageSize.width
-        let imageY = (1 - normalizedY) * imageSize.height
-        return CGPoint(x: imageX, y: imageY)
-    }
-
-    private func toDisplayPoint(_ point: CGPoint, displayRect: CGRect, imageSize: CGSize) -> CGPoint {
-        guard imageSize.width > 0, imageSize.height > 0 else { return displayRect.origin }
-
-        let normalizedX = (point.x / imageSize.width).clamped(to: 0...1)
-        let normalizedY = (point.y / imageSize.height).clamped(to: 0...1)
-        let displayX = displayRect.minX + (normalizedX * displayRect.width)
-        let displayY = displayRect.minY + ((1 - normalizedY) * displayRect.height)
-        return CGPoint(x: displayX, y: displayY)
-    }
-
-    private func normalizedRect(start: CGPoint, end: CGPoint) -> CGRect {
-        CGRect(
-            x: min(start.x, end.x),
-            y: min(start.y, end.y),
-            width: abs(end.x - start.x),
-            height: abs(end.y - start.y)
-        )
+        return NSImage(cgImage: cropped, size: cropRect.size)
     }
 
     private func fittedImageRect(in available: CGSize, imageSize: CGSize) -> CGRect {
@@ -418,27 +498,138 @@ struct EditorWindowView: View {
             height: fitted.height
         )
     }
+
+    private func toImagePoint(_ location: CGPoint, displayRect: CGRect) -> CGPoint {
+        guard displayRect.width > 0, displayRect.height > 0 else { return .zero }
+        let normalizedX = ((location.x - displayRect.minX) / displayRect.width).clamped(to: 0...1)
+        let normalizedY = ((location.y - displayRect.minY) / displayRect.height).clamped(to: 0...1)
+        return CGPoint(
+            x: visibleImageRect.minX + normalizedX * visibleImageRect.width,
+            y: visibleImageRect.minY + (1 - normalizedY) * visibleImageRect.height
+        )
+    }
+
+    private func toDisplayPoint(_ point: CGPoint, displayRect: CGRect) -> CGPoint {
+        guard visibleImageRect.width > 0, visibleImageRect.height > 0 else { return .zero }
+        let normalizedX = ((point.x - visibleImageRect.minX) / visibleImageRect.width).clamped(to: 0...1)
+        let normalizedY = ((point.y - visibleImageRect.minY) / visibleImageRect.height).clamped(to: 0...1)
+        return CGPoint(
+            x: displayRect.minX + normalizedX * displayRect.width,
+            y: displayRect.minY + (1 - normalizedY) * displayRect.height
+        )
+    }
+
+    private func frameFor(rect: CGRect, displayRect: CGRect) -> CGRect {
+        let origin = toDisplayPoint(CGPoint(x: rect.minX, y: rect.maxY), displayRect: displayRect)
+        let opposite = toDisplayPoint(CGPoint(x: rect.maxX, y: rect.minY), displayRect: displayRect)
+        return CGRect(
+            x: min(origin.x, opposite.x),
+            y: min(origin.y, opposite.y),
+            width: abs(opposite.x - origin.x),
+            height: abs(opposite.y - origin.y)
+        )
+    }
+
+    private func center(of rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.midX, y: rect.midY)
+    }
+
+    private func normalizedRect(start: CGPoint, end: CGPoint) -> CGRect {
+        CGRect(
+            x: min(start.x, end.x),
+            y: min(start.y, end.y),
+            width: abs(end.x - start.x),
+            height: abs(end.y - start.y)
+        )
+    }
+
+    private func labeledStepper(_ title: String, value: Double, range: ClosedRange<Double>, apply: @escaping (Double) -> Void) -> some View {
+        HStack(spacing: HubTheme.Space.x2) {
+            Text(title)
+                .foregroundStyle(HubTheme.textSecondary)
+            Stepper(
+                "\(Int(value.rounded()))",
+                value: Binding(
+                    get: { value },
+                    set: { apply($0.clamped(to: range)) }
+                ),
+                in: range,
+                step: 1
+            )
+            .labelsHidden()
+        }
+    }
+
+    private func resetTransientState() {
+        tool = .select
+        draftSnapshot = nil
+        dragContext = nil
+        pendingText = ""
+        textInsertionPoint = nil
+    }
 }
 
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
+private enum EditorDragContext {
+    case move(annotationID: UUID, start: CGPoint, base: ScreenshotDocumentSnapshot)
+    case resize(handle: ScreenshotAnnotationHandle, start: CGPoint, base: ScreenshotDocumentSnapshot)
+    case draw(tool: ScreenshotTool, start: CGPoint, base: ScreenshotDocumentSnapshot)
+}
+
+private struct EditorWindowAccessor: NSViewRepresentable {
+    let onResolveWindow: (NSWindow?) -> Void
+    let onShouldClose: () -> Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.attach(to: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.parent = self
+        context.coordinator.attach(to: nsView)
+    }
+
+    final class Coordinator: NSObject, NSWindowDelegate {
+        var parent: EditorWindowAccessor
+        weak var view: NSView?
+        weak var window: NSWindow?
+
+        init(parent: EditorWindowAccessor) {
+            self.parent = parent
+        }
+
+        func attach(to view: NSView) {
+            self.view = view
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                let resolvedWindow = view.window
+                guard self.window !== resolvedWindow else { return }
+                self.window?.delegate = nil
+                self.window = resolvedWindow
+                self.window?.delegate = self
+                self.parent.onResolveWindow(resolvedWindow)
+            }
+        }
+
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            parent.onShouldClose()
+        }
+    }
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
 
-private extension NSImage {
-    func cloned() -> NSImage? {
-        guard let data = tiffRepresentation else { return nil }
-        return NSImage(data: data)
-    }
-
-    func pngData() -> Data? {
-        guard
-            let tiffData = tiffRepresentation,
-            let rep = NSBitmapImageRep(data: tiffData)
-        else {
-            return nil
-        }
-        return rep.representation(using: .png, properties: [:])
+private extension CGFloat {
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }

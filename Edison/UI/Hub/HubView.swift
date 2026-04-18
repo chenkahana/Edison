@@ -128,6 +128,9 @@ struct HubView: View {
             appState.windowRouter?.setOpenHubAction {
                 openWindow(id: "hub")
             }
+            appState.windowRouter?.setOpenEditorAction {
+                openWindow(id: "editor")
+            }
             focusedField = nil
             syncSelection()
         }
@@ -157,12 +160,6 @@ struct HubView: View {
             showAccessibilityAlert = true
         }
         .onMoveCommand(perform: handleMoveCommand)
-        .sheet(isPresented: $appState.isEditorPresented) {
-            EditorWindowView(imageData: appState.editorImageData) {
-                appState.closeEditor()
-            }
-            .frame(minWidth: 840, minHeight: 560)
-        }
         .alert("Allow Accessibility Access", isPresented: $showAccessibilityAlert) {
             Button("Open Accessibility Settings") {
                 appState.requestAccessibilityAccess()
