@@ -262,17 +262,27 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - deinit
+    //
+    // Decision: remove NotificationCenter observers synchronously, not via
+    // Task { @MainActor in }. Both observers are opaque tokens returned by the
+    // block-based addObserver(forName:object:queue:using:) API; the underlying
+    // NotificationCenter and NSWorkspace.notificationCenter removeObserver(_:)
+    // calls are documented as thread-safe and do not require the main actor.
+    //
+    // A Task-based removal is unsafe at process exit: Swift Concurrency tasks
+    // enqueued during deinit may never execute if the run-loop is torn down first,
+    // leaking the observer registration. In practice the OS cleans up all observer
+    // state on process exit anyway, but synchronous removal is more correct and
+    // avoids any log noise from dangling observers if AppState is deallocated
+    // mid-session (e.g. during unit tests).
     deinit {
         // Coordinator handles clipboardMonitor.stop() in its own cleanup.
-        let activeAppObserver = activeAppObserver
-        let shortcutActionRequestObserver = shortcutActionRequestObserver
-        Task { @MainActor in
-            if let shortcutActionRequestObserver {
-                NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
-            }
-            if let activeAppObserver {
-                NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
-            }
+        if let shortcutActionRequestObserver {
+            NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
+        }
+        if let activeAppObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
         }
     }
 

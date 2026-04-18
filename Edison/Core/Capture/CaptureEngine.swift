@@ -307,6 +307,14 @@ private final class RegionSelectionSession: NSObject {
         updateHoverState()
     }
 
+    deinit {
+        // W5.4 safety net: if the session is deallocated without finish(with:) having
+        // been called (e.g. the parent CaptureEngine is torn down mid-session), remove
+        // all event monitors so they do not outlive this object.
+        // NSEvent.removeMonitor(_:) is safe to call from any thread.
+        eventMonitors.forEach { NSEvent.removeMonitor($0) }
+    }
+
     private func createOverlayWindows() {
         for screen in NSScreen.screens {
             let window = NSWindow(
@@ -336,6 +344,23 @@ private final class RegionSelectionSession: NSObject {
         }
     }
 
+    // MARK: - Event monitor ownership (W5.4 audit)
+    //
+    // NSEvent.addLocalMonitorForEvents and addGlobalMonitorForEvents return opaque
+    // Any? tokens that AppKit uses to identify the installed handler. Each token MUST
+    // be passed to NSEvent.removeMonitor(_:) exactly once to deinstall the handler and
+    // release the closure. Failing to remove a monitor leaks the closure and keeps
+    // anything captured by it alive.
+    //
+    // Teardown paths — removeMonitor is called in finish(with:), which is reached via:
+    //   • leftMouseUp (area selection complete)
+    //   • leftMouseDown in window mode (window selection complete)
+    //   • keyDown Escape (user cancelled)
+    //   • keyDown Space / F (mode switch / display capture)
+    //   • deinit safety net (session deallocated without finish — defensive only)
+    //
+    // Both closures capture [weak self], so they do not extend the session's lifetime
+    // and are safe if called after the session is gone.
     private func startEventTracking() {
         let localMask: NSEvent.EventTypeMask = [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown, .mouseMoved]
         if let local = NSEvent.addLocalMonitorForEvents(matching: localMask, handler: { [weak self] event in

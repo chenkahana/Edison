@@ -55,6 +55,9 @@ final class ClipboardCoordinator: ObservableObject {
 
     // MARK: - Clipboard monitor lifecycle
 
+    // W5.2 retain-cycle audit: the onChange closure captures [weak self], so
+    // ClipboardMonitor does not hold a strong reference back to this coordinator.
+    // No cycle possible.
     func startMonitor() {
         clipboardMonitor.start { [weak self] newItem in
             Task { @MainActor in
