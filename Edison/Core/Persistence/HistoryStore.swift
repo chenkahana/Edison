@@ -28,10 +28,13 @@ final class HistoryStore {
     }
 
     func loadAsync(_ completion: @escaping ([ClipboardItem], [ItemCollection]) -> Void) {
+        let signposter = Log.performance
+        let state = signposter.beginInterval("History Load")
         ioQueue.async { [weak self] in
             guard let self else { return }
             let snapshot = self.loadSync()
             DispatchQueue.main.async {
+                signposter.endInterval("History Load", state)
                 completion(snapshot.items, snapshot.collections)
             }
         }

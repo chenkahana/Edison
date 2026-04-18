@@ -63,18 +63,20 @@ final class AppState: ObservableObject {
     private var shortcutActionRequestObserver: NSObjectProtocol?
 
     var filteredItems: [ClipboardItem] {
-        let searched = searchEngine.filter(
-            query: activeQuery,
-            in: historyItems,
-            type: selectedTypeFilter
-        )
-        guard let selectedCollectionID,
-              let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
-            return searched
-        }
+        return Log.performance.withIntervalSignpost("Search Filter") {
+            let searched = searchEngine.filter(
+                query: activeQuery,
+                in: historyItems,
+                type: selectedTypeFilter
+            )
+            guard let selectedCollectionID,
+                  let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
+                return searched
+            }
 
-        let itemIDs = Set(collection.itemIDs)
-        return searched.filter { itemIDs.contains($0.id) }
+            let itemIDs = Set(collection.itemIDs)
+            return searched.filter { itemIDs.contains($0.id) }
+        }
     }
 
     var favoriteItems: [ClipboardItem] {
@@ -571,6 +573,10 @@ final class AppState: ObservableObject {
     }
 
     private func toggleHubFromShortcut() {
+        let signposter = Log.performance
+        let state = signposter.beginInterval("Hub Toggle")
+        defer { signposter.endInterval("Hub Toggle", state) }
+
         guard let windowRouter else { return }
 
         if windowRouter.isHubPresented {

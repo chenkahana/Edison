@@ -28,6 +28,10 @@ final class CaptureEngine {
     }
 
     func capture(_ request: CaptureRequest, settings: AppSettings) async -> CaptureResult {
+        let signposter = Log.performance
+        let state = signposter.beginInterval("Capture")
+        defer { signposter.endInterval("Capture", state) }
+
         guard CGPreflightScreenCaptureAccess() else {
             Log.permissions.info("Capture blocked because Screen Recording is not granted")
             return .permissionDenied
