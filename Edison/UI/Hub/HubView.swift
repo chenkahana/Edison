@@ -3,14 +3,14 @@ import CoreGraphics
 import Quartz
 import SwiftUI
 
-private enum HubFilter: String, CaseIterable, Identifiable {
+enum HubFilter: String, CaseIterable, Identifiable {
     case all = "All"
     case favorites = "Favorites"
 
     var id: String { rawValue }
 }
 
-private enum HubLayoutMode: String, CaseIterable, Identifiable {
+enum HubLayoutMode: String, CaseIterable, Identifiable {
     case rail = "Shelf"
     case list = "List"
     case grid = "Grid"
@@ -18,11 +18,11 @@ private enum HubLayoutMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-private enum HubFocusTarget: Hashable {
+enum HubFocusTarget: Hashable {
     case search
 }
 
-private enum HubItemIcon {
+enum HubItemIcon {
     case system(String)
     case app(NSImage)
 }
@@ -172,7 +172,12 @@ struct HubView: View {
 
     private var mainContent: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x4) {
-            header
+            HubHeaderView(
+                filter: $filter,
+                layoutMode: $layoutMode,
+                newCollectionName: $newCollectionName,
+                focusedField: $focusedField
+            )
 
             if items.isEmpty {
                 emptyState
@@ -218,162 +223,6 @@ struct HubView: View {
             .transition(.move(edge: .top).combined(with: .opacity))
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.captureError != nil)
         }
-    }
-
-    private var header: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: HubTheme.Space.x3) {
-                searchPill
-                    .frame(minWidth: 240, idealWidth: 320, maxWidth: 360)
-                    .layoutPriority(1)
-
-                Spacer(minLength: 0)
-
-                trailingControls
-            }
-
-            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                HStack(alignment: .center, spacing: HubTheme.Space.x3) {
-                    searchPill
-                    Spacer(minLength: 0)
-                    filterControls
-                }
-
-                collectionControls
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var filterControls: some View {
-        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
-            filterPicker
-                .frame(width: 112)
-            typePicker
-                .frame(width: 162)
-            layoutPicker
-                .frame(width: 150)
-        }
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var collectionControls: some View {
-        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
-            collectionMenu
-                .frame(width: 134)
-            newCollectionComposer
-                .frame(width: 198)
-        }
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var trailingControls: some View {
-        HStack(alignment: .center, spacing: HubTheme.Space.x2) {
-            filterControls
-            collectionControls
-        }
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var searchPill: some View {
-        HStack(spacing: HubTheme.Space.x2) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(HubTheme.textSecondary)
-            TextField("Search clipboard and screenshots", text: $appState.activeQuery)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .focused($focusedField, equals: .search)
-        }
-        .padding(.horizontal, HubTheme.Space.x4)
-        .frame(height: HubTheme.searchPillHeight)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFillMuted)
-        )
-        .frame(maxWidth: .infinity)
-    }
-
-    private var filterPicker: some View {
-        Picker("Filter", selection: $filter) {
-            ForEach(HubFilter.allCases) { option in
-                Text(option.rawValue).tag(option)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.segmented)
-    }
-
-    private var typePicker: some View {
-        Picker("Type", selection: $appState.selectedTypeFilter) {
-            ForEach(HistoryItemTypeFilter.allCases) { option in
-                Text(option.rawValue).tag(option)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.segmented)
-    }
-
-    private var layoutPicker: some View {
-        Picker("Layout", selection: $layoutMode) {
-            ForEach(HubLayoutMode.allCases) { mode in
-                Label(mode.rawValue, systemImage: layoutSymbol(for: mode))
-                    .tag(mode)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.segmented)
-    }
-
-    private var newCollectionComposer: some View {
-        HStack(spacing: HubTheme.Space.x2) {
-            TextField("New collection", text: $newCollectionName)
-                .textFieldStyle(.plain)
-            Button("Create") {
-                appState.createCollection(named: newCollectionName)
-                newCollectionName = ""
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(HubTheme.accentBrand)
-            .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .padding(.horizontal, HubTheme.Space.x3)
-        .frame(height: HubTheme.searchPillHeight)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFillMuted)
-        )
-    }
-
-    private var collectionMenu: some View {
-        HStack(spacing: HubTheme.Space.x2) {
-            Image(systemName: "square.stack.3d.up")
-                .foregroundStyle(HubTheme.accentBrand)
-            Picker("Collection", selection: $appState.selectedCollectionID) {
-                Text("All Items").tag(Optional<UUID>.none)
-                ForEach(appState.collections) { collection in
-                    Text(collection.name).tag(Optional(collection.id))
-                }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-
-            if let selectedCollectionID = appState.selectedCollectionID,
-               let selected = appState.collections.first(where: { $0.id == selectedCollectionID }) {
-                Button(role: .destructive) {
-                    appState.deleteCollection(id: selected.id)
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-        .padding(.horizontal, HubTheme.Space.x3)
-        .frame(height: HubTheme.searchPillHeight)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFillMuted)
-        )
     }
 
     private var emptyState: some View {
@@ -677,17 +526,6 @@ struct HubView: View {
         }
     }
 
-    private func layoutSymbol(for mode: HubLayoutMode) -> String {
-        switch mode {
-        case .rail:
-            return "square.stack.3d.down.right"
-        case .list:
-            return "list.bullet"
-        case .grid:
-            return "square.grid.2x2"
-        }
-    }
-
     private func appendToSearch(_ text: String) {
         guard !text.isEmpty else { return }
         appState.activeQuery.append(text)
@@ -718,24 +556,7 @@ struct HubView: View {
     }
 }
 
-private struct ContentSizeReader: View {
-    @Binding var width: CGFloat
-    @Binding var height: CGFloat
-
-    var body: some View {
-        GeometryReader { proxy in
-            Color.clear
-                .onAppear {
-                    width = proxy.size.width
-                    height = proxy.size.height
-                }
-                .onChange(of: proxy.size) { _, newValue in
-                    width = newValue.width
-                    height = newValue.height
-                }
-        }
-    }
-}
+// MARK: - HubListRowView
 
 private struct HubListRowView: View {
     let item: ClipboardItem
@@ -859,6 +680,8 @@ private struct HubListRowView: View {
         .frame(width: 72, height: 52)
     }
 }
+
+// MARK: - HubShelfCardView
 
 private struct HubShelfCardView: View {
     let item: ClipboardItem
@@ -1004,42 +827,7 @@ private struct HubShelfCardView: View {
     }
 }
 
-private struct HubClipboardTextView: View {
-    let fontSize: CGFloat
-    let fontWeight: Font.Weight
-    let lineLimit: Int?
-
-    private let content: HubStructuredTextContent
-
-    init(text: String, fontSize: CGFloat, fontWeight: Font.Weight, lineLimit: Int?) {
-        self.fontSize = fontSize
-        self.fontWeight = fontWeight
-        self.lineLimit = lineLimit
-        self.content = HubStructuredTextFormatter.content(for: text)
-    }
-
-    var body: some View {
-        Group {
-            switch content {
-            case let .plain(text):
-                Text(text)
-                    .font(.system(size: fontSize, weight: fontWeight))
-                    .foregroundStyle(HubTheme.textPrimary)
-            case let .json(text):
-                Text(text)
-                    .font(.system(size: max(fontSize - 1, 12), weight: .regular, design: .monospaced))
-                    .foregroundStyle(HubTheme.textPrimary)
-            case let .markdown(text):
-                Text(text)
-                    .font(.system(size: fontSize, weight: fontWeight))
-                    .foregroundStyle(HubTheme.textPrimary)
-                    .tint(HubTheme.accentBrand)
-            }
-        }
-        .multilineTextAlignment(.leading)
-        .lineLimit(lineLimit)
-    }
-}
+// MARK: - HubImagePreviewView
 
 private struct HubImagePreviewView: View {
     let dataPath: String
@@ -1078,6 +866,8 @@ private struct HubImagePreviewView: View {
     }
 }
 
+// MARK: - HubCardFooter
+
 private struct HubCardFooter: View {
     let item: ClipboardItem
 
@@ -1095,29 +885,7 @@ private struct HubCardFooter: View {
     }
 }
 
-private struct HubItemIconView: View {
-    let icon: HubItemIcon
-    let tint: Color
-    let size: CGFloat
-
-    var body: some View {
-        Group {
-            switch icon {
-            case let .system(name):
-                Image(systemName: name)
-                    .font(.system(size: size, weight: .semibold))
-                    .foregroundStyle(tint)
-            case let .app(image):
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: size + 3, height: size + 3)
-                    .clipShape(RoundedRectangle(cornerRadius: max(3, size * 0.3), style: .continuous))
-            }
-        }
-    }
-}
+// MARK: - Text Formatting Utilities
 
 enum HubStructuredTextFormatter {
     static func content(for text: String) -> HubStructuredTextContent {
@@ -1210,6 +978,8 @@ enum HubRelativeTimeFormatter {
     }
 }
 
+// MARK: - ClipboardItem Extensions
+
 private extension ClipboardItem {
     var historyTitle: String {
         switch payload {
@@ -1270,339 +1040,6 @@ private extension ClipboardItem {
             return "Clipboard image"
         case let .fileURL(url):
             return url.lastPathComponent
-        }
-    }
-}
-
-private enum ClipboardSourceApplicationIconProvider {
-    private static let cache = NSCache<NSString, NSImage>()
-
-    static func icon(for sourceApplication: ClipboardSourceApplication?) -> NSImage? {
-        guard let bundleIdentifier = sourceApplication?.bundleIdentifier else {
-            return nil
-        }
-
-        let key = bundleIdentifier as NSString
-        if let cached = cache.object(forKey: key) {
-            return cached
-        }
-
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
-            return nil
-        }
-
-        let icon = NSWorkspace.shared.icon(forFile: appURL.path)
-        cache.setObject(icon, forKey: key)
-        return icon
-    }
-}
-
-private struct HubWindowAccessor: NSViewRepresentable {
-    let onResolveWindow: (NSWindow?) -> Void
-    let onMoveCommand: (MoveCommandDirection) -> Void
-    let onConfirmSelection: () -> Void
-    let onDismiss: () -> Void
-    let onFocusSearch: () -> Void
-    let onTypeSearch: (String) -> Void
-    let onDeleteSearchCharacter: () -> Void
-    let onDeleteItem: () -> Void
-    let onQuickLook: () -> Void
-    let onQuickPaste: (Int) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    func makeNSView(context: Context) -> HubWindowReaderView {
-        let view = HubWindowReaderView()
-        view.onResolveWindow = onResolveWindow
-        view.onAttachWindow = { [weak coordinator = context.coordinator] hostView, window in
-            coordinator?.attach(view: hostView, to: window)
-        }
-        view.onKeyDown = { [weak coordinator = context.coordinator] event in
-            coordinator?.handleKeyDown(event) ?? false
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: HubWindowReaderView, context: Context) {
-        context.coordinator.parent = self
-        nsView.onResolveWindow = onResolveWindow
-        nsView.onKeyDown = { [weak coordinator = context.coordinator] event in
-            coordinator?.handleKeyDown(event) ?? false
-        }
-        nsView.resolveWindow()
-    }
-
-    final class Coordinator: NSObject, NSWindowDelegate {
-        var parent: HubWindowAccessor
-        private weak var window: NSWindow?
-        private weak var readerView: HubWindowReaderView?
-
-        init(parent: HubWindowAccessor) {
-            self.parent = parent
-        }
-
-        func attach(view: HubWindowReaderView, to window: NSWindow?) {
-            guard self.window !== window || self.readerView !== view else {
-                parent.onResolveWindow(window)
-                return
-            }
-
-            self.window?.delegate = nil
-            self.readerView = view
-            self.window = window
-            self.window?.delegate = self
-            parent.onResolveWindow(window)
-            focusKeyboardHost()
-        }
-
-        func windowDidBecomeKey(_ notification: Notification) {
-            focusKeyboardHost()
-        }
-
-        func windowDidResignKey(_ notification: Notification) {
-            guard let window,
-                  window.attachedSheet == nil,
-                  window.childWindows?.isEmpty ?? true else { return }
-            parent.onDismiss()
-        }
-
-        func windowShouldClose(_ sender: NSWindow) -> Bool {
-            guard sender.attachedSheet == nil,
-                  sender.childWindows?.isEmpty ?? true else { return false }
-            parent.onDismiss()
-            return false
-        }
-
-        private func focusKeyboardHost() {
-            guard let window,
-                  let readerView else { return }
-
-            DispatchQueue.main.async {
-                guard window.isKeyWindow else { return }
-                window.makeFirstResponder(readerView)
-            }
-        }
-
-        func handleKeyDown(_ event: NSEvent) -> Bool {
-            guard let window,
-                  event.window == window || window.isKeyWindow else { return false }
-
-            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
-               event.charactersIgnoringModifiers?.lowercased() == "f" {
-                parent.onFocusSearch()
-                return true
-            }
-
-            // Cmd+Delete → delete selected item
-            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
-               event.keyCode == 51 {
-                parent.onDeleteItem()
-                return true
-            }
-
-            // Cmd+1-9 → quick paste
-            let quickPasteKeyCodes: [UInt16: Int] = [18: 0, 19: 1, 20: 2, 21: 3, 23: 4, 22: 5, 26: 6, 28: 7, 25: 8]
-            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
-               let idx = quickPasteKeyCodes[event.keyCode] {
-                parent.onQuickPaste(idx)
-                return true
-            }
-
-            if let text = printableSearchText(from: event) {
-                parent.onTypeSearch(text)
-                return true
-            }
-
-            switch event.keyCode {
-            case 49: // Space → Quick Look
-                parent.onQuickLook()
-                return true
-            case 51, 117:
-                parent.onDeleteSearchCharacter()
-                return true
-            case 123:
-                parent.onMoveCommand(.left)
-                return true
-            case 124:
-                parent.onMoveCommand(.right)
-                return true
-            case 125:
-                parent.onMoveCommand(.down)
-                return true
-            case 126:
-                parent.onMoveCommand(.up)
-                return true
-            case 36, 76:
-                parent.onConfirmSelection()
-                return true
-            case 53:
-                parent.onDismiss()
-                return true
-            default:
-                return false
-            }
-        }
-
-        private func printableSearchText(from event: NSEvent) -> String? {
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard modifiers.isEmpty || modifiers == [.shift] else { return nil }
-            guard let characters = event.characters, !characters.isEmpty else { return nil }
-            guard characters.rangeOfCharacter(from: .controlCharacters.union(.whitespacesAndNewlines)) == nil else {
-                return nil
-            }
-            return characters
-        }
-    }
-
-    final class HubWindowReaderView: NSView {
-        var onResolveWindow: (NSWindow?) -> Void = { _ in }
-        var onAttachWindow: (HubWindowReaderView, NSWindow?) -> Void = { _, _ in }
-        var onKeyDown: (NSEvent) -> Bool = { _ in false }
-
-        override var acceptsFirstResponder: Bool { true }
-        override var canBecomeKeyView: Bool { true }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            resolveWindow()
-        }
-
-        override func keyDown(with event: NSEvent) {
-            if onKeyDown(event) {
-                return
-            }
-            super.keyDown(with: event)
-        }
-
-        func resolveWindow() {
-            let window = self.window
-            onAttachWindow(self, window)
-            onResolveWindow(window)
-        }
-    }
-}
-
-private struct HubToastView: View {
-    let title: String
-    let buttonTitle: String
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: HubTheme.Space.x3) {
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(HubTheme.textPrimary)
-            Button(buttonTitle, action: action)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(HubTheme.accentBrand)
-                .buttonStyle(.plain)
-        }
-        .padding(.horizontal, HubTheme.Space.x5)
-        .padding(.vertical, HubTheme.Space.x3)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFill)
-                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
-        )
-    }
-}
-
-private struct HubCaptureErrorBanner: View {
-    let message: String
-    let dismiss: () -> Void
-
-    var body: some View {
-        HStack(spacing: HubTheme.Space.x3) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.system(size: 12))
-            Text(message)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(HubTheme.textPrimary)
-                .lineLimit(1)
-            Spacer()
-            Button("Screen Recording") {
-                NSWorkspace.shared.open(
-                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
-                )
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(HubTheme.accentBrand)
-            .buttonStyle(.plain)
-            Button(action: dismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(HubTheme.textSecondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, HubTheme.Space.x5)
-        .padding(.vertical, HubTheme.Space.x3)
-        .background(
-            Capsule(style: .continuous)
-                .fill(HubTheme.cardFill)
-                .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(HubTheme.glassStroke, lineWidth: 1)
-        )
-    }
-}
-
-// MARK: - Quick Look Bridge
-
-private struct QuickLookBridge: NSViewRepresentable {
-    let url: URL
-    @Binding var isPresented: Bool
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            context.coordinator.open(url: url)
-        }
-        return view
-    }
-
-    func updateNSView(_ view: NSView, context: Context) {
-        if isPresented {
-            context.coordinator.open(url: url)
-        } else {
-            QLPreviewPanel.shared()?.close()
-        }
-    }
-
-    final class Coordinator: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
-        var parent: QuickLookBridge
-
-        init(parent: QuickLookBridge) {
-            self.parent = parent
-        }
-
-        func open(url: URL) {
-            let panel = QLPreviewPanel.shared()!
-            panel.dataSource = self
-            panel.delegate = self
-            panel.reloadData()
-            if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
-        }
-
-        func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { 1 }
-
-        func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> (any QLPreviewItem)! {
-            parent.url as NSURL
-        }
-
-        func previewPanelDidClose(_ panel: QLPreviewPanel!) {
-            parent.isPresented = false
         }
     }
 }
