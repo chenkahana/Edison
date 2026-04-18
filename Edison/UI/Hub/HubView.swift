@@ -253,117 +253,52 @@ struct HubView: View {
             Group {
                 switch layoutMode {
                 case .rail:
-                    ScrollViewReader { listProxy in
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(alignment: .top, spacing: HubTheme.Space.x4) {
-                                ForEach(Array(items.enumerated()), id: \.element.id) { _, item in
-                                    HubShelfCardView(
-                                        item: item,
-                                        sideLength: cardSide,
-                                        collections: appState.collections,
-                                        isSelected: item.id == selectedItem?.id,
-                                        isInCollection: { collectionID in
-                                            appState.collectionContains(item.id, collectionID: collectionID)
-                                        },
-                                        onSelect: {
-                                            selectedItemID = item.id
-                                        },
-                                        onActivate: {
-                                            pasteSelectedItem(selecting: item.id)
-                                        },
-                                        onCopy: {
-                                            appState.copyToClipboard(itemID: item.id)
-                                        },
-                                        onToggleFavorite: {
-                                            appState.toggleFavorite(itemID: item.id)
-                                        },
-                                        onToggleCollectionMembership: { collectionID in
-                                            appState.toggleItem(item.id, inCollection: collectionID)
-                                        },
-                                        onExport: {
-                                            appState.exportItem(itemID: item.id)
-                                        },
-                                        onShare: {
-                                            appState.shareItem(itemID: item.id)
-                                        },
-                                        onDelete: {
-                                            appState.deleteItem(itemID: item.id)
-                                        }
-                                    )
-                                    .id(item.id)
-                                }
-                            }
-                            .padding(.horizontal, HubTheme.Space.x1)
+                    HubShelfView(
+                        items: items,
+                        selectedItem: selectedItem,
+                        sideLength: cardSide,
+                        hubOpenSequence: hubOpenSequence,
+                        collections: appState.collections,
+                        isInCollection: { itemID, collectionID in
+                            appState.collectionContains(itemID, collectionID: collectionID)
+                        },
+                        onSelect: { selectedItemID = $0 },
+                        onActivate: { pasteSelectedItem(selecting: $0) },
+                        onCopy: { appState.copyToClipboard(itemID: $0) },
+                        onToggleFavorite: { appState.toggleFavorite(itemID: $0) },
+                        onToggleCollectionMembership: { itemID, collectionID in
+                            appState.toggleItem(itemID, inCollection: collectionID)
+                        },
+                        onExport: { appState.exportItem(itemID: $0) },
+                        onShare: { appState.shareItem(itemID: $0) },
+                        onDelete: { appState.deleteItem(itemID: $0) },
+                        scrollToSelection: { proxy, itemID, opening in
+                            scrollSelection(with: proxy, to: itemID, in: .rail, opening: opening)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .clipped()
-                        .onChange(of: selectedItemID) { _, newValue in
-                            scrollSelection(with: listProxy, to: newValue, in: .rail)
-                        }
-                        .onChange(of: hubOpenSequence) { _, _ in
-                            scrollSelection(with: listProxy, to: selectedItemID, in: .rail, opening: true)
-                        }
-                        .onAppear {
-                            scrollSelection(with: listProxy, to: selectedItemID, in: .rail, opening: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    )
                 case .list:
-                    ScrollViewReader { listProxy in
-                        ScrollView {
-                            LazyVStack(spacing: HubTheme.Space.x2) {
-                                ForEach(items) { item in
-                                    HubListRowView(
-                                        item: item,
-                                        collections: appState.collections,
-                                        isSelected: item.id == selectedItem?.id,
-                                        isInCollection: { collectionID in
-                                            appState.collectionContains(item.id, collectionID: collectionID)
-                                        },
-                                        onSelect: {
-                                            selectedItemID = item.id
-                                        },
-                                        onActivate: {
-                                            pasteSelectedItem(selecting: item.id)
-                                        },
-                                        onCopy: {
-                                            appState.copyToClipboard(itemID: item.id)
-                                        },
-                                        onToggleFavorite: {
-                                            appState.toggleFavorite(itemID: item.id)
-                                        },
-                                        onToggleCollectionMembership: { collectionID in
-                                            appState.toggleItem(item.id, inCollection: collectionID)
-                                        },
-                                        onExport: {
-                                            appState.exportItem(itemID: item.id)
-                                        },
-                                        onShare: {
-                                            appState.shareItem(itemID: item.id)
-                                        },
-                                        onDelete: {
-                                            appState.deleteItem(itemID: item.id)
-                                        }
-                                    )
-                                    .id(item.id)
-                                }
-                            }
-                            .padding(.vertical, HubTheme.Space.x1)
-                            .padding(.horizontal, HubTheme.Space.x1)
+                    HubListView(
+                        items: items,
+                        selectedItem: selectedItem,
+                        hubOpenSequence: hubOpenSequence,
+                        collections: appState.collections,
+                        isInCollection: { itemID, collectionID in
+                            appState.collectionContains(itemID, collectionID: collectionID)
+                        },
+                        onSelect: { selectedItemID = $0 },
+                        onActivate: { pasteSelectedItem(selecting: $0) },
+                        onCopy: { appState.copyToClipboard(itemID: $0) },
+                        onToggleFavorite: { appState.toggleFavorite(itemID: $0) },
+                        onToggleCollectionMembership: { itemID, collectionID in
+                            appState.toggleItem(itemID, inCollection: collectionID)
+                        },
+                        onExport: { appState.exportItem(itemID: $0) },
+                        onShare: { appState.shareItem(itemID: $0) },
+                        onDelete: { appState.deleteItem(itemID: $0) },
+                        scrollToSelection: { proxy, itemID, opening in
+                            scrollSelection(with: proxy, to: itemID, in: .list, opening: opening)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .clipped()
-                        .onChange(of: selectedItemID) { _, newValue in
-                            scrollSelection(with: listProxy, to: newValue, in: .list)
-                        }
-                        .onChange(of: hubOpenSequence) { _, _ in
-                            scrollSelection(with: listProxy, to: selectedItemID, in: .list, opening: true)
-                        }
-                        .onAppear {
-                            scrollSelection(with: listProxy, to: selectedItemID, in: .list, opening: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    )
                 case .grid:
                     ScrollViewReader { listProxy in
                         ScrollView {
@@ -380,30 +315,16 @@ struct HubView: View {
                                         isInCollection: { collectionID in
                                             appState.collectionContains(item.id, collectionID: collectionID)
                                         },
-                                        onSelect: {
-                                            selectedItemID = item.id
-                                        },
-                                        onActivate: {
-                                            pasteSelectedItem(selecting: item.id)
-                                        },
-                                        onCopy: {
-                                            appState.copyToClipboard(itemID: item.id)
-                                        },
-                                        onToggleFavorite: {
-                                            appState.toggleFavorite(itemID: item.id)
-                                        },
+                                        onSelect: { selectedItemID = item.id },
+                                        onActivate: { pasteSelectedItem(selecting: item.id) },
+                                        onCopy: { appState.copyToClipboard(itemID: item.id) },
+                                        onToggleFavorite: { appState.toggleFavorite(itemID: item.id) },
                                         onToggleCollectionMembership: { collectionID in
                                             appState.toggleItem(item.id, inCollection: collectionID)
                                         },
-                                        onExport: {
-                                            appState.exportItem(itemID: item.id)
-                                        },
-                                        onShare: {
-                                            appState.shareItem(itemID: item.id)
-                                        },
-                                        onDelete: {
-                                            appState.deleteItem(itemID: item.id)
-                                        }
+                                        onExport: { appState.exportItem(itemID: item.id) },
+                                        onShare: { appState.shareItem(itemID: item.id) },
+                                        onDelete: { appState.deleteItem(itemID: item.id) }
                                     )
                                     .id(item.id)
                                 }
@@ -556,335 +477,6 @@ struct HubView: View {
     }
 }
 
-// MARK: - HubListRowView
-
-private struct HubListRowView: View {
-    let item: ClipboardItem
-    let collections: [ItemCollection]
-    let isSelected: Bool
-    let isInCollection: (UUID) -> Bool
-    let onSelect: () -> Void
-    let onActivate: () -> Void
-    let onCopy: () -> Void
-    let onToggleFavorite: () -> Void
-    let onToggleCollectionMembership: (UUID) -> Void
-    let onExport: () -> Void
-    let onShare: () -> Void
-    let onDelete: () -> Void
-
-    private var accent: Color { HubTheme.accentColor(for: item) }
-    private var rowShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
-    }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: HubTheme.Space.x3) {
-            if case .image = item.payload {
-                preview
-            }
-            VStack(alignment: .leading, spacing: HubTheme.Space.x1) {
-                if let primaryText = item.primaryContentText {
-                    HubClipboardTextView(
-                        text: primaryText,
-                        fontSize: 13,
-                        fontWeight: .medium,
-                        lineLimit: item.isFilePayload ? 3 : 2
-                    )
-                        .lineLimit(item.isFilePayload ? 3 : 2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                HubCardFooter(item: item)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(HubTheme.Space.x3)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-        .background(
-            rowShape
-                .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
-        )
-        .overlay(
-            rowShape
-                .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
-        )
-        .clipShape(rowShape)
-        .contentShape(rowShape)
-        .onTapGesture {
-            onSelect()
-        }
-        .onTapGesture(count: 2) {
-            onActivate()
-        }
-        .contextMenu {
-            Button("Copy") {
-                onCopy()
-            }
-            Divider()
-            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
-                onToggleFavorite()
-            }
-            if !collections.isEmpty {
-                Menu("Collections") {
-                    ForEach(collections) { collection in
-                        Button {
-                            onToggleCollectionMembership(collection.id)
-                        } label: {
-                            Label(
-                                collection.name,
-                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
-                            )
-                        }
-                    }
-                }
-            }
-            Divider()
-            Button("Export") {
-                onExport()
-            }
-            Button("Share") {
-                onShare()
-            }
-            Divider()
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .accessibilityLabel(item.accessibilityTitle)
-        .accessibilityValue(item.compactRelativeTimestamp)
-    }
-
-    @ViewBuilder
-    private var preview: some View {
-        if case let .image(imageData) = item.payload {
-            HubImagePreviewView(
-                dataPath: imageData.thumbnailPath,
-                fallbackSymbol: item.fallbackPreviewSymbol,
-                accent: accent,
-                cornerRadius: 12,
-                padding: HubTheme.Space.x1,
-                fixedSize: CGSize(width: 72, height: 52)
-            )
-        }
-    }
-
-    private var fallbackPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(HubTheme.cardFillMuted)
-
-            HubItemIconView(icon: .system(item.fallbackPreviewSymbol), tint: accent, size: 16)
-        }
-        .frame(width: 72, height: 52)
-    }
-}
-
-// MARK: - HubShelfCardView
-
-private struct HubShelfCardView: View {
-    let item: ClipboardItem
-    let sideLength: CGFloat
-    let collections: [ItemCollection]
-    let isSelected: Bool
-    let isInCollection: (UUID) -> Bool
-    let onSelect: () -> Void
-    let onActivate: () -> Void
-    let onCopy: () -> Void
-    let onToggleFavorite: () -> Void
-    let onToggleCollectionMembership: (UUID) -> Void
-    let onExport: () -> Void
-    let onShare: () -> Void
-    let onDelete: () -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var accent: Color { HubTheme.accentColor(for: item) }
-    private var cardShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
-    }
-    private var previewShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-    }
-    private var textLineLimit: Int {
-        max(3, Int((sideLength - 48) / 22))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-            HubCardFooter(item: item)
-        }
-        .padding(HubTheme.Space.x4)
-        .frame(width: sideLength, height: sideLength, alignment: .topLeading)
-        .background(
-            cardShape
-                .fill(isSelected ? HubTheme.selectionFill : HubTheme.cardFill)
-        )
-        .overlay(
-            cardShape
-                .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
-        )
-        .clipShape(cardShape)
-        .shadow(color: HubTheme.cardShadowAmbient(colorScheme: colorScheme), radius: 10, y: 2)
-        .shadow(color: HubTheme.cardShadowKey(colorScheme: colorScheme), radius: 28, x: 0, y: 10)
-        .contentShape(cardShape)
-        .clipped()
-        .draggable(item)
-        .onTapGesture {
-            onSelect()
-        }
-        .onTapGesture(count: 2) {
-            onActivate()
-        }
-        .contextMenu {
-            Button("Copy") {
-                onCopy()
-            }
-            Divider()
-            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
-                onToggleFavorite()
-            }
-            if !collections.isEmpty {
-                Menu("Collections") {
-                    ForEach(collections) { collection in
-                        Button {
-                            onToggleCollectionMembership(collection.id)
-                        } label: {
-                            Label(
-                                collection.name,
-                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
-                            )
-                        }
-                    }
-                }
-            }
-            Divider()
-            Button("Export") {
-                onExport()
-            }
-            Button("Share") {
-                onShare()
-            }
-            Divider()
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .accessibilityLabel(item.accessibilityTitle)
-        .accessibilityValue(item.compactRelativeTimestamp)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch item.payload {
-        case let .text(text):
-            HubClipboardTextView(
-                text: text,
-                fontSize: 15,
-                fontWeight: .medium,
-                lineLimit: textLineLimit
-            )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        case let .image(imageData):
-            HubImagePreviewView(
-                dataPath: imageData.thumbnailPath,
-                fallbackSymbol: item.fallbackPreviewSymbol,
-                accent: accent,
-                cornerRadius: 14,
-                padding: HubTheme.Space.x2
-            )
-        case let .fileURL(url):
-            VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
-                Text(url.lastPathComponent)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(HubTheme.textPrimary)
-                    .lineLimit(2)
-                Text(url.path)
-                    .font(.system(size: 12))
-                    .foregroundStyle(HubTheme.textSecondary)
-                    .lineLimit(6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
-
-    private var fallbackPreview: some View {
-        ZStack {
-            previewShape
-                .fill(HubTheme.cardFillMuted)
-
-            HubItemIconView(icon: .system(item.fallbackPreviewSymbol), tint: accent, size: 20)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipShape(previewShape)
-    }
-}
-
-// MARK: - HubImagePreviewView
-
-private struct HubImagePreviewView: View {
-    let dataPath: String
-    let fallbackSymbol: String
-    let accent: Color
-    let cornerRadius: CGFloat
-    let padding: CGFloat
-    var fixedSize: CGSize? = nil
-
-    private var previewShape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-    }
-
-    var body: some View {
-        ZStack {
-            previewShape
-                .fill(HubTheme.cardFillMuted)
-
-            if let imageData = try? ImageStore.load(relativePath: dataPath),
-               let image = NSImage(data: imageData) {
-                Image(nsImage: image)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .padding(padding)
-            } else {
-                HubItemIconView(icon: .system(fallbackSymbol), tint: accent, size: 20)
-            }
-        }
-        .frame(
-            width: fixedSize?.width,
-            height: fixedSize?.height
-        )
-        .frame(maxWidth: fixedSize == nil ? .infinity : nil, maxHeight: fixedSize == nil ? .infinity : nil)
-        .clipShape(previewShape)
-    }
-}
-
-// MARK: - HubCardFooter
-
-private struct HubCardFooter: View {
-    let item: ClipboardItem
-
-    var body: some View {
-        HStack(spacing: HubTheme.Space.x2) {
-            if let appIcon = item.sourceApplicationIcon {
-                HubItemIconView(icon: .app(appIcon), tint: HubTheme.textTertiary, size: 16)
-            }
-            Text(item.compactRelativeTimestamp)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(HubTheme.textTertiary)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-    }
-}
-
 // MARK: - Text Formatting Utilities
 
 enum HubStructuredTextFormatter {
@@ -980,7 +572,7 @@ enum HubRelativeTimeFormatter {
 
 // MARK: - ClipboardItem Extensions
 
-private extension ClipboardItem {
+extension ClipboardItem {
     var historyTitle: String {
         switch payload {
         case let .text(text):
