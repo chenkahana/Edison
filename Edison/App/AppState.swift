@@ -15,6 +15,13 @@ final class AppState: ObservableObject {
     private let clipboardCoordinator: ClipboardCoordinator
     private var coordinatorCancellable: AnyCancellable?
 
+    // MARK: - Delegated capture state
+
+    /// The coordinator owns screenshot session state, capture errors, and screen recording
+    /// permission. AppState re-emits its objectWillChange so view bindings remain live.
+    private(set) var captureCoordinator: CaptureCoordinator
+    private var captureCoordinatorCancellable: AnyCancellable?
+
     // MARK: - Published properties owned by AppState
 
     @Published var activeQuery = ""
@@ -22,14 +29,9 @@ final class AppState: ObservableObject {
     @Published private(set) var collections: [ItemCollection] = []
     @Published var selectedCollectionID: UUID?
     @Published private(set) var settings: AppSettings
-    @Published private(set) var activeScreenshotSession: ScreenshotSession?
-    @Published private(set) var lastScreenshotSession: ScreenshotSession?
     @Published var showEditorDiscardAlert = false
-    @Published var captureError: String?
     @Published private(set) var accessibilityDenied = false
     @Published private(set) var failedShortcutActions: [ShortcutAction] = []
-    @Published private(set) var screenRecordingAccessGranted: Bool
-    @Published private(set) var lastCaptureFailureReason: String?
     @Published private(set) var launchAtLoginStatusDescription = "Unavailable"
     @Published private(set) var launchAtLoginErrorMessage: String?
 
@@ -38,6 +40,17 @@ final class AppState: ObservableObject {
     var historyItems: [ClipboardItem] { clipboardCoordinator.historyItems }
     var deletedItemForUndo: ClipboardItem? { clipboardCoordinator.deletedItemForUndo }
     var showDeleteUndoToast: Bool { clipboardCoordinator.showDeleteUndoToast }
+
+    // MARK: - Public API that delegates to CaptureCoordinator
+
+    var activeScreenshotSession: ScreenshotSession? { captureCoordinator.activeScreenshotSession }
+    var lastScreenshotSession: ScreenshotSession? { captureCoordinator.lastScreenshotSession }
+    var captureError: String? {
+        get { captureCoordinator.captureError }
+        set { captureCoordinator.captureError = newValue }
+    }
+    var screenRecordingAccessGranted: Bool { captureCoordinator.screenRecordingAccessGranted }
+    var lastCaptureFailureReason: String? { captureCoordinator.lastCaptureFailureReason }
 
     // MARK: - View-model computed properties (stay in AppState)
 
@@ -67,7 +80,7 @@ final class AppState: ObservableObject {
     let shortcutStore = ShortcutStore()
     let settingsStore = SettingsStore()
     let hotKeyCenter = HotKeyCenter.shared
-    let captureEngine = CaptureEngine()
+    let captureEngine = CaptureEngine()  // retained here for requestScreenRecordingAccess
 
     private let historyStore = HistoryStore()
     private let clipboardMonitor = ClipboardMonitor()
@@ -87,7 +100,9 @@ final class AppState: ObservableObject {
     private let screenRecordingSettingsOpener: () -> Void
     private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
-    weak var windowRouter: WindowRouter?
+    weak var windowRouter: WindowRouter? {
+        didSet { captureCoordinator.windowRouter = windowRouter }
+    }
     private(set) var lastActiveApp: NSRunningApplication?
     private var pasteBackTargetApp: NSRunningApplication?
     private(set) var isPasteInFlight = false
@@ -110,7 +125,6 @@ final class AppState: ObservableObject {
         self.pasteBackCoordinatorOverride = pasteBackCoordinatorOverride
         self.lastActiveApp = initialLastActiveApp
         self.settings = settingsStore.current
-        self.screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
         self.accessibilityPromptRequester = accessibilityPromptRequester ?? {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
@@ -129,17 +143,26 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.open(url)
         }
 
-        // Build the coordinator before any service startup so closures can capture it safely.
+        // Build coordinators. Both must be assigned before any self-referencing closures
+        // so Swift's definite initialization is satisfied.
         let coordinator = ClipboardCoordinator(
             historyStore: historyStore,
             clipboardMonitor: clipboardMonitor
         )
         self.clipboardCoordinator = coordinator
 
+        // CaptureCoordinator is initialized with placeholder closures here; the real
+        // closures are wired below after `self` is fully initialized.
+        self.captureCoordinator = CaptureCoordinator(
+            captureEngine: captureEngine,
+            windowRouter: nil  // windowRouter is set externally after init
+        )
+
+        // All stored properties are now initialized — `self` is safe to use.
+
         refreshLaunchAtLoginStatus()
 
-        // Wire coordinator callbacks. These are set before enableRuntimeServices check
-        // so that even in test mode the coordinator is correctly configured.
+        // Wire clipboard coordinator callbacks.
         coordinator.historyLimit = { [weak self] in
             self?.settings.privacy.historyLimit ?? 500
         }
@@ -160,9 +183,37 @@ final class AppState: ObservableObject {
             }
         }
 
-        // Option A: Forward coordinator's objectWillChange into AppState's objectWillChange
+        // Wire capture coordinator closures (closures reference self, safe now).
+        captureCoordinator.addToHistory = { [weak self] item in
+            self?.clipboardCoordinator.addToHistory(item, source: .internalAction)
+        }
+        captureCoordinator.suppressClipboardPayload = { [weak self] payload in
+            self?.clipboardCoordinator.suppressPayload(payload)
+        }
+        captureCoordinator.historyItems = { [weak self] in
+            self?.clipboardCoordinator.historyItems ?? []
+        }
+        captureCoordinator.setHistoryItems = { [weak self] items in
+            self?.clipboardCoordinator.setHistoryItems(items)
+        }
+        captureCoordinator.promoteItemToFront = { [weak self] id in
+            self?.clipboardCoordinator.promoteItemToFront(itemID: id)
+        }
+        captureCoordinator.currentSettings = { [weak self] in
+            self?.settings ?? .default
+        }
+        captureCoordinator.closeEditor = { [weak self] in
+            self?.closeEditorImmediately()
+        }
+        captureCoordinator.presentError = { [weak self] error, title in
+            self?.present(error: error, title: title)
+        }
+
+        // Forward both coordinators' objectWillChange into AppState's objectWillChange
         // so views that observe AppState get re-rendered when coordinator state changes.
         coordinatorCancellable = coordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+        captureCoordinatorCancellable = captureCoordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
 
         guard enableRuntimeServices else { return }
@@ -245,7 +296,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshPermissionStatuses() {
-        screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
+        captureCoordinator.refreshPermissionStatuses()
     }
 
     private func perform(action: ShortcutAction) {
@@ -431,13 +482,13 @@ final class AppState: ObservableObject {
             showEditorDiscardAlert = true
             return
         }
-        lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+        captureCoordinator.lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
         closeEditorImmediately()
     }
 
     func discardAndCloseEditor() {
         if let activeScreenshotSession {
-            lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+            captureCoordinator.lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
         }
         showEditorDiscardAlert = false
         closeEditorImmediately()
@@ -446,25 +497,25 @@ final class AppState: ObservableObject {
     func closeEditorImmediately() {
         showEditorDiscardAlert = false
         windowRouter?.dismissEditor()
-        activeScreenshotSession = nil
+        captureCoordinator.activeScreenshotSession = nil
     }
 
     func editLastScreenshot() {
         guard let lastScreenshotSession else {
-            captureError = "There is no previous screenshot to edit yet."
+            captureCoordinator.captureError = "There is no previous screenshot to edit yet."
             return
         }
-        openEditor(with: lastScreenshotSession.duplicateForEditing())
+        captureCoordinator.openEditor(for: lastScreenshotSession.duplicateForEditing())
     }
 
     func keepActiveScreenshot() {
         guard let activeScreenshotSession else { return }
-        commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+        captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
     }
 
     func copyActiveScreenshot() {
         guard let activeScreenshotSession else { return }
-        commitScreenshotSession(activeScreenshotSession, copyToClipboard: true)
+        captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: true)
     }
 
     func saveActiveScreenshot() {
@@ -481,7 +532,7 @@ final class AppState: ObservableObject {
 
             guard panel.runModal() == .OK, let url = panel.url else { return }
             try png.write(to: url, options: .atomic)
-            commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+            captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
         } catch {
             present(error: error, title: "Save Failed")
         }
@@ -604,126 +655,10 @@ final class AppState: ObservableObject {
         )
     }
 
-    // MARK: - Capture
+    // MARK: - Capture (delegated to CaptureCoordinator)
 
     private func startCapture(_ request: CaptureRequest) async {
-        refreshPermissionStatuses()
-        let result = await captureEngine.capture(request, settings: settings)
-        await handleCaptureResult(result)
-    }
-
-    private func handleCaptureResult(_ result: CaptureResult) async {
-        switch result {
-        case let .success(data, displayID, rect):
-            captureError = nil
-            lastCaptureFailureReason = nil
-            let draft = ScreenshotDraft(
-                baseImageData: data,
-                fileNameHint: settings.defaultFileName(),
-                captureDisplayID: displayID,
-                captureRect: rect
-            )
-            let session = ScreenshotSession(draft: draft)
-
-            if settings.capture.openEditorAfterCapture || settings.capture.defaultResult != .keepInHistory {
-                openEditor(with: session)
-            } else {
-                activeScreenshotSession = session
-                keepActiveScreenshot()
-            }
-
-        case .cancelled:
-            captureError = nil
-        case .permissionDenied:
-            screenRecordingAccessGranted = false
-            lastCaptureFailureReason = "Screen Recording permission is required before Edison can capture screenshots."
-            captureError = lastCaptureFailureReason
-            presentScreenRecordingPermissionAlert()
-        case let .failure(reason):
-            lastCaptureFailureReason = reason
-            captureError = reason
-            Log.capture.error("Capture failed – \(reason)")
-        }
-    }
-
-    private func openEditor(with session: ScreenshotSession) {
-        activeScreenshotSession = session
-        lastScreenshotSession = session.duplicateForEditing()
-        windowRouter?.openEditor()
-    }
-
-    private func commitScreenshotSession(_ session: ScreenshotSession, copyToClipboard: Bool) {
-        do {
-            let pngData = try session.renderedPNGData()
-            let item = try persistScreenshotImage(pngData, existingItemID: session.committedItemID)
-            session.recordCommit(itemID: item.id)
-            lastScreenshotSession = session.duplicateForEditing()
-
-            if copyToClipboard {
-                writeImageDataToClipboard(pngData, payload: item.payload)
-            }
-
-            if settings.editor.closeAfterCopySave {
-                closeEditorImmediately()
-            }
-        } catch {
-            present(error: error, title: "Screenshot Commit Failed")
-        }
-    }
-
-    private func persistScreenshotImage(_ data: Data, existingItemID: UUID?) throws -> ClipboardItem {
-        guard let prepared = ImageProcessing.prepareImagePayload(from: data, id: existingItemID ?? UUID()) else {
-            throw CocoaError(.fileWriteUnknown)
-        }
-
-        if let existingItemID,
-           let index = clipboardCoordinator.historyItems.firstIndex(where: { $0.id == existingItemID }) {
-            let oldItem = clipboardCoordinator.historyItems[index]
-            if case let .image(oldImage) = oldItem.payload {
-                ImageStore.delete(relativePath: oldImage.imagePath)
-                ImageStore.delete(relativePath: oldImage.thumbnailPath)
-            }
-
-            var items = clipboardCoordinator.historyItems
-            items[index] = ClipboardItem(
-                id: existingItemID,
-                createdAt: .now,
-                isFavorite: oldItem.isFavorite,
-                sourceApplication: oldItem.sourceApplication,
-                payload: .image(prepared)
-            )
-            clipboardCoordinator.setHistoryItems(items)
-            clipboardCoordinator.promoteItemToFront(itemID: existingItemID)
-            return clipboardCoordinator.historyItems.first(where: { $0.id == existingItemID }) ?? clipboardCoordinator.historyItems[0]
-        }
-
-        let item = ClipboardItem(payload: .image(prepared))
-        clipboardCoordinator.addToHistory(item, source: .internalAction)
-        return item
-    }
-
-    // MARK: - Clipboard (screenshot writes — pending extraction in follow-up W2.2)
-    //
-    // writeImageDataToClipboard is kept here because it is tightly coupled to the
-    // capture/commit flow. It calls coordinator.suppressPayload(_:) so the suppression
-    // set stays in the coordinator where it belongs.
-    private func writeImageDataToClipboard(_ data: Data, payload: ClipboardPayload) {
-        clipboardCoordinator.suppressPayload(payload)
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        _ = pasteboard.setData(data, forType: .png)
-    }
-
-    private func presentScreenRecordingPermissionAlert() {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Allow Screen Recording"
-        alert.informativeText = "Edison needs Screen Recording access to capture screenshots. Open System Settings and enable Edison under Privacy & Security > Screen Recording."
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Not Now")
-        if alert.runModal() == .alertFirstButtonReturn {
-            requestScreenRecordingAccess()
-        }
+        await captureCoordinator.startCapture(request)
     }
 
     private func makeExportPayload(
