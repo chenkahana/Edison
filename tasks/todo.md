@@ -16,15 +16,15 @@ Spawn the following subagents:
 - [x] Review inspector output for clipboard-content and privacy leakage.
 - [x] Validate competitive capabilities against current first-party sources.
 - [ ] Capture fixtures from the real source applications in the compatibility matrix.
-- [ ] Implement the lossless representation model, persistence, capture, and paste paths.
-- [ ] Implement the explicit plain-text paste action after the model path works.
+- [x] Implement the lossless representation model, persistence, capture, and paste paths.
+- [x] Implement the explicit plain-text paste action after the model path works.
 
 ## LLM judgment steps
 
 - [x] Keep the 2.0 critical path centered on fidelity before organization and power workflows.
 - [x] Limit fixture tooling to type identifiers, byte counts, and SHA-256 hashes.
 - [ ] Decide payload budgets, RTFD scope, and source metadata handling from measured fixtures.
-- [ ] Review the implementation for migration safety, representation ordering, and graceful fallback.
+- [x] Review the implementation for migration safety, representation ordering, and graceful fallback.
 
 ## Verification commands
 
@@ -35,6 +35,12 @@ swift scripts/inspect-pasteboard.swift \
   --label <synthetic-fixture-label> \
   --source <source-application> \
   --output <fixture.json>
+swift build
+swift test
+xcodebuild -project Edison.xcodeproj -scheme Edison -configuration Release \
+  -destination 'platform=macOS' \
+  -derivedDataPath /Users/chenk/tmp/codex/Edison/DerivedData-edison2 \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## Done criteria
@@ -44,18 +50,31 @@ swift scripts/inspect-pasteboard.swift \
 - [ ] Supported rich representations round-trip without parsing or reserialization.
 - [ ] Normal paste restores preserved representations in source order.
 - [ ] Plain-text paste writes only the exact canonical plain string.
-- [ ] Existing affected code paths, fixtures, assertions, and snapshots are reviewed for regressions.
+- [x] Existing affected code paths, fixtures, assertions, and snapshots are reviewed for regressions.
 
 ## Review
 
-Files in this foundation slice:
+Files in this foundation slice include:
 
 - `docs/edison-2.0-plan.md`
 - `docs/pasteboard-fixture-workflow.md`
 - `scripts/inspect-pasteboard.swift`
+- `Edison/Core/Models/ClipboardItem.swift`
+- `Edison/Core/Persistence/ClipboardRepresentationStore.swift`
+- `Edison/Core/Clipboard/ClipboardMonitor.swift`
+- `Edison/Core/Clipboard/ClipboardCoordinator.swift`
+- `Edison/App/PasteBackCoordinator.swift`
+- `Edison/App/AppState.swift`
+- `Edison/UI/Hub/HubSupportViews.swift`
+- `Edison/UI/Hub/HubShelfView.swift`
+- `Edison/UI/Hub/HubListView.swift`
+- `Edison/UI/Hub/HubView.swift`
+- `Edison/Core/Settings/LaunchAtLoginController.swift`
 - `tasks/todo.md`
 
-Verification: `git diff --check` passes. Inspector privacy was reviewed statically: fixture output
-contains metadata and hashes, not pasteboard payloads. No tests were added or run; this slice is
-planning, documentation, and diagnostic tooling only. Real-application fixture capture remains
-blocked because Computer Use lacks the required macOS Accessibility/Automation permission.
+Verification: `git diff --check`, the inspector help smoke test, `swift build`, and the unsigned
+Release `xcodebuild` pass. `swift test` passes 36 tests across 9 suites. No tests were added. Rich
+capture, replay, degradation, and Shift-Return behavior still require the real-application
+compatibility matrix before fidelity is considered verified.
+Real-application fixture capture remains blocked because Computer Use lacks the required macOS
+Accessibility/Automation permission.

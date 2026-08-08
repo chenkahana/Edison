@@ -12,6 +12,7 @@ struct HubListView: View {
     let isInCollection: (UUID, UUID) -> Bool
     let onSelect: (UUID) -> Void
     let onActivate: (UUID) -> Void
+    let onPasteAsPlainText: (UUID) -> Void
     let onCopy: (UUID) -> Void
     let onToggleFavorite: (UUID) -> Void
     let onToggleCollectionMembership: (UUID, UUID) -> Void
@@ -34,6 +35,7 @@ struct HubListView: View {
                             },
                             onSelect: { onSelect(item.id) },
                             onActivate: { onActivate(item.id) },
+                            onPasteAsPlainText: { onPasteAsPlainText(item.id) },
                             onCopy: { onCopy(item.id) },
                             onToggleFavorite: { onToggleFavorite(item.id) },
                             onToggleCollectionMembership: { collectionID in
@@ -74,6 +76,7 @@ struct HubListRowView: View {
     let isInCollection: (UUID) -> Bool
     let onSelect: () -> Void
     let onActivate: () -> Void
+    let onPasteAsPlainText: () -> Void
     let onCopy: () -> Void
     let onToggleFavorite: () -> Void
     let onToggleCollectionMembership: (UUID) -> Void
@@ -126,40 +129,19 @@ struct HubListRowView: View {
             onActivate()
         }
         .contextMenu {
-            Button("Copy") {
-                onCopy()
-            }
-            Divider()
-            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") {
-                onToggleFavorite()
-            }
-            if !collections.isEmpty {
-                Menu("Collections") {
-                    ForEach(collections) { collection in
-                        Button {
-                            onToggleCollectionMembership(collection.id)
-                        } label: {
-                            Label(
-                                collection.name,
-                                systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
-                            )
-                        }
-                    }
-                }
-            }
-            Divider()
-            Button("Export") {
-                onExport()
-            }
-            Button("Share") {
-                onShare()
-            }
-            Divider()
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
+            HubItemActionMenu(
+                item: item,
+                collections: collections,
+                isInCollection: isInCollection,
+                onPaste: onActivate,
+                onPasteAsPlainText: onPasteAsPlainText,
+                onCopy: onCopy,
+                onToggleFavorite: onToggleFavorite,
+                onToggleCollectionMembership: onToggleCollectionMembership,
+                onExport: onExport,
+                onShare: onShare,
+                onDelete: onDelete
+            )
         }
         .accessibilityLabel(item.accessibilityTitle)
         .accessibilityValue(item.compactRelativeTimestamp)

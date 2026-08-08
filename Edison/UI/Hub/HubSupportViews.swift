@@ -190,12 +190,62 @@ struct HubCaptureErrorBanner: View {
     }
 }
 
+// MARK: - HubItemActionMenu
+
+struct HubItemActionMenu: View {
+    let item: ClipboardItem
+    let collections: [ItemCollection]
+    let isInCollection: (UUID) -> Bool
+    let onPaste: () -> Void
+    let onPasteAsPlainText: () -> Void
+    let onCopy: () -> Void
+    let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button("Paste", action: onPaste)
+        if case .text = item.payload {
+            Button("Paste as Plain Text", action: onPasteAsPlainText)
+                .keyboardShortcut(.return, modifiers: [.shift])
+                .accessibilityLabel("Paste as Plain Text")
+        }
+        Button("Copy", action: onCopy)
+        Divider()
+        Button(item.isFavorite ? "Remove Favorite" : "Add Favorite", action: onToggleFavorite)
+        if !collections.isEmpty {
+            Menu("Collections") {
+                ForEach(collections) { collection in
+                    Button {
+                        onToggleCollectionMembership(collection.id)
+                    } label: {
+                        Label(
+                            collection.name,
+                            systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                        )
+                    }
+                }
+            }
+        }
+        Divider()
+        Button("Export", action: onExport)
+        Button("Share", action: onShare)
+        Divider()
+        Button(role: .destructive, action: onDelete) {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+}
+
 // MARK: - HubWindowAccessor
 
 struct HubWindowAccessor: NSViewRepresentable {
     let onResolveWindow: (NSWindow?) -> Void
     let onMoveCommand: (MoveCommandDirection) -> Void
     let onConfirmSelection: () -> Void
+    let onConfirmPlainTextSelection: () -> Void
     let onDismiss: () -> Void
     let onFocusSearch: () -> Void
     let onTypeSearch: (String) -> Void
@@ -302,6 +352,13 @@ struct HubWindowAccessor: NSViewRepresentable {
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
                let idx = quickPasteKeyCodes[event.keyCode] {
                 parent.onQuickPaste(idx)
+                return true
+            }
+
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                .subtracting(.numericPad)
+            if modifiers == [.shift], event.keyCode == 36 || event.keyCode == 76 {
+                parent.onConfirmPlainTextSelection()
                 return true
             }
 

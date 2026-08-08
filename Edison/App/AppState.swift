@@ -220,8 +220,11 @@ final class AppState: ObservableObject {
 
         historyStore.loadAsync { [weak self] loadedItems, loadedCollections in
             Task { @MainActor in
-                self?.clipboardCoordinator.setHistoryItems(loadedItems)
-                self?.collections = loadedCollections
+                guard let self else { return }
+                self.clipboardCoordinator.setHistoryItems(loadedItems)
+                self.clipboardCoordinator.reconcileRepresentationStore()
+                self.collections = loadedCollections
+                self.clipboardCoordinator.startMonitor()
             }
         }
 
@@ -232,9 +235,6 @@ final class AppState: ObservableObject {
         }
         hotKeyCenter.apply(shortcuts: shortcutStore.current)
         failedShortcutActions = hotKeyCenter.failedRegistrations
-
-        // Clipboard monitor is started via the coordinator.
-        coordinator.startMonitor()
 
         shortcutActionRequestObserver = NotificationCenter.default.addObserver(
             forName: .edisonShortcutActionRequested,
@@ -416,14 +416,18 @@ final class AppState: ObservableObject {
         _ = clipboardCoordinator.writeItemToClipboard(item)
     }
 
-    func pasteItem(itemID: UUID) {
+    func pasteItem(itemID: UUID, mode: ClipboardWriteMode = .sourceFormatting) {
         guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
-        pasteResolvedItem(item)
+        pasteResolvedItem(item, mode: mode)
     }
 
-    func pasteSelection(from items: [ClipboardItem], selectedItemID: UUID?) {
+    func pasteSelection(
+        from items: [ClipboardItem],
+        selectedItemID: UUID?,
+        mode: ClipboardWriteMode = .sourceFormatting
+    ) {
         guard let item = PasteSelectionResolver.resolve(from: items, selectedItemID: selectedItemID) else { return }
-        pasteResolvedItem(item)
+        pasteResolvedItem(item, mode: mode)
     }
 
     func dismissHub() {
@@ -625,7 +629,10 @@ final class AppState: ObservableObject {
         pasteBackTargetApp = nil
     }
 
-    private func pasteResolvedItem(_ item: ClipboardItem) {
+    private func pasteResolvedItem(
+        _ item: ClipboardItem,
+        mode: ClipboardWriteMode = .sourceFormatting
+    ) {
         guard !isPasteInFlight else { return }
 
         isPasteInFlight = true
@@ -635,6 +642,7 @@ final class AppState: ObservableObject {
         pasteBackCoordinator.run(
             item: item,
             targetApp: targetApp,
+            mode: mode,
             onAccessibilityDenied: { [weak self] in
                 self?.handleAccessibilityDeniedForPasteBack()
             },
@@ -656,8 +664,8 @@ final class AppState: ObservableObject {
 
     private func makePasteBackCoordinator() -> PasteBackCoordinator {
         PasteBackCoordinator(
-            writeItemToClipboard: { [weak self] item in
-                self?.clipboardCoordinator.writeItemToClipboard(item) ?? false
+            writeItemToClipboard: { [weak self] item, mode in
+                self?.clipboardCoordinator.writeItemToClipboard(item, mode: mode) ?? false
             },
             closeHub: { [weak self] in
                 self?.windowRouter?.dismissHubForPasteBack()

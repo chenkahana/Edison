@@ -65,25 +65,65 @@ enum ClipboardPayload: Codable, Hashable {
     case fileURL(URL)
 }
 
+struct ClipboardRepresentationDescriptor: Codable, Hashable {
+    let typeIdentifier: String
+    let relativePath: String
+    let byteCount: Int
+    let sha256: String
+}
+
+enum ClipboardRepresentationDegradationReason: String, Codable, Hashable {
+    case readFailure
+    case representationSizeLimit
+    case itemSizeLimit
+    case storeSizeLimit
+    case persistenceFailure
+}
+
+struct ClipboardRepresentationDegradation: Codable, Hashable {
+    let typeIdentifier: String
+    let reason: ClipboardRepresentationDegradationReason
+    let sha256: String?
+
+    init(
+        typeIdentifier: String,
+        reason: ClipboardRepresentationDegradationReason,
+        sha256: String? = nil
+    ) {
+        self.typeIdentifier = typeIdentifier
+        self.reason = reason
+        self.sha256 = sha256
+    }
+}
+
+struct ClipboardTextRepresentations: Codable, Hashable {
+    let declaredTypeIdentifiers: [String]
+    let storedRepresentations: [ClipboardRepresentationDescriptor]
+    let degradations: [ClipboardRepresentationDegradation]
+}
+
 struct ClipboardItem: Codable, Identifiable, Hashable {
     let id: UUID
     var createdAt: Date
     var isFavorite: Bool
     let sourceApplication: ClipboardSourceApplication?
     let payload: ClipboardPayload
+    let textRepresentations: ClipboardTextRepresentations?
 
     init(
         id: UUID = UUID(),
         createdAt: Date = .now,
         isFavorite: Bool = false,
         sourceApplication: ClipboardSourceApplication? = nil,
-        payload: ClipboardPayload
+        payload: ClipboardPayload,
+        textRepresentations: ClipboardTextRepresentations? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
         self.isFavorite = isFavorite
         self.sourceApplication = sourceApplication
         self.payload = payload
+        self.textRepresentations = textRepresentations
     }
 }
 
@@ -93,6 +133,48 @@ extension ClipboardItem {
         guard case let .text(text) = payload else { return nil }
         return text.unicodeScalars.count
     }
+
+    func hasSameClipboardIdentity(as other: ClipboardItem) -> Bool {
+        switch (payload, other.payload) {
+        case let (.text(text), .text(otherText)):
+            return Data(text.utf8) == Data(otherText.utf8)
+                && richRepresentationIdentity == other.richRepresentationIdentity
+        default:
+            return payload == other.payload
+        }
+    }
+
+    private var richRepresentationIdentity: [ClipboardRichRepresentationIdentity] {
+        guard case .text = payload,
+              let textRepresentations else { return [] }
+
+        let descriptorsByType = Dictionary(
+            textRepresentations.storedRepresentations.map { ($0.typeIdentifier, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let degradationDigestsByType = Dictionary(
+            textRepresentations.degradations.compactMap { degradation -> (String, String)? in
+                guard let sha256 = degradation.sha256 else { return nil }
+                return (degradation.typeIdentifier, sha256)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return textRepresentations.declaredTypeIdentifiers.compactMap { typeIdentifier in
+            guard typeIdentifier != "public.utf8-plain-text" else { return nil }
+            let sha256 = descriptorsByType[typeIdentifier]?.sha256
+                ?? degradationDigestsByType[typeIdentifier]
+            guard let sha256 else { return nil }
+            return ClipboardRichRepresentationIdentity(
+                typeIdentifier: typeIdentifier,
+                sha256: sha256
+            )
+        }
+    }
+}
+
+private struct ClipboardRichRepresentationIdentity: Hashable {
+    let typeIdentifier: String
+    let sha256: String
 }
 
 extension ClipboardItem: Transferable {
