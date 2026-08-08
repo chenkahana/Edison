@@ -82,3 +82,4 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
           test -x "$RUNNER_TEMP/Edison.xcarchive/Products/Applications/Edison - Clipboard Manager.app/Contents/MacOS/Edison - Clipboard Manager"
           test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "2.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "4"
