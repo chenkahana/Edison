@@ -6,30 +6,85 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class AppState: ObservableObject {
-    private enum HistorySource {
-        case clipboard
-        case internalAction
-    }
+
+    // MARK: - Delegated clipboard/history state
+
+    /// The coordinator owns historyItems, deletedItemForUndo, showDeleteUndoToast,
+    /// and suppressedClipboardPayloads. AppState re-emits coordinator's objectWillChange
+    /// so existing view bindings (which observe AppState) continue to trigger re-renders.
+    private let clipboardCoordinator: ClipboardCoordinator
+    private var coordinatorCancellable: AnyCancellable?
+
+    // MARK: - Delegated capture state
+
+    /// The coordinator owns screenshot session state, capture errors, and screen recording
+    /// permission. AppState re-emits its objectWillChange so view bindings remain live.
+    private(set) var captureCoordinator: CaptureCoordinator
+    private var captureCoordinatorCancellable: AnyCancellable?
+
+    // MARK: - Published properties owned by AppState
 
     @Published var activeQuery = ""
     @Published var selectedTypeFilter: HistoryItemTypeFilter = .all
-    @Published private(set) var historyItems: [ClipboardItem] = []
     @Published private(set) var collections: [ItemCollection] = []
     @Published var selectedCollectionID: UUID?
-    @Published var isEditorPresented = false
-    @Published var editorImageData: Data?
-    @Published private(set) var deletedItemForUndo: ClipboardItem?
-    @Published private(set) var showDeleteUndoToast = false
-    @Published var captureError: String?
+    @Published private(set) var settings: AppSettings
+    @Published var showEditorDiscardAlert = false
     @Published private(set) var accessibilityDenied = false
     @Published private(set) var failedShortcutActions: [ShortcutAction] = []
+    @Published private(set) var launchAtLoginStatusDescription = "Unavailable"
+    @Published private(set) var launchAtLoginErrorMessage: String?
+
+    // MARK: - Public API that delegates to ClipboardCoordinator
+
+    var historyItems: [ClipboardItem] { clipboardCoordinator.historyItems }
+    var deletedItemForUndo: ClipboardItem? { clipboardCoordinator.deletedItemForUndo }
+    var showDeleteUndoToast: Bool { clipboardCoordinator.showDeleteUndoToast }
+
+    // MARK: - Public API that delegates to CaptureCoordinator
+
+    var activeScreenshotSession: ScreenshotSession? { captureCoordinator.activeScreenshotSession }
+    var lastScreenshotSession: ScreenshotSession? { captureCoordinator.lastScreenshotSession }
+    var captureError: String? {
+        get { captureCoordinator.captureError }
+        set { captureCoordinator.captureError = newValue }
+    }
+    var screenRecordingAccessGranted: Bool { captureCoordinator.screenRecordingAccessGranted }
+    var lastCaptureFailureReason: String? { captureCoordinator.lastCaptureFailureReason }
+
+    // MARK: - View-model computed properties (stay in AppState)
+
+    var filteredItems: [ClipboardItem] {
+        return Log.performance.withIntervalSignpost("Search Filter") {
+            let searched = searchEngine.filter(
+                query: activeQuery,
+                in: clipboardCoordinator.historyItems,
+                type: selectedTypeFilter
+            )
+            guard let selectedCollectionID,
+                  let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
+                return searched
+            }
+
+            let itemIDs = Set(collection.itemIDs)
+            return searched.filter { itemIDs.contains($0.id) }
+        }
+    }
+
+    var favoriteItems: [ClipboardItem] {
+        filteredItems.filter(\.isFavorite)
+    }
+
+    // MARK: - Services
 
     let shortcutStore = ShortcutStore()
+    let settingsStore = SettingsStore()
     let hotKeyCenter = HotKeyCenter.shared
-    let captureEngine = CaptureEngine()
+    let captureEngine = CaptureEngine()  // retained here for requestScreenRecordingAccess
 
     private let historyStore = HistoryStore()
     private let clipboardMonitor = ClipboardMonitor()
+    private let launchAtLoginController = LaunchAtLoginController()
     private let searchEngine = HistorySearchEngine()
     private let missingWindowError = NSError(
         domain: "Edison.Share",
@@ -37,43 +92,24 @@ final class AppState: ObservableObject {
         userInfo: [NSLocalizedDescriptionKey: "No active window available for sharing."]
     )
 
-    private let historyLimit = 250
     private let enableRuntimeServices: Bool
     private let frontmostApplicationProvider: () -> NSRunningApplication?
     private let pasteBackCoordinatorOverride: PasteBackCoordinator?
     private let accessibilityPromptRequester: () -> Void
     private let accessibilitySettingsOpener: () -> Void
-    private var suppressedClipboardPayloads = Set<ClipboardPayload>()
-    private var undoTimer: Timer?
+    private let screenRecordingSettingsOpener: () -> Void
     private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
-    weak var windowRouter: WindowRouter?
-    private var screenshotObserver: NSObjectProtocol?
+    weak var windowRouter: WindowRouter? {
+        didSet { captureCoordinator.windowRouter = windowRouter }
+    }
     private(set) var lastActiveApp: NSRunningApplication?
     private var pasteBackTargetApp: NSRunningApplication?
     private(set) var isPasteInFlight = false
     private var activeAppObserver: NSObjectProtocol?
     private var shortcutActionRequestObserver: NSObjectProtocol?
-    private var captureFailureObserver: NSObjectProtocol?
 
-    var filteredItems: [ClipboardItem] {
-        let searched = searchEngine.filter(
-            query: activeQuery,
-            in: historyItems,
-            type: selectedTypeFilter
-        )
-        guard let selectedCollectionID,
-              let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
-            return searched
-        }
-
-        let itemIDs = Set(collection.itemIDs)
-        return searched.filter { itemIDs.contains($0.id) }
-    }
-
-    var favoriteItems: [ClipboardItem] {
-        filteredItems.filter(\.isFavorite)
-    }
+    // MARK: - Init
 
     init(
         enableRuntimeServices: Bool = true,
@@ -81,12 +117,14 @@ final class AppState: ObservableObject {
         pasteBackCoordinatorOverride: PasteBackCoordinator? = nil,
         initialLastActiveApp: NSRunningApplication? = nil,
         accessibilityPromptRequester: (() -> Void)? = nil,
-        accessibilitySettingsOpener: (() -> Void)? = nil
+        accessibilitySettingsOpener: (() -> Void)? = nil,
+        screenRecordingSettingsOpener: (() -> Void)? = nil
     ) {
         self.enableRuntimeServices = enableRuntimeServices
         self.frontmostApplicationProvider = frontmostApplicationProvider
         self.pasteBackCoordinatorOverride = pasteBackCoordinatorOverride
         self.lastActiveApp = initialLastActiveApp
+        self.settings = settingsStore.current
         self.accessibilityPromptRequester = accessibilityPromptRequester ?? {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
@@ -98,12 +136,91 @@ final class AppState: ObservableObject {
             }
             NSWorkspace.shared.open(url)
         }
+        self.screenRecordingSettingsOpener = screenRecordingSettingsOpener ?? {
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") else {
+                return
+            }
+            NSWorkspace.shared.open(url)
+        }
+
+        // Build coordinators. Both must be assigned before any self-referencing closures
+        // so Swift's definite initialization is satisfied.
+        let coordinator = ClipboardCoordinator(
+            historyStore: historyStore,
+            clipboardMonitor: clipboardMonitor
+        )
+        self.clipboardCoordinator = coordinator
+
+        // CaptureCoordinator is initialized with placeholder closures here; the real
+        // closures are wired below after `self` is fully initialized.
+        self.captureCoordinator = CaptureCoordinator(
+            captureEngine: captureEngine,
+            windowRouter: nil  // windowRouter is set externally after init
+        )
+
+        // All stored properties are now initialized — `self` is safe to use.
+
+        refreshLaunchAtLoginStatus()
+
+        // Wire clipboard coordinator callbacks.
+        coordinator.historyLimit = { [weak self] in
+            self?.settings.privacy.historyLimit ?? 500
+        }
+        coordinator.onHistoryChanged = { [weak self] liveItemIDs in
+            guard let self else { return }
+            for index in self.collections.indices {
+                self.collections[index].itemIDs.removeAll { !liveItemIDs.contains($0) }
+            }
+        }
+        coordinator.onPersistRequested = { [weak self] in
+            guard let self else { return }
+            self.historyStore.save(items: self.clipboardCoordinator.historyItems, collections: self.collections)
+        }
+        coordinator.onItemDeleted = { [weak self] itemID in
+            guard let self else { return }
+            for idx in self.collections.indices {
+                self.collections[idx].itemIDs.removeAll { $0 == itemID }
+            }
+        }
+
+        // Wire capture coordinator closures (closures reference self, safe now).
+        captureCoordinator.addToHistory = { [weak self] item in
+            self?.clipboardCoordinator.addToHistory(item, source: .internalAction)
+        }
+        captureCoordinator.suppressClipboardPayload = { [weak self] payload in
+            self?.clipboardCoordinator.suppressPayload(payload)
+        }
+        captureCoordinator.historyItems = { [weak self] in
+            self?.clipboardCoordinator.historyItems ?? []
+        }
+        captureCoordinator.setHistoryItems = { [weak self] items in
+            self?.clipboardCoordinator.setHistoryItems(items)
+        }
+        captureCoordinator.promoteItemToFront = { [weak self] id in
+            self?.clipboardCoordinator.promoteItemToFront(itemID: id)
+        }
+        captureCoordinator.currentSettings = { [weak self] in
+            self?.settings ?? .default
+        }
+        captureCoordinator.closeEditor = { [weak self] in
+            self?.closeEditorImmediately()
+        }
+        captureCoordinator.presentError = { [weak self] error, title in
+            self?.present(error: error, title: title)
+        }
+
+        // Forward both coordinators' objectWillChange into AppState's objectWillChange
+        // so views that observe AppState get re-rendered when coordinator state changes.
+        coordinatorCancellable = coordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+        captureCoordinatorCancellable = captureCoordinator.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
 
         guard enableRuntimeServices else { return }
 
         historyStore.loadAsync { [weak self] loadedItems, loadedCollections in
             Task { @MainActor in
-                self?.historyItems = loadedItems
+                self?.clipboardCoordinator.setHistoryItems(loadedItems)
                 self?.collections = loadedCollections
             }
         }
@@ -116,25 +233,8 @@ final class AppState: ObservableObject {
         hotKeyCenter.apply(shortcuts: shortcutStore.current)
         failedShortcutActions = hotKeyCenter.failedRegistrations
 
-        clipboardMonitor.start { [weak self] newItem in
-            Task { @MainActor in
-                self?.addToHistory(newItem)
-            }
-        }
-
-        screenshotObserver = NotificationCenter.default.addObserver(
-            forName: .edisonScreenshotCaptured,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            guard let self else { return }
-            let capturedData = (note.userInfo?[CaptureEngine.imageDataUserInfoKey] as? Data)
-                ?? NSPasteboard.general.data(forType: .tiff)
-
-            MainActor.assumeIsolated {
-                self.handleScreenshotCapture(capturedData)
-            }
-        }
+        // Clipboard monitor is started via the coordinator.
+        coordinator.startMonitor()
 
         shortcutActionRequestObserver = NotificationCenter.default.addObserver(
             forName: .edisonShortcutActionRequested,
@@ -146,17 +246,6 @@ final class AppState: ObservableObject {
 
             MainActor.assumeIsolated {
                 self?.perform(action: action)
-            }
-        }
-
-        captureFailureObserver = NotificationCenter.default.addObserver(
-            forName: .edisonCaptureFailed,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let reason = note.userInfo?["reason"] as? String ?? "Capture failed"
-            MainActor.assumeIsolated {
-                self?.captureError = reason
             }
         }
 
@@ -173,28 +262,31 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - deinit
+    //
+    // Decision: remove NotificationCenter observers synchronously, not via
+    // Task { @MainActor in }. Both observers are opaque tokens returned by the
+    // block-based addObserver(forName:object:queue:using:) API; the underlying
+    // NotificationCenter and NSWorkspace.notificationCenter removeObserver(_:)
+    // calls are documented as thread-safe and do not require the main actor.
+    //
+    // A Task-based removal is unsafe at process exit: Swift Concurrency tasks
+    // enqueued during deinit may never execute if the run-loop is torn down first,
+    // leaking the observer registration. In practice the OS cleans up all observer
+    // state on process exit anyway, but synchronous removal is more correct and
+    // avoids any log noise from dangling observers if AppState is deallocated
+    // mid-session (e.g. during unit tests).
     deinit {
-        let clipboardMonitor = clipboardMonitor
-        let screenshotObserver = screenshotObserver
-        let activeAppObserver = activeAppObserver
-        let shortcutActionRequestObserver = shortcutActionRequestObserver
-        let captureFailureObserver = captureFailureObserver
-        Task { @MainActor in
-            clipboardMonitor.stop()
-            if let screenshotObserver {
-                NotificationCenter.default.removeObserver(screenshotObserver)
-            }
-            if let shortcutActionRequestObserver {
-                NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
-            }
-            if let captureFailureObserver {
-                NotificationCenter.default.removeObserver(captureFailureObserver)
-            }
-            if let activeAppObserver {
-                NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
-            }
+        // Coordinator handles clipboardMonitor.stop() in its own cleanup.
+        if let shortcutActionRequestObserver {
+            NotificationCenter.default.removeObserver(shortcutActionRequestObserver)
+        }
+        if let activeAppObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activeAppObserver)
         }
     }
+
+    // MARK: - Shortcut / action handling
 
     func handle(hotKeyAction: ShortcutAction) {
         perform(action: hotKeyAction)
@@ -207,16 +299,32 @@ final class AppState: ObservableObject {
         accessibilitySettingsOpener()
     }
 
+    func requestScreenRecordingAccess() {
+        _ = captureEngine.requestScreenRecordingPermission()
+        screenRecordingSettingsOpener()
+        refreshPermissionStatuses()
+    }
+
+    func refreshPermissionStatuses() {
+        captureCoordinator.refreshPermissionStatuses()
+    }
+
     private func perform(action: ShortcutAction) {
         switch action {
         case .openHub:
             toggleHubFromShortcut()
-        case .captureArea:
-            captureEngine.captureArea()
+        case .captureScreenshot:
+            Task { await startCapture(.screenshot) }
         case .captureWindow:
-            captureEngine.captureWindow()
+            Task { await startCapture(.window) }
         case .captureFullScreen:
-            captureEngine.captureFullScreen()
+            Task { await startCapture(.fullScreen) }
+        case .capturePreviousArea:
+            Task { await startCapture(.previousArea) }
+        case .editLastScreenshot:
+            editLastScreenshot()
+        case .openSettings:
+            windowRouter?.openSettings()
         }
     }
 
@@ -226,6 +334,19 @@ final class AppState: ObservableObject {
         failedShortcutActions = hotKeyCenter.failedRegistrations
     }
 
+    func save(settings: AppSettings) {
+        self.settings = settings
+        settingsStore.save(settings)
+        refreshLaunchAtLogin(settings.general.launchAtLogin)
+        clipboardCoordinator.trimHistoryToSettingsLimit()
+    }
+
+    func restoreDefaultSettings() {
+        save(settings: .default)
+    }
+
+    // MARK: - Collections
+
     func createCollection(named name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -234,7 +355,7 @@ final class AppState: ObservableObject {
         let collection = ItemCollection(name: trimmed)
         collections.insert(collection, at: 0)
         selectedCollectionID = collection.id
-        persistHistory()
+        clipboardCoordinator.persistHistory()
     }
 
     func deleteCollection(id: UUID) {
@@ -242,7 +363,7 @@ final class AppState: ObservableObject {
         if selectedCollectionID == id {
             selectedCollectionID = nil
         }
-        persistHistory()
+        clipboardCoordinator.persistHistory()
     }
 
     func addItem(_ itemID: UUID, toCollection collectionID: UUID) {
@@ -250,14 +371,14 @@ final class AppState: ObservableObject {
         guard !collections[index].itemIDs.contains(itemID) else { return }
 
         collections[index].itemIDs.insert(itemID, at: 0)
-        persistHistory()
+        clipboardCoordinator.persistHistory()
     }
 
     func removeItem(_ itemID: UUID, fromCollection collectionID: UUID) {
         guard let index = collections.firstIndex(where: { $0.id == collectionID }) else { return }
 
         collections[index].itemIDs.removeAll { $0 == itemID }
-        persistHistory()
+        clipboardCoordinator.persistHistory()
     }
 
     func toggleItem(_ itemID: UUID, inCollection collectionID: UUID) {
@@ -276,57 +397,27 @@ final class AppState: ObservableObject {
             .contains(itemID) ?? false
     }
 
+    // MARK: - Clipboard / history delegation
+
     func toggleFavorite(itemID: UUID) {
-        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
-        historyItems[index].isFavorite.toggle()
-        persistHistory()
+        clipboardCoordinator.toggleFavorite(itemID: itemID)
     }
 
     func deleteItem(itemID: UUID) {
-        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
-        let item = historyItems[index]
-
-        historyItems.remove(at: index)
-        for idx in collections.indices {
-            collections[idx].itemIDs.removeAll { $0 == itemID }
-        }
-        persistHistory()
-
-        deletedItemForUndo = item
-        showDeleteUndoToast = true
-        undoTimer?.invalidate()
-        undoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                // Undo window expired — now safe to remove image files from disk.
-                // Capture `item` at scheduling time so a subsequent delete doesn't
-                // overwrite `deletedItemForUndo` before this timer fires.
-                if case let .image(imageData) = item.payload {
-                    ImageStore.delete(relativePath: imageData.imagePath)
-                    ImageStore.delete(relativePath: imageData.thumbnailPath)
-                }
-                self?.showDeleteUndoToast = false
-                self?.deletedItemForUndo = nil
-            }
-        }
+        clipboardCoordinator.deleteItem(itemID: itemID)
     }
 
     func undoDelete() {
-        guard let item = deletedItemForUndo else { return }
-        undoTimer?.invalidate()
-        undoTimer = nil
-        historyItems.insert(item, at: 0)
-        persistHistory()
-        deletedItemForUndo = nil
-        showDeleteUndoToast = false
+        clipboardCoordinator.undoDelete()
     }
 
     func copyToClipboard(itemID: UUID) {
-        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
-        _ = writeItemToClipboard(item)
+        guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
+        _ = clipboardCoordinator.writeItemToClipboard(item)
     }
 
     func pasteItem(itemID: UUID) {
-        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
         pasteResolvedItem(item)
     }
 
@@ -341,17 +432,14 @@ final class AppState: ObservableObject {
         windowRouter?.dismissHub()
     }
 
-    private func promoteItemToFront(itemID: UUID) {
-        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
-
-        var item = historyItems.remove(at: index)
-        item.createdAt = .now
-        historyItems.insert(item, at: 0)
-        persistHistory()
+    func clearHistory() {
+        clipboardCoordinator.clearHistory()
+        collections.removeAll()
+        selectedCollectionID = nil
     }
 
     func exportItem(itemID: UUID) {
-        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
         do {
             let export = try makeExportPayload(for: item)
             let panel = NSSavePanel()
@@ -373,7 +461,7 @@ final class AppState: ObservableObject {
     }
 
     func shareItem(itemID: UUID) {
-        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
         do {
             let shareItems = try makeShareItems(for: item)
             let picker = NSSharingServicePicker(items: shareItems)
@@ -393,42 +481,126 @@ final class AppState: ObservableObject {
         }
     }
 
-    func closeEditor() {
-        isEditorPresented = false
-    }
+    // MARK: - Editor
 
-    private func addToHistory(_ item: ClipboardItem, source: HistorySource = .clipboard) {
-        if source == .clipboard, suppressedClipboardPayloads.remove(item.payload) != nil {
+    func requestEditorClose() {
+        guard let activeScreenshotSession else {
+            closeEditorImmediately()
             return
         }
-
-        historyItems.removeAll { $0.payload == item.payload }
-        historyItems.insert(item, at: 0)
-
-        if historyItems.count > historyLimit {
-            let excess = historyItems.suffix(historyItems.count - historyLimit)
-            for pruned in excess {
-                if case let .image(imageData) = pruned.payload {
-                    ImageStore.delete(relativePath: imageData.imagePath)
-                    ImageStore.delete(relativePath: imageData.thumbnailPath)
-                }
-            }
-            historyItems.removeLast(historyItems.count - historyLimit)
+        if activeScreenshotSession.hasUnsavedChanges {
+            showEditorDiscardAlert = true
+            return
         }
-
-        let liveItemIDs = Set(historyItems.map(\.id))
-        for index in collections.indices {
-            collections[index].itemIDs.removeAll { !liveItemIDs.contains($0) }
-        }
-
-        persistHistory()
+        captureCoordinator.lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+        closeEditorImmediately()
     }
 
-    private func persistHistory() {
-        historyStore.save(items: historyItems, collections: collections)
+    func discardAndCloseEditor() {
+        if let activeScreenshotSession {
+            captureCoordinator.lastScreenshotSession = activeScreenshotSession.duplicateForEditing()
+        }
+        showEditorDiscardAlert = false
+        closeEditorImmediately()
+    }
+
+    func closeEditorImmediately() {
+        showEditorDiscardAlert = false
+        windowRouter?.dismissEditor()
+        captureCoordinator.activeScreenshotSession = nil
+    }
+
+    func editLastScreenshot() {
+        guard let lastScreenshotSession else {
+            captureCoordinator.captureError = "There is no previous screenshot to edit yet."
+            return
+        }
+        captureCoordinator.openEditor(for: lastScreenshotSession.duplicateForEditing())
+    }
+
+    func keepActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+    }
+
+    func copyActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: true)
+    }
+
+    func saveActiveScreenshot() {
+        guard let activeScreenshotSession else { return }
+        do {
+            let png = try activeScreenshotSession.renderedPNGData()
+            let panel = NSSavePanel()
+            panel.canCreateDirectories = true
+            panel.allowedContentTypes = [.png]
+            panel.nameFieldStringValue = "\(settings.defaultFileName()).png"
+            if let defaultSaveFolderPath = settings.capture.defaultSaveFolderPath {
+                panel.directoryURL = URL(fileURLWithPath: defaultSaveFolderPath, isDirectory: true)
+            }
+
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            try png.write(to: url, options: .atomic)
+            captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+        } catch {
+            present(error: error, title: "Save Failed")
+        }
+    }
+
+    // MARK: - Diagnostics
+
+    func revealStorageFolder() {
+        NSWorkspace.shared.activateFileViewerSelecting([HistoryStore.storageDirectory])
+    }
+
+    func exportDiagnostics() {
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "edison-diagnostics.txt"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let diagnostics = """
+        Edison Diagnostics
+        Generated: \(ISO8601DateFormatter().string(from: .now))
+        Screen Recording Access: \(screenRecordingAccessGranted)
+        Accessibility Access: \(AXIsProcessTrusted())
+        Failed Shortcuts: \(failedShortcutActions.map(\.title).joined(separator: ", "))
+        History Count: \(clipboardCoordinator.historyItems.count)
+        Collections Count: \(collections.count)
+        Last Capture Failure: \(lastCaptureFailureReason ?? "None")
+        Launch At Login: \(launchAtLoginStatusDescription)
+        Settings: \(String(describing: settings))
+        """
+
+        do {
+            try diagnostics.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            present(error: error, title: "Diagnostics Export Failed")
+        }
+    }
+
+    // MARK: - Private helpers
+
+    private func refreshLaunchAtLogin(_ isEnabled: Bool) {
+        launchAtLoginController.setEnabled(isEnabled)
+        launchAtLoginErrorMessage = launchAtLoginController.lastErrorMessage
+        refreshLaunchAtLoginStatus()
+    }
+
+    private func refreshLaunchAtLoginStatus() {
+        launchAtLoginController.refreshStatus()
+        launchAtLoginErrorMessage = launchAtLoginController.lastErrorMessage
+        launchAtLoginStatusDescription = launchAtLoginController.statusDescription
     }
 
     private func toggleHubFromShortcut() {
+        let signposter = Log.performance
+        let state = signposter.beginInterval("Hub Toggle")
+        defer { signposter.endInterval("Hub Toggle", state) }
+
         guard let windowRouter else { return }
 
         if windowRouter.isHubPresented {
@@ -482,38 +654,10 @@ final class AppState: ObservableObject {
         accessibilityDenied = true
     }
 
-    @discardableResult
-    private func writeItemToClipboard(_ item: ClipboardItem) -> Bool {
-        suppressedClipboardPayloads.insert(item.payload)
-
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        let wroteToPasteboard: Bool
-
-        switch item.payload {
-        case let .text(value):
-            wroteToPasteboard = pasteboard.setString(value, forType: .string)
-        case let .image(image):
-            if let data = try? ImageStore.load(relativePath: image.imagePath) {
-                wroteToPasteboard = pasteboard.setData(data, forType: .png)
-            } else {
-                wroteToPasteboard = false
-            }
-        case let .fileURL(url):
-            wroteToPasteboard = pasteboard.writeObjects([url as NSURL])
-        }
-
-        if wroteToPasteboard {
-            promoteItemToFront(itemID: item.id)
-        }
-
-        return wroteToPasteboard
-    }
-
     private func makePasteBackCoordinator() -> PasteBackCoordinator {
         PasteBackCoordinator(
             writeItemToClipboard: { [weak self] item in
-                self?.writeItemToClipboard(item) ?? false
+                self?.clipboardCoordinator.writeItemToClipboard(item) ?? false
             },
             closeHub: { [weak self] in
                 self?.windowRouter?.dismissHubForPasteBack()
@@ -521,24 +665,10 @@ final class AppState: ObservableObject {
         )
     }
 
-    private func handleScreenshotCapture(_ capturedData: Data?) {
-        guard let capturedData else { return }
+    // MARK: - Capture (delegated to CaptureCoordinator)
 
-        Task { [weak self] in
-            let prepared = await Task.detached(priority: .utility) {
-                ImageProcessing.prepareImagePayload(from: capturedData)
-            }.value
-
-            guard let prepared else { return }
-            await MainActor.run {
-                guard let self else { return }
-                self.suppressedClipboardPayloads.insert(.image(prepared))
-                self.addToHistory(ClipboardItem(payload: .image(prepared)), source: .internalAction)
-                self.editorImageData = try? ImageStore.load(relativePath: prepared.imagePath)
-                self.windowRouter?.openHub()
-                self.isEditorPresented = true
-            }
-        }
+    private func startCapture(_ request: CaptureRequest) async {
+        await captureCoordinator.startCapture(request)
     }
 
     private func makeExportPayload(

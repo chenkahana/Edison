@@ -1,26 +1,51 @@
-import Carbon
 import AppKit
+import Carbon
 import SwiftUI
 
 struct ShortcutEditorRow: View {
     let action: ShortcutAction
-    @Binding var shortcut: Shortcut
+    @Binding var shortcut: Shortcut?
+    var validationIssues: [ShortcutValidationIssue]
+    var failedRegistration: Bool
+    let restoreDefault: () -> Void
 
     var body: some View {
-        HStack {
-            Text(action.title)
-                .foregroundStyle(.primary)
-            Spacer()
-            KeyRecorderView(shortcut: $shortcut)
-                .frame(width: 200, height: 28)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: HubTheme.Space.x3) {
+                Text(action.title)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                KeyRecorderView(shortcut: $shortcut)
+                    .frame(width: 210, height: 30)
+
+                Button("Default", action: restoreDefault)
+                    .disabled(ShortcutSet.defaultShortcut(for: action) == shortcut)
+
+                Button("Clear") {
+                    shortcut = nil
+                }
+                .disabled(shortcut == nil)
+            }
+
+            if failedRegistration || !validationIssues.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    if failedRegistration {
+                        Text("macOS couldn't register this shortcut. It may conflict with another app.")
+                    }
+                    ForEach(validationIssues.map(\.message), id: \.self) { issue in
+                        Text(issue)
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.orange)
+            }
         }
     }
 }
 
-// MARK: - Key Recorder
-
 private struct KeyRecorderView: NSViewRepresentable {
-    @Binding var shortcut: Shortcut
+    @Binding var shortcut: Shortcut?
 
     func makeCoordinator() -> Coordinator { Coordinator(shortcut: $shortcut) }
 
@@ -37,14 +62,14 @@ private struct KeyRecorderView: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject {
-        var shortcutBinding: Binding<Shortcut>
+        var shortcutBinding: Binding<Shortcut?>
         weak var field: KeyRecorderField?
 
-        init(shortcut: Binding<Shortcut>) {
+        init(shortcut: Binding<Shortcut?>) {
             self.shortcutBinding = shortcut
         }
 
-        func commit(_ shortcut: Shortcut) {
+        func commit(_ shortcut: Shortcut?) {
             shortcutBinding.wrappedValue = shortcut
         }
     }
@@ -52,7 +77,7 @@ private struct KeyRecorderView: NSViewRepresentable {
 
 final class KeyRecorderField: NSView {
     fileprivate weak var coordinator: KeyRecorderView.Coordinator?
-    var displayShortcut: Shortcut = Shortcut(keyCode: 0, modifiers: 0)
+    var displayShortcut: Shortcut?
     private var isRecording = false
     private var monitor: Any?
 
@@ -74,7 +99,15 @@ final class KeyRecorderField: NSView {
         border.lineWidth = 1
         border.stroke()
 
-        let label: String = isRecording ? "Type shortcut\u{2026}" : shortcutDescription(displayShortcut)
+        let label: String
+        if isRecording {
+            label = "Type shortcut..."
+        } else if let displayShortcut {
+            label = shortcutDescription(displayShortcut)
+        } else {
+            label = "Not Set"
+        }
+
         let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: isRecording ? NSColor.secondaryLabelColor : NSColor.labelColor
@@ -106,12 +139,20 @@ final class KeyRecorderField: NSView {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isRecording else { return event }
-            if event.keyCode == 53 { // Escape
+            if event.keyCode == 53 {
                 self.window?.makeFirstResponder(nil)
                 return nil
             }
+
+            if event.keyCode == 51 {
+                self.coordinator?.commit(nil)
+                self.displayShortcut = nil
+                self.needsDisplay = true
+                self.window?.makeFirstResponder(nil)
+                return nil
+            }
+
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard !mods.isEmpty else { return nil }
             let shortcut = Shortcut(keyCode: UInt32(event.keyCode), modifiers: carbonModifiers(from: mods))
             self.coordinator?.commit(shortcut)
             self.displayShortcut = shortcut
@@ -126,13 +167,13 @@ final class KeyRecorderField: NSView {
         monitor = nil
     }
 
-    private func shortcutDescription(_ s: Shortcut) -> String {
+    private func shortcutDescription(_ shortcut: Shortcut) -> String {
         var parts: [String] = []
-        if s.modifiers & UInt32(controlKey) != 0 { parts.append("\u{2303}") }
-        if s.modifiers & UInt32(optionKey) != 0 { parts.append("\u{2325}") }
-        if s.modifiers & UInt32(shiftKey) != 0 { parts.append("\u{21E7}") }
-        if s.modifiers & UInt32(cmdKey) != 0 { parts.append("\u{2318}") }
-        parts.append(keyName(for: UInt16(s.keyCode)))
+        if shortcut.modifiers & UInt32(controlKey) != 0 { parts.append("\u{2303}") }
+        if shortcut.modifiers & UInt32(optionKey) != 0 { parts.append("\u{2325}") }
+        if shortcut.modifiers & UInt32(shiftKey) != 0 { parts.append("\u{21E7}") }
+        if shortcut.modifiers & UInt32(cmdKey) != 0 { parts.append("\u{2318}") }
+        parts.append(keyName(for: UInt16(shortcut.keyCode)))
         return parts.joined()
     }
 

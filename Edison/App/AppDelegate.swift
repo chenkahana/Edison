@@ -12,10 +12,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 openHub: { [weak self] in
                     self?.windowRouter.openHub()
                 },
-                captureArea: {
+                captureScreenshot: {
                     NotificationCenter.default.post(
                         name: .edisonShortcutActionRequested,
-                        object: ShortcutAction.captureArea.rawValue
+                        object: ShortcutAction.captureScreenshot.rawValue
                     )
                 },
                 captureWindow: {
@@ -28,6 +28,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     NotificationCenter.default.post(
                         name: .edisonShortcutActionRequested,
                         object: ShortcutAction.captureFullScreen.rawValue
+                    )
+                },
+                capturePreviousArea: {
+                    NotificationCenter.default.post(
+                        name: .edisonShortcutActionRequested,
+                        object: ShortcutAction.capturePreviousArea.rawValue
+                    )
+                },
+                editLastScreenshot: {
+                    NotificationCenter.default.post(
+                        name: .edisonShortcutActionRequested,
+                        object: ShortcutAction.editLastScreenshot.rawValue
                     )
                 },
                 openSettings: { [weak self] in

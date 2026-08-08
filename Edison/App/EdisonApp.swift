@@ -16,6 +16,15 @@ struct EdisonApp: App {
         .defaultSize(width: HubTheme.shelfWindowSize.width, height: HubTheme.shelfWindowSize.height)
         .windowStyle(.hiddenTitleBar)
 
+        Window("Screenshot Editor", id: "editor") {
+            EditorWindowView()
+                .environmentObject(appState)
+                .onAppear {
+                    appState.windowRouter = appDelegate.windowRouter
+                }
+        }
+        .defaultSize(width: 1120, height: 760)
+
         Settings {
             SettingsView()
                 .environmentObject(appState)

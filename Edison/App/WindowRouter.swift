@@ -1,9 +1,33 @@
 import AppKit
 
+// MARK: - WindowRouter
+//
+// Weak reference rationale (W5.3 audit):
+//
+// hubWindow and storedEditorWindow are held weakly because AppKit's NSWindowController
+// (and the SwiftUI WindowGroup machinery on macOS) owns the canonical strong reference
+// to every NSWindow. WindowRouter is a coordinator that tracks which window is the hub
+// or editor; it must NOT extend the window's lifetime.
+//
+// Nil-dereference invariant:
+// Every code path that reads hubWindow or storedEditorWindow first re-resolves the
+// window via resolveHubWindow() / resolveEditorWindow(), which fall back to a scan of
+// NSApp.windows when the stored weak ref has become nil. The one DispatchQueue.main.async
+// closure in openHub() re-resolves via resolveHubWindow(preferVisible:) rather than
+// capturing hubWindow directly, so there is no window between "hub window assigned" and
+// "hub window used" where a stale nil could escape unguarded.
+//
+// Premature deallocation:
+// SwiftUI WindowGroup windows are retained by the NSWindowController for as long as the
+// scene is live. A weak reference becomes nil only after the scene is destroyed, at which
+// point there is nothing to show anyway — all callers handle nil gracefully via optional
+// chaining or the fallback scan.
 @MainActor
 final class WindowRouter {
     private weak var hubWindow: NSWindow?
+    private weak var storedEditorWindow: NSWindow?
     private var openHubAction: (() -> Void)?
+    private var openEditorAction: (() -> Void)?
     private var hubRequestedVisible = false
 
     func toggleHub() {
@@ -33,6 +57,10 @@ final class WindowRouter {
 
     func setOpenHubAction(_ action: @escaping () -> Void) {
         openHubAction = action
+    }
+
+    func setOpenEditorAction(_ action: @escaping () -> Void) {
+        openEditorAction = action
     }
 
     func openHub() {
@@ -70,6 +98,41 @@ final class WindowRouter {
     func openSettings() {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    var editorWindow: NSWindow? {
+        resolveEditorWindow()
+    }
+
+    func registerEditorWindow(_ window: NSWindow?) {
+        guard let window else { return }
+        window.identifier = NSUserInterfaceItemIdentifier("editor-window")
+        storedEditorWindow = window
+    }
+
+    func openEditor() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.unhide(nil)
+
+        if let editorWindow = resolveEditorWindow() {
+            if editorWindow.isMiniaturized {
+                editorWindow.deminiaturize(nil)
+            }
+            editorWindow.makeKeyAndOrderFront(nil)
+            editorWindow.orderFrontRegardless()
+            return
+        }
+
+        openEditorAction?()
+        DispatchQueue.main.async {
+            guard let editorWindow = self.resolveEditorWindow() else { return }
+            editorWindow.makeKeyAndOrderFront(nil)
+            editorWindow.orderFrontRegardless()
+        }
+    }
+
+    func dismissEditor() {
+        resolveEditorWindow()?.orderOut(nil)
     }
 
     func dismissHub() {
@@ -155,6 +218,18 @@ final class WindowRouter {
         let fallback = NSApp.windows.first { $0.canBecomeKey && !($0 is NSPanel) }
         if let fallback {
             hubWindow = fallback
+        }
+        return fallback
+    }
+
+    private func resolveEditorWindow() -> NSWindow? {
+        if let storedEditorWindow, NSApp.windows.contains(storedEditorWindow) {
+            return storedEditorWindow
+        }
+
+        let fallback = NSApp.windows.first { $0.identifier?.rawValue == "editor-window" }
+        if let fallback {
+            storedEditorWindow = fallback
         }
         return fallback
     }

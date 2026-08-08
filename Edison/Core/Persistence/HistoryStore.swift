@@ -7,26 +7,34 @@ private struct HistorySnapshot: Codable {
 }
 
 final class HistoryStore {
+    static let storageDirectory: URL = {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let folder = appSupport.appendingPathComponent("Edison", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }()
+
     private let fileURL: URL
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let ioQueue = DispatchQueue(label: "edison.history.store", qos: .utility)
 
     init(fileManager: FileManager = .default) {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let folder = appSupport.appendingPathComponent("Edison", isDirectory: true)
-        try? fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
-        fileURL = folder.appendingPathComponent("history.json")
+        try? fileManager.createDirectory(at: Self.storageDirectory, withIntermediateDirectories: true)
+        fileURL = Self.storageDirectory.appendingPathComponent("history.json")
 
         encoder.outputFormatting = [.prettyPrinted]
     }
 
     func loadAsync(_ completion: @escaping ([ClipboardItem], [ItemCollection]) -> Void) {
+        let signposter = Log.performance
+        let state = signposter.beginInterval("History Load")
         ioQueue.async { [weak self] in
             guard let self else { return }
             let snapshot = self.loadSync()
             DispatchQueue.main.async {
+                signposter.endInterval("History Load", state)
                 completion(snapshot.items, snapshot.collections)
             }
         }
