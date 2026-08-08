@@ -97,6 +97,9 @@ struct HubView: View {
                 onConfirmSelection: {
                     pasteSelectedItem()
                 },
+                onConfirmPlainTextSelection: {
+                    pasteSelectedItem(mode: .plainText)
+                },
                 onDismiss: {
                     focusedField = nil
                     appState.dismissHub()
@@ -264,6 +267,7 @@ struct HubView: View {
                         },
                         onSelect: { selectedItemID = $0 },
                         onActivate: { pasteSelectedItem(selecting: $0) },
+                        onPasteAsPlainText: { pasteSelectedItem(selecting: $0, mode: .plainText) },
                         onCopy: { appState.copyToClipboard(itemID: $0) },
                         onToggleFavorite: { appState.toggleFavorite(itemID: $0) },
                         onToggleCollectionMembership: { itemID, collectionID in
@@ -287,6 +291,7 @@ struct HubView: View {
                         },
                         onSelect: { selectedItemID = $0 },
                         onActivate: { pasteSelectedItem(selecting: $0) },
+                        onPasteAsPlainText: { pasteSelectedItem(selecting: $0, mode: .plainText) },
                         onCopy: { appState.copyToClipboard(itemID: $0) },
                         onToggleFavorite: { appState.toggleFavorite(itemID: $0) },
                         onToggleCollectionMembership: { itemID, collectionID in
@@ -317,6 +322,9 @@ struct HubView: View {
                                         },
                                         onSelect: { selectedItemID = item.id },
                                         onActivate: { pasteSelectedItem(selecting: item.id) },
+                                        onPasteAsPlainText: {
+                                            pasteSelectedItem(selecting: item.id, mode: .plainText)
+                                        },
                                         onCopy: { appState.copyToClipboard(itemID: item.id) },
                                         onToggleFavorite: { appState.toggleFavorite(itemID: item.id) },
                                         onToggleCollectionMembership: { collectionID in
@@ -411,12 +419,24 @@ struct HubView: View {
         selectedItemID = items[nextIndex].id
     }
 
-    private func pasteSelectedItem(selecting itemID: UUID? = nil) {
+    private func pasteSelectedItem(
+        selecting itemID: UUID? = nil,
+        mode: ClipboardWriteMode = .sourceFormatting
+    ) {
         if let itemID {
             selectedItemID = itemID
         }
 
-        appState.pasteSelection(from: items, selectedItemID: itemID ?? selectedItemID)
+        let resolvedItemID = itemID ?? selectedItemID
+        if mode == .plainText,
+           let resolvedItemID,
+           let item = items.first(where: { $0.id == resolvedItemID }),
+           case .text = item.payload {
+            appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
+            return
+        }
+        guard mode == .sourceFormatting else { return }
+        appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
     }
 
     private func scrollSelection(

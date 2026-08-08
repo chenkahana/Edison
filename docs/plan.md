@@ -27,5 +27,7 @@
 - Advanced integrations
 
 ## Current / next
-- **Current:** stabilize core flows and CI based on `docs/current-task.md`.
-- **Next:** execute next active task by updating `docs/current-task.md`.
+- **Current:** Edison 1.1 release preparation is complete.
+- **Next:** execute the fidelity-first Edison 2.0 roadmap in
+  [`docs/edison-2.0-plan.md`](edison-2.0-plan.md), beginning with reproducible cross-application
+  pasteboard fixtures before changing the persisted model.

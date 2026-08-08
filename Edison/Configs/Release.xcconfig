@@ -1,11 +1,6 @@
-// Release.xcconfig — v1.5 warnings-as-errors enforcement
+// Release.xcconfig — v2.0 warnings-as-errors reference
 // Enforces AC10: zero compiler warnings in Release build.
-//
-// TODO: wire this config into Edison.xcodeproj Release configuration.
-//       Xcode → project → Info → Configurations → Release → Edison →
-//       "Based on Configuration File" → select this file.
-//       Equivalent CLI check:
-//         xcodebuild -scheme Edison -configuration Release build 2>&1 | grep -c "warning:"   # must be 0
+// The same settings are applied directly to the target Release configuration.
 
 GCC_TREAT_WARNINGS_AS_ERRORS = YES
 SWIFT_TREAT_WARNINGS_AS_ERRORS = YES

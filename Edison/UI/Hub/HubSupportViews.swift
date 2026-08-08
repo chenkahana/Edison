@@ -190,12 +190,62 @@ struct HubCaptureErrorBanner: View {
     }
 }
 
+// MARK: - HubItemActionMenu
+
+struct HubItemActionMenu: View {
+    let item: ClipboardItem
+    let collections: [ItemCollection]
+    let isInCollection: (UUID) -> Bool
+    let onPaste: () -> Void
+    let onPasteAsPlainText: () -> Void
+    let onCopy: () -> Void
+    let onToggleFavorite: () -> Void
+    let onToggleCollectionMembership: (UUID) -> Void
+    let onExport: () -> Void
+    let onShare: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        Button("Paste", action: onPaste)
+        if case .text = item.payload {
+            Button("Paste as Plain Text", action: onPasteAsPlainText)
+                .keyboardShortcut(.return, modifiers: [.shift])
+                .accessibilityLabel("Paste as Plain Text")
+        }
+        Button("Copy", action: onCopy)
+        Divider()
+        Button(item.isFavorite ? "Remove Favorite" : "Add Favorite", action: onToggleFavorite)
+        if !collections.isEmpty {
+            Menu("Collections") {
+                ForEach(collections) { collection in
+                    Button {
+                        onToggleCollectionMembership(collection.id)
+                    } label: {
+                        Label(
+                            collection.name,
+                            systemImage: isInCollection(collection.id) ? "checkmark.circle.fill" : "circle"
+                        )
+                    }
+                }
+            }
+        }
+        Divider()
+        Button("Export", action: onExport)
+        Button("Share", action: onShare)
+        Divider()
+        Button(role: .destructive, action: onDelete) {
+            Label("Delete", systemImage: "trash")
+        }
+    }
+}
+
 // MARK: - HubWindowAccessor
 
 struct HubWindowAccessor: NSViewRepresentable {
     let onResolveWindow: (NSWindow?) -> Void
     let onMoveCommand: (MoveCommandDirection) -> Void
     let onConfirmSelection: () -> Void
+    let onConfirmPlainTextSelection: () -> Void
     let onDismiss: () -> Void
     let onFocusSearch: () -> Void
     let onTypeSearch: (String) -> Void
@@ -203,6 +253,18 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onDeleteItem: () -> Void
     let onQuickLook: () -> Void
     let onQuickPaste: (Int) -> Void
+
+    static func confirmMode(
+        keyCode: UInt16,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> ClipboardWriteMode? {
+        guard keyCode == 36 || keyCode == 76 else { return nil }
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting(.numericPad)
+        if modifiers == [.shift] { return .plainText }
+        if modifiers.isEmpty { return .sourceFormatting }
+        return nil
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -305,6 +367,18 @@ struct HubWindowAccessor: NSViewRepresentable {
                 return true
             }
 
+            if let mode = HubWindowAccessor.confirmMode(
+                keyCode: event.keyCode,
+                modifierFlags: event.modifierFlags
+            ) {
+                if mode == .plainText {
+                    parent.onConfirmPlainTextSelection()
+                } else {
+                    parent.onConfirmSelection()
+                }
+                return true
+            }
+
             if let text = printableSearchText(from: event) {
                 parent.onTypeSearch(text)
                 return true
@@ -328,9 +402,6 @@ struct HubWindowAccessor: NSViewRepresentable {
                 return true
             case 126:
                 parent.onMoveCommand(.up)
-                return true
-            case 36, 76:
-                parent.onConfirmSelection()
                 return true
             case 53:
                 parent.onDismiss()

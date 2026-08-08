@@ -12,6 +12,7 @@ let targetExcludes = [
     "Core/Persistence/AGENTS.md",
     "Core/Search/AGENTS.md",
     "Core/Shortcuts/AGENTS.md",
+    "Configs",
     "UI/AGENTS.md",
     "UI/Components/AGENTS.md",
     "UI/EditorUI/AGENTS.md",

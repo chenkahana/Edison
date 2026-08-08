@@ -3,16 +3,19 @@ import Combine
 import Foundation
 import OSLog
 
+enum ClipboardWriteMode: Equatable {
+    case sourceFormatting
+    case plainText
+}
+
 // MARK: - ClipboardCoordinator
 //
 // Owns history mutation, clipboard writes, and suppression tracking.
 // Created and owned by AppState. AppState preserves its public API by
 // delegating to this coordinator.
 //
-// suppressedClipboardPayloads lives here because both addToHistory (reading)
-// and writeItemToClipboard / suppressPayload (writing) must agree on the same
-// set. AppState.writeImageDataToClipboard calls coordinator.suppressPayload(_:)
-// rather than reaching into the set directly, keeping the mutation boundary clear.
+// suppressedClipboardPayloads is reserved for screenshot writes that bypass
+// writeItemToClipboard and cannot mark the monitor change directly.
 
 @MainActor
 final class ClipboardCoordinator: ObservableObject {
@@ -25,14 +28,15 @@ final class ClipboardCoordinator: ObservableObject {
 
     // MARK: - Internal cross-cutting invariant
 
-    /// Payloads written by Edison itself; addToHistory skips them to avoid
-    /// re-inserting items that Edison just placed on the clipboard.
+    /// Payloads manually suppressed by screenshot capture; consumed by addToHistory.
     private(set) var suppressedClipboardPayloads = Set<ClipboardPayload>()
 
     // MARK: - Dependencies
 
     private let historyStore: HistoryStore
     private let clipboardMonitor: ClipboardMonitor
+    private let representationStore: ClipboardRepresentationStore
+    private let pasteboard: NSPasteboard
 
     // Collections are owned by AppState (they are a view-model concern that
     // combines history + user organisation). The coordinator receives a closure
@@ -48,9 +52,16 @@ final class ClipboardCoordinator: ObservableObject {
 
     // MARK: - Init
 
-    init(historyStore: HistoryStore, clipboardMonitor: ClipboardMonitor) {
+    init(
+        historyStore: HistoryStore,
+        clipboardMonitor: ClipboardMonitor,
+        representationStore: ClipboardRepresentationStore? = nil,
+        pasteboard: NSPasteboard? = nil
+    ) {
         self.historyStore = historyStore
         self.clipboardMonitor = clipboardMonitor
+        self.representationStore = representationStore ?? .shared
+        self.pasteboard = pasteboard ?? .general
     }
 
     // MARK: - Clipboard monitor lifecycle
@@ -74,21 +85,19 @@ final class ClipboardCoordinator: ObservableObject {
 
     func addToHistory(_ item: ClipboardItem, source: HistorySource = .clipboard) {
         if source == .clipboard, suppressedClipboardPayloads.remove(item.payload) != nil {
+            deleteAssets(for: item)
             return
         }
 
-        historyItems.removeAll { $0.payload == item.payload }
+        let replacedItems = historyItems.filter { $0.hasSameClipboardIdentity(as: item) }
+        historyItems.removeAll { $0.hasSameClipboardIdentity(as: item) }
+        replacedItems.filter { $0.id != item.id }.forEach(deleteAssets)
         historyItems.insert(item, at: 0)
 
         let limit = historyLimit()
         if historyItems.count > limit {
             let excess = historyItems.suffix(historyItems.count - limit)
-            for pruned in excess {
-                if case let .image(imageData) = pruned.payload {
-                    ImageStore.delete(relativePath: imageData.imagePath)
-                    ImageStore.delete(relativePath: imageData.thumbnailPath)
-                }
-            }
+            excess.forEach(deleteAssets)
             historyItems.removeLast(historyItems.count - limit)
         }
 
@@ -110,12 +119,7 @@ final class ClipboardCoordinator: ObservableObject {
         let limit = historyLimit()
         guard historyItems.count > limit else { return }
         let excess = historyItems.suffix(historyItems.count - limit)
-        for pruned in excess {
-            if case let .image(imageData) = pruned.payload {
-                ImageStore.delete(relativePath: imageData.imagePath)
-                ImageStore.delete(relativePath: imageData.thumbnailPath)
-            }
-        }
+        excess.forEach(deleteAssets)
         historyItems.removeLast(historyItems.count - limit)
         persistHistory()
     }
@@ -123,16 +127,22 @@ final class ClipboardCoordinator: ObservableObject {
     // MARK: - Clipboard write
 
     @discardableResult
-    func writeItemToClipboard(_ item: ClipboardItem) -> Bool {
-        suppressedClipboardPayloads.insert(item.payload)
-
-        let pasteboard = NSPasteboard.general
+    func writeItemToClipboard(
+        _ item: ClipboardItem,
+        mode: ClipboardWriteMode = .sourceFormatting
+    ) -> Bool {
+        defer { clipboardMonitor.markCurrentChangeObserved() }
         pasteboard.clearContents()
         let wroteToPasteboard: Bool
 
         switch item.payload {
         case let .text(value):
-            wroteToPasteboard = pasteboard.setString(value, forType: .string)
+            switch mode {
+            case .sourceFormatting:
+                wroteToPasteboard = writeSourceFormattedText(item, value: value, to: pasteboard)
+            case .plainText:
+                wroteToPasteboard = pasteboard.setData(Data(value.utf8), forType: .string)
+            }
         case let .image(image):
             if let data = try? ImageStore.load(relativePath: image.imagePath) {
                 wroteToPasteboard = pasteboard.setData(data, forType: .png)
@@ -150,6 +160,60 @@ final class ClipboardCoordinator: ObservableObject {
         return wroteToPasteboard
     }
 
+    private func writeSourceFormattedText(
+        _ item: ClipboardItem,
+        value: String,
+        to pasteboard: NSPasteboard
+    ) -> Bool {
+        guard let textRepresentations = item.textRepresentations else {
+            return pasteboard.setString(value, forType: .string)
+        }
+
+        let richTypeIdentifiers = Set([
+            NSPasteboard.PasteboardType.rtf.rawValue,
+            NSPasteboard.PasteboardType.rtfd.rawValue,
+            NSPasteboard.PasteboardType.html.rawValue
+        ])
+        let descriptorsByType = Dictionary(
+            textRepresentations.storedRepresentations.map { ($0.typeIdentifier, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let pasteboardItem = NSPasteboardItem()
+        var wroteString = false
+
+        for typeIdentifier in textRepresentations.declaredTypeIdentifiers {
+            if typeIdentifier == NSPasteboard.PasteboardType.string.rawValue {
+                if let descriptor = descriptorsByType[typeIdentifier],
+                   let data = try? representationStore.load(descriptor),
+                   data == Data(value.utf8) {
+                    wroteString = pasteboardItem.setData(data, forType: .string)
+                }
+                continue
+            }
+
+            guard richTypeIdentifiers.contains(typeIdentifier),
+                  let descriptor = descriptorsByType[typeIdentifier] else { continue }
+            do {
+                let data = try representationStore.load(descriptor)
+                if !pasteboardItem.setData(data, forType: NSPasteboard.PasteboardType(typeIdentifier)) {
+                    Log.store.error(
+                        "ClipboardCoordinator: pasteboard rejected representation \(typeIdentifier, privacy: .public)"
+                    )
+                }
+            } catch {
+                Log.store.error(
+                    "ClipboardCoordinator: skipped unavailable representation \(typeIdentifier, privacy: .public)"
+                )
+            }
+        }
+
+        if !wroteString {
+            wroteString = pasteboardItem.setString(value, forType: .string)
+        }
+        guard wroteString else { return false }
+        return pasteboard.writeObjects([pasteboardItem])
+    }
+
     /// Suppresses a payload without writing to the pasteboard (used by
     /// writeImageDataToClipboard in AppState for screenshot capture results).
     func suppressPayload(_ payload: ClipboardPayload) {
@@ -162,6 +226,9 @@ final class ClipboardCoordinator: ObservableObject {
         guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
         let item = historyItems[index]
 
+        if let previousDeletedItem = deletedItemForUndo {
+            deleteAssets(for: previousDeletedItem)
+        }
         historyItems.remove(at: index)
         onItemDeleted?(itemID)
         persistHistory()
@@ -171,11 +238,7 @@ final class ClipboardCoordinator: ObservableObject {
         undoTimer?.invalidate()
         undoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
-                // Undo window expired — now safe to remove image files from disk.
-                if case let .image(imageData) = item.payload {
-                    ImageStore.delete(relativePath: imageData.imagePath)
-                    ImageStore.delete(relativePath: imageData.thumbnailPath)
-                }
+                self?.deleteAssets(for: item)
                 self?.showDeleteUndoToast = false
                 self?.deletedItemForUndo = nil
             }
@@ -210,13 +273,15 @@ final class ClipboardCoordinator: ObservableObject {
     }
 
     func clearHistory() {
-        historyItems.forEach { item in
-            if case let .image(imageData) = item.payload {
-                ImageStore.delete(relativePath: imageData.imagePath)
-                ImageStore.delete(relativePath: imageData.thumbnailPath)
-            }
+        undoTimer?.invalidate()
+        undoTimer = nil
+        if let deletedItemForUndo {
+            deleteAssets(for: deletedItemForUndo)
         }
+        historyItems.forEach(deleteAssets)
         historyItems.removeAll()
+        deletedItemForUndo = nil
+        showDeleteUndoToast = false
         persistHistory()
     }
 
@@ -224,6 +289,18 @@ final class ClipboardCoordinator: ObservableObject {
 
     func setHistoryItems(_ items: [ClipboardItem]) {
         historyItems = items
+    }
+
+    func reconcileRepresentationStore() {
+        representationStore.reconcile(items: historyItems)
+    }
+
+    private func deleteAssets(for item: ClipboardItem) {
+        if case let .image(imageData) = item.payload {
+            ImageStore.delete(relativePath: imageData.imagePath)
+            ImageStore.delete(relativePath: imageData.thumbnailPath)
+        }
+        representationStore.delete(item.textRepresentations)
     }
 }
 

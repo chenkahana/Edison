@@ -16,7 +16,8 @@ enum PasteSelectionResolver {
 
 @MainActor
 struct PasteBackCoordinator {
-    typealias ClipboardWriter = (ClipboardItem) -> Bool
+    typealias ClipboardWriter = (ClipboardItem, ClipboardWriteMode) -> Bool
+    typealias LegacyClipboardWriter = (ClipboardItem) -> Bool
     typealias AccessibilityTrustProvider = () -> Bool
     typealias TargetAppActivator = (NSRunningApplication) -> Void
     typealias TargetAppReadinessChecker = (NSRunningApplication) -> Bool
@@ -71,13 +72,50 @@ struct PasteBackCoordinator {
         self.closeHub = closeHub
     }
 
+    init(
+        restoreDelay: TimeInterval = 0.12,
+        activationRetryInterval: TimeInterval = 0.04,
+        activationTimeout: TimeInterval = 0.6,
+        writeItemToClipboard: @escaping LegacyClipboardWriter,
+        isAccessibilityTrusted: @escaping AccessibilityTrustProvider = { AXIsProcessTrusted() },
+        activateTargetApp: @escaping TargetAppActivator = { targetApp in
+            targetApp.unhide()
+            targetApp.activate(options: [])
+        },
+        isTargetAppReady: @escaping TargetAppReadinessChecker = { targetApp in
+            targetApp.isActive || NSWorkspace.shared.frontmostApplication?.processIdentifier == targetApp.processIdentifier
+        },
+        scheduleDelay: @escaping DelayScheduler = { delay, action in
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                action()
+            }
+        },
+        dispatchPaste: @escaping PasteDispatcher = Self.dispatchPaste(to:),
+        closeHub: @escaping HubCloser
+    ) {
+        let adaptedWriter: ClipboardWriter = { item, _ in writeItemToClipboard(item) }
+        self.init(
+            restoreDelay: restoreDelay,
+            activationRetryInterval: activationRetryInterval,
+            activationTimeout: activationTimeout,
+            writeItemToClipboard: adaptedWriter,
+            isAccessibilityTrusted: isAccessibilityTrusted,
+            activateTargetApp: activateTargetApp,
+            isTargetAppReady: isTargetAppReady,
+            scheduleDelay: scheduleDelay,
+            dispatchPaste: dispatchPaste,
+            closeHub: closeHub
+        )
+    }
+
     func run(
         item: ClipboardItem,
         targetApp: NSRunningApplication?,
+        mode: ClipboardWriteMode = .sourceFormatting,
         onAccessibilityDenied: @escaping AccessibilityDeniedHandler = {},
         completion: @escaping CompletionHandler = {}
     ) {
-        guard writeItemToClipboard(item) else {
+        guard writeItemToClipboard(item, mode) else {
             completion()
             return
         }

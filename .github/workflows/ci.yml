@@ -52,7 +52,7 @@ jobs:
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
           xcodebuild -version
 
-      - name: Build (Xcode scheme)
+      - name: Build Debug (Xcode scheme)
         run: |
           xcodebuild build \
             -project Edison.xcodeproj \
@@ -61,3 +61,25 @@ jobs:
             -configuration Debug \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
+
+      - name: Build Release with warnings as errors
+        run: |
+          xcodebuild build \
+            -project Edison.xcodeproj \
+            -scheme "Edison" \
+            -destination "platform=macOS" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Archive unsigned Release
+        run: |
+          xcodebuild archive \
+            -project Edison.xcodeproj \
+            -scheme "Edison" \
+            -destination "generic/platform=macOS" \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/Edison.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO
+          test -x "$RUNNER_TEMP/Edison.xcarchive/Products/Applications/Edison - Clipboard Manager.app/Contents/MacOS/Edison - Clipboard Manager"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "2.0"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "4"

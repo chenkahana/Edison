@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0 — 2026-08-08
+
+### Clipboard fidelity
+
+- Preserve ordered plain-text, RTF, RTFD, and HTML pasteboard representations without parsing or reserialization.
+- Restore captured source formatting by default and fall back safely to the exact canonical plain string when rich sidecars are unavailable or corrupt.
+- Add **Paste as Plain Text** to item context menus and Shift-Return/Shift-keypad-Enter handling.
+- Keep representation sidecars bounded, integrity-checked, reconciled at startup, and deleted with their history items.
+
+### Verification and release hardening
+
+- Add isolated AppKit integration coverage for capture, rich/plain replay, destination negotiation, restart persistence, legacy history migration, corruption fallback, cleanup, mode routing, and self-write suppression.
+- Set the application marketing version to 2.0 and enforce warning-free Release builds.
+- Extend CI to build Debug and Release configurations and produce a validated unsigned macOS archive.
+
 ## 1.5 — 2026-04-18
 
 ### Stability & Performance
