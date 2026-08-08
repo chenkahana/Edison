@@ -151,6 +151,10 @@ final class ClipboardRepresentationStore {
         }
     }
 
+    func waitUntilIdle() {
+        queue.sync {}
+    }
+
     private func currentStoreBytes() -> Int {
         guard let files = try? fileManager.contentsOfDirectory(
             at: directoryURL,

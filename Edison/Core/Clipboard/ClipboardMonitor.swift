@@ -42,7 +42,7 @@ final class ClipboardMonitor {
         registerWakeObserverIfNeeded()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
-            self?.pollPasteboard()
+            self?.checkForChanges()
         }
     }
 
@@ -59,7 +59,7 @@ final class ClipboardMonitor {
         lastChangeCount = pasteboard.changeCount
     }
 
-    private func pollPasteboard() {
+    func checkForChanges() {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount

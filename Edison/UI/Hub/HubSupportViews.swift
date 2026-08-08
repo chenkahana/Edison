@@ -254,6 +254,18 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onQuickLook: () -> Void
     let onQuickPaste: (Int) -> Void
 
+    static func confirmMode(
+        keyCode: UInt16,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> ClipboardWriteMode? {
+        guard keyCode == 36 || keyCode == 76 else { return nil }
+        let modifiers = modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting(.numericPad)
+        if modifiers == [.shift] { return .plainText }
+        if modifiers.isEmpty { return .sourceFormatting }
+        return nil
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
@@ -355,10 +367,15 @@ struct HubWindowAccessor: NSViewRepresentable {
                 return true
             }
 
-            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                .subtracting(.numericPad)
-            if modifiers == [.shift], event.keyCode == 36 || event.keyCode == 76 {
-                parent.onConfirmPlainTextSelection()
+            if let mode = HubWindowAccessor.confirmMode(
+                keyCode: event.keyCode,
+                modifierFlags: event.modifierFlags
+            ) {
+                if mode == .plainText {
+                    parent.onConfirmPlainTextSelection()
+                } else {
+                    parent.onConfirmSelection()
+                }
                 return true
             }
 
@@ -385,9 +402,6 @@ struct HubWindowAccessor: NSViewRepresentable {
                 return true
             case 126:
                 parent.onMoveCommand(.up)
-                return true
-            case 36, 76:
-                parent.onConfirmSelection()
                 return true
             case 53:
                 parent.onDismiss()

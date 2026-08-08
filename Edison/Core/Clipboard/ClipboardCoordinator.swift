@@ -36,6 +36,7 @@ final class ClipboardCoordinator: ObservableObject {
     private let historyStore: HistoryStore
     private let clipboardMonitor: ClipboardMonitor
     private let representationStore: ClipboardRepresentationStore
+    private let pasteboard: NSPasteboard
 
     // Collections are owned by AppState (they are a view-model concern that
     // combines history + user organisation). The coordinator receives a closure
@@ -54,11 +55,13 @@ final class ClipboardCoordinator: ObservableObject {
     init(
         historyStore: HistoryStore,
         clipboardMonitor: ClipboardMonitor,
-        representationStore: ClipboardRepresentationStore? = nil
+        representationStore: ClipboardRepresentationStore? = nil,
+        pasteboard: NSPasteboard? = nil
     ) {
         self.historyStore = historyStore
         self.clipboardMonitor = clipboardMonitor
         self.representationStore = representationStore ?? .shared
+        self.pasteboard = pasteboard ?? .general
     }
 
     // MARK: - Clipboard monitor lifecycle
@@ -128,7 +131,6 @@ final class ClipboardCoordinator: ObservableObject {
         _ item: ClipboardItem,
         mode: ClipboardWriteMode = .sourceFormatting
     ) -> Bool {
-        let pasteboard = NSPasteboard.general
         defer { clipboardMonitor.markCurrentChangeObserved() }
         pasteboard.clearContents()
         let wroteToPasteboard: Bool
@@ -139,7 +141,7 @@ final class ClipboardCoordinator: ObservableObject {
             case .sourceFormatting:
                 wroteToPasteboard = writeSourceFormattedText(item, value: value, to: pasteboard)
             case .plainText:
-                wroteToPasteboard = pasteboard.setString(value, forType: .string)
+                wroteToPasteboard = pasteboard.setData(Data(value.utf8), forType: .string)
             }
         case let .image(image):
             if let data = try? ImageStore.load(relativePath: image.imagePath) {

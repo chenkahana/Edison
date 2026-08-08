@@ -20,9 +20,13 @@ final class HistoryStore {
     private let decoder = JSONDecoder()
     private let ioQueue = DispatchQueue(label: "edison.history.store", qos: .utility)
 
-    init(fileManager: FileManager = .default) {
-        try? fileManager.createDirectory(at: Self.storageDirectory, withIntermediateDirectories: true)
-        fileURL = Self.storageDirectory.appendingPathComponent("history.json")
+    init(
+        storageDirectory: URL? = nil,
+        fileManager: FileManager = .default
+    ) {
+        let directory = storageDirectory ?? Self.storageDirectory
+        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        fileURL = directory.appendingPathComponent("history.json")
 
         encoder.outputFormatting = [.prettyPrinted]
     }
@@ -59,6 +63,10 @@ final class HistoryStore {
                 Log.store.error("HistoryStore: save failed – \(error.localizedDescription)")
             }
         }
+    }
+
+    func waitUntilIdle() {
+        ioQueue.sync {}
     }
 
     private func loadSync() -> HistorySnapshot {
