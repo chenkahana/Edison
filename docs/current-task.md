@@ -1,28 +1,33 @@
 # Current Task
 
 ## Goal
-Prepare Edison 1.1 for release and App Store review.
+Plan Edison 2.0 around trustworthy text fidelity, an explicit plain-text paste workflow, and
+competitive improvements that preserve Edison's focused shelf experience.
 
 ## Scope
-- Finalize release metadata and generated `Info.plist` values
-- Remove shipping placeholders from the app surface
-- Make screenshot capture fully accessible from the menu bar
-- Prepare reusable App Review notes and release copy for App Store Connect
-- Refresh docs so the repository reflects the real product, not just the foundation shell
+- Diagnose the formatting-loss mechanism in the current clipboard pipeline
+- Define lossless rich-text capture, persistence, migration, and paste behavior
+- Specify “Paste as Plain Text” context-menu and keyboard behavior
+- Review leading clipboard-manager patterns for retrieval, organization, and privacy
+- Sequence the work into testable milestones with acceptance criteria
 
 ## Constraints
 - Keep the project dependency-free
-- Do not add undocumented or unused privacy keys
-- Keep the current PR branch as the release branch for this pass
+- Preserve compatibility with Edison 1.1 history
+- Default paste must never transform or normalize user content
+- Keep clipboard data local for 2.0
+- Validate competitive claims against current first-party sources before using them externally
 
 ## Acceptance Criteria
-- App reports version `1.1 (2)` in build metadata
-- App category resolves to `public.app-category.productivity`
-- Status bar exposes working commands for area, window, and full-screen capture
-- Settings show real About metadata with no placeholder copy
-- App Review notes can be pasted into App Store Connect with minimal edits
-- App builds successfully locally on macOS
-- CI passes build checks
+- Root cause and affected code paths are documented
+- Normal paste and plain-text paste have distinct, testable semantics
+- Persistence and migration risks are addressed
+- Cross-application and automated test matrices are defined
+- Improvements are prioritized into P0, P1, and later opportunities
+- Open product/technical decisions are explicit
 
 ## Status
 - Completed
+
+## Deliverable
+- [`docs/edison-2.0-plan.md`](edison-2.0-plan.md)
