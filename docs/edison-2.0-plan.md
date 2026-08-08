@@ -30,17 +30,15 @@ This also explains why fixing only the Hub preview would not fix pasting.
 ## Competitive review
 
 This review uses public product materials as directional input, not a request to clone another
-app. Network access was unavailable during this planning pass, so every market claim must be
-revalidated against the linked first-party page before implementation or marketing copy is
-finalized.
+app. The capabilities below were validated against first-party product materials on 2026-08-08.
 
-| Product | Directional strengths to validate | Lesson for Edison |
+| Product | Validated capabilities | Lesson for Edison |
 |---|---|---|
-| [Paste](https://pasteapp.io/) | Visual, bottom-of-screen history; source-aware previews; pinboards; search; cross-device continuity | Preserve Edison's shelf identity, improve visual recognition, and make organization feel lightweight rather than file-manager-like |
-| [Raycast Clipboard History](https://www.raycast.com/core-features/clipboard-history) | Keyboard-first retrieval, type/source filtering, pinned entries, privacy-oriented retention controls | Make every common action keyboard reachable and expose retention and exclusions clearly |
-| [Maccy](https://maccy.app/) | Focused, fast, open-source clipboard history with search, pinning, and plain-text workflows | Reliability and speed are features; plain-text paste deserves a first-class shortcut rather than a buried preference |
-| [PastePal](https://indiegoodies.com/pastepal) | Rich previews, collections, application filtering, and Apple-device integration | Improve rules and collection workflows only after the data model preserves clipboard types correctly |
-| [Alfred Clipboard History](https://www.alfredapp.com/help/features/clipboard/) | Searchable history, snippets, merging, configurable retention, and ignored applications | Rules and power workflows can differentiate a later milestone, but should not block the fidelity release |
+| [Paste](https://pasteapp.io/help/what-paste-captures) | Captures text, links, images, files, and colors; preserves original formatting by default; supports plain-text paste, [app/type/date/device filters](https://pasteapp.io/help/search-and-filters), [pinboards](https://pasteapp.io/help/organize-with-pinboards), app exclusions, and [retention controls](https://pasteapp.io/help/control-history-retention) | Preserve Edison's shelf identity while making rich capture, retrieval, organization, exclusions, and retention easy to understand |
+| [Raycast Clipboard History](https://manual.raycast.com/clipboard-history) | Saves every original format; pastes as rich text, plain text, RTF, HTML, or another available source type; supports grouped multi-item paste, a prefer-plain-text setting, retention, and privacy controls | Treat representation choice and grouped workflows as explicit, keyboard-reachable actions |
+| [Maccy](https://maccy.app/) | Lightweight, keyboard-first, fast, local, and private | Reliability, speed, and local privacy are product features, not implementation details |
+| [PastePal](https://indiegoodies.com/pastepal) | Rich-text previews; source, type, collection, and date metadata; app, content, and folder ignore lists; pause, retention, and collection controls | Add rich previews and rules only after the data model preserves clipboard types correctly |
+| [Alfred Clipboard History](https://www.alfredapp.com/help/features/clipboard/) | Searchable history; configurable retention and clear-by-window controls; ignored apps and concealed data; [merging and plain-text workflows](https://www.alfredapp.com/help/features/clipboard/accessing-clipboard-history/) | Power workflows can follow fidelity, but exclusions, retention, and plain-text paste should be first-class |
 
 ### Principles adapted for Edison
 
@@ -157,8 +155,9 @@ These require separate product validation and must not expand the 2.0 critical p
 
 1. Build pasteboard fixtures captured from TextEdit, Pages, Notes, Mail, Safari, Chrome, VS Code,
    Xcode, Terminal, Numbers, and Slack/Teams where available.
-2. Record declared type order, data sizes, and a hash of each representation in debug-only test
-   tooling. Never log clipboard content.
+2. Use the metadata-only [pasteboard fixture workflow](pasteboard-fixture-workflow.md) to record
+   declared type order, data sizes, and a hash of each representation. Never log clipboard
+   content.
 3. Add destination tests covering rich editors, plain editors, web content-editable fields,
    spreadsheets, and code editors.
 4. Turn each reported spacing/formatting failure into a regression fixture before changing the
@@ -248,8 +247,6 @@ Chrome, VS Code, Xcode, Terminal, Numbers, and Microsoft Word/Excel when availab
 2. Decide whether RTFD attachments belong in 2.0 or degrade to RTF/HTML/plain text.
 3. Decide whether source URLs/titles are persisted as paste representations or metadata only.
 4. Validate Shift-Return against current keyboard navigation and macOS conventions.
-5. Validate every competitive claim above using current first-party sources once network access
-   is available.
 
 ## Explicit non-goals for the 2.0 critical path
 
