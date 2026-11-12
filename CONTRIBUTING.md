@@ -1,38 +1,70 @@
 # Contributing to Edison
 
-Thank you for your interest in contributing!
+Thanks for helping make Edison better. This guide covers how to report problems, propose changes and get a pull
+request merged.
 
-## Branches
+## Before you start
 
-- `main` — stable, release-ready code
-- Feature branches: `feature/<short-description>`
-- Bug fixes: `fix/<short-description>`
+- **Bugs and ideas** go in [GitHub Issues](https://github.com/chenkahana/Edison/issues/new/choose). Search first; add
+  to an existing issue rather than opening a duplicate.
+- **Security issues** must not be filed publicly. Follow [SECURITY.md](SECURITY.md).
+- **Larger changes** (new features, new dependencies, persistence or pasteboard changes) need an issue agreed with a
+  maintainer before you write the code.
 
-## Pull Request Checklist
+By opening a pull request you confirm that you wrote the change, or have the right to submit it, and you agree that
+it is licensed under the [Mozilla Public License 2.0](LICENSE), the same license as the rest of Edison.
 
-Before submitting a PR:
+## Development setup
 
-- [ ] `swift build` passes with no new warnings
-- [ ] `swift test` passes
-- [ ] Changes are minimal and focused (one concern per PR)
-- [ ] New public-facing behaviour is documented in code comments
-- [ ] UI changes follow the [UI Style Guide](docs/ui-style-guide.md)
+```bash
+open Edison.xcodeproj
+```
 
-## Code Style
+Requirements and permissions are in the [README](README.md#getting-started); a tour of the source is in
+[Edison/README.md](Edison/README.md). The Xcode project uses synchronized folders: add Swift files under `Edison/`
+and they are compiled by both Xcode and `swift build` without editing the project.
 
-- Follow the Swift API Design Guidelines
-- Prefer value types; use classes only when identity semantics are required
-- Mark `@MainActor` on any type that touches UI or AppKit APIs
-- Use `OSLog`/`Logger` for diagnostics — no `print()` in production paths
+## Branches and commits
 
-## Architecture
+- `main` is always releasable. Work on a branch named `<type>/<short-description>`, e.g. `fix/hub-focus`.
+- Write commit subjects in the imperative mood, under 72 characters ("Fix paste-back into full-screen apps"). Explain
+  *why* in the body when it isn't obvious.
+- Keep a pull request to one concern. Refactors go in their own pull request.
+- Add follow-up commits to an open pull request instead of force-pushing; it is squashed when merged.
 
-See [docs/architecture.md](docs/architecture.md) for an overview of the component model.
+## Code guidelines
 
-## Reporting Bugs
+- **Layering.** Lifecycle and orchestration live in `Edison/App`, pure logic and services in `Edison/Core` (no
+  SwiftUI imports), and views in `Edison/UI`. Views read from and dispatch to `AppState`; they hold no business
+  logic.
+- **Main actor for UI.** Mark anything that touches AppKit, SwiftUI or `@Published` state `@MainActor`. Disk and
+  pasteboard processing runs on serial background queues and must never block the main thread.
+- **Clipboard fidelity is a feature.** Never trim, normalize, re-wrap or re-encode stored text. Display-only
+  transformations stay in the UI layer. Changes to capture or paste-back need tests.
+- **Design tokens.** Colours, spacing and radii come from `HubTheme`; follow the
+  [UI style guide](docs/ui-style-guide.md).
+- **Privacy.** No analytics, tracking, network calls or third-party SDKs. Never log clipboard or screenshot content;
+  use `Log` (OSLog) for diagnostics, not `print`. Anything new that is stored must be deleted with its item and
+  described in [docs/privacy.md](docs/privacy.md).
+- **Accessibility.** Every control needs a VoiceOver label, keyboard access where it makes sense, and must respect
+  Reduce Transparency and Reduce Motion.
+- **Comments** explain intent and constraints, not what the next line does.
 
-Open a GitHub Issue with:
-1. Edison version (from Help > About)
-2. macOS version
-3. Steps to reproduce
-4. Expected vs actual behaviour
+## Checks before you open a pull request
+
+```bash
+swift build && swift test
+```
+
+- Build the Release configuration in Xcode (or run `./scripts/ci-local-macos.sh`); Release builds treat warnings
+  as errors.
+- Run the app and exercise what you changed: the Hub (shelf, list and grid), paste-back into another app, and the
+  editor if you touched capture or annotation.
+- Fill in the pull request template, including screenshots or a recording for UI changes.
+
+CI builds Debug and Release, runs the tests and produces an unsigned archive on every pull request; it must pass
+before review.
+
+## Code of conduct
+
+Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).

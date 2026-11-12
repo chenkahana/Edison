@@ -1,6 +1,22 @@
+# Build output
 .build/
-.DS_Store
+build/
+DerivedData/
+*.xcarchive
+
+# Xcode and SwiftPM user state
 .swiftpm/
 xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Local tooling state
 .codex-recovery/
+.codex/
 .omc/
+.claude/
+
+# Internal working notes (kept locally, not published)
+tasks/

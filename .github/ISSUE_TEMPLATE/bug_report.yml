@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in Edison doesn't work as expected.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for the report. Please don't paste real clipboard content, passwords or screenshots of private
+        information; describe them or use a harmless sample instead.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Hub (clipboard history)
+        - Paste / paste as plain text
+        - Screenshot capture
+        - Screenshot editor
+        - Settings or shortcuts
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Edison version
+      description: Settings › About shows it.
+      placeholder: "2.0 (4)"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 26.1, MacBook Pro M3, two displays"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Copy … in …
+        2. Press ⇧⌘V …
+        3. See …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Permissions
+      options:
+        - label: Accessibility is granted to Edison
+        - label: Screen Recording is granted to Edison
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, recordings or diagnostics
+      description: Settings › Permissions & Support › Export Diagnostics creates a text file without clipboard content.

@@ -812,18 +812,16 @@ private struct EditorSessionView: View {
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: ".")
         let fileName = (baseName.isEmpty ? "Edison Screenshot" : baseName) + ".png"
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("EdisonDrag-\(session.id.uuidString)", isDirectory: true)
-        let url = directory.appendingPathComponent(fileName)
-
+        var fileURL: URL?
         do {
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let url = try TemporaryFiles.url(in: .dragOut, subfolder: session.id.uuidString, fileName: fileName)
             try data.write(to: url, options: .atomic)
+            fileURL = url
         } catch {
             Log.capture.error("Editor drag-out write failed – \(error.localizedDescription)")
         }
 
-        let provider = NSItemProvider(contentsOf: url) ?? NSItemProvider()
+        let provider = fileURL.flatMap { NSItemProvider(contentsOf: $0) } ?? NSItemProvider()
         provider.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
             completion(data, nil)
             return nil

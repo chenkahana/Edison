@@ -1,67 +1,192 @@
+<div align="center">
+
+<img src="docs/assets/icon.png" width="128" height="128" alt="Edison app icon">
+
 # Edison
 
-Edison is a native macOS menu bar app for clipboard history and screenshots.
+**The fastest way to capture, edit and reuse anything you see or copy on your Mac.**
 
-## Current status
+Edison lives in the menu bar. It keeps everything you copy in a shelf you can search and paste from the keyboard,
+and it captures, annotates and shares screenshots without leaving the flow. Everything stays on your Mac.
 
-- Menu bar shell with a floating Hub window and configurable global shortcuts
-- Clipboard history with search, favorites, type filtering, collections, export, and share actions
-- Shelf-style and grid Hub layouts with keyboard navigation and a detail pane
-- Screenshot capture flows for area, window, and full-screen capture
-- Screenshot editor tools for crop, arrow, rectangle, text, undo/redo, copy, and save
-- Status bar access for hub, screenshot capture, settings, and quit actions
-- Local Swift build/test support and a macOS CI workflow
+[![CI](https://github.com/chenkahana/Edison/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenkahana/Edison/actions/workflows/ci.yml)
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple)
+![Swift 5.10](https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white)
+[![License](https://img.shields.io/badge/license-MPL--2.0-brightgreen)](LICENSE)
 
-## Project docs
+[Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
 
-Use these docs for product and implementation context:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hub-dark.png">
+  <img src="docs/assets/hub-light.png" alt="Edison's Hub cards: a link, code, a favourite note, a colour swatch, a file and an email address, each with its source app and a ⌘-number quick-paste badge" width="900">
+</picture>
 
-- `docs/product.md` — product definition, users, core flows, non-goals
-- `docs/ui-style-guide.md` — visual system, interaction spec, and glass UI guidance
-- `docs/plan.md` — phased roadmap and MVP scope
-- `docs/constraints.md` — hard constraints and boundaries
-- `docs/architecture.md` — architectural direction and simplicity rules
-- `docs/current-task.md` — Edison 1.1 release and App Store review task
-- `docs/review-checklist.md` — pre-merge checklist
-- `docs/working-agreement.md` — implementation operating rules
-- `docs/app-store-release-1.1.md` — App Store review notes, release text, and recording checklist
+<sub>Hub cards rendered from Edison's own views with sample data.</sub>
 
-## Project layout
+</div>
 
-- `Edison/App` — app entry point and lifecycle shell
-- `Edison/Core` — core domain modules (models, persistence, capture, shortcuts)
-- `Edison/UI` — SwiftUI screens/components
-- `Edison/Tests` — package tests
-- `.github/workflows/ci.yml` — macOS CI build + test
+---
 
-## Run locally
+## Features
 
-- Full app flow in Xcode:
+### Clipboard history
 
-```bash
-open Edison.xcodeproj
+| | |
+|---|---|
+| **A shelf for everything you copy** | Press **⇧⌘V** and a glass shelf rises from the bottom of the screen with your history as cards: text, links, colours, code, images, screenshots and files. Switch between shelf, list and grid layouts. |
+| **Cards that show what an item is** | Links show their site and path, colours show a live swatch, code keeps its indentation, images show their pixel size, and files show their Finder icon and folder. Each card names the app it came from. |
+| **Keyboard first** | Arrow keys move, **Return** pastes into the app you were using, **⇧Return** pastes as plain text, and holding **⌘** reveals **⌘1–⌘9** to paste one of the first nine items instantly. Start typing anywhere to search. |
+| **Paste exactly what you copied** | Edison keeps the original rich-text, RTF, RTFD and HTML representations byte for byte, so formatted text pastes back formatted. Plain-text paste writes exactly the plain string, never trimmed or re-wrapped. |
+| **Search that understands you** | Every word you type must match. Narrow results with `app:Safari` or `type:link` (also `image`, `file`, `colour`, `text`), or use the type filter. |
+| **Organize** | Favourite items, group them into collections, drag cards into other apps, preview with **Space** (Quick Look), and undo an accidental delete. |
+| **Private by default** | Items marked concealed or transient by password managers are never stored. Pause history from the menu bar whenever you're handling something sensitive; nothing copied in the meantime is captured on resume. |
+
+### Screenshots
+
+| | |
+|---|---|
+| **Capture** | Area (with live dimensions), window, full screen, or the previous area again, from global shortcuts or the menu bar. Built on ScreenCaptureKit, and correct across multiple displays. |
+| **Annotate** | Arrow, line, rectangle, ellipse, pen, highlighter, text, numbered step counter, pixelate and crop. Single-key tool shortcuts, **⇧** to snap to 45° or draw squares and circles, a colour and size bar that remembers your last choice, and unlimited undo. |
+| **What you see is what you export** | The canvas and the exported PNG are drawn by the same renderer, so arrowheads, pixelation and text look identical everywhere. Retina captures keep their on-screen size. |
+| **Share it your way** | Copy (**⌘C**), copy and close (**⌘↩**), save (**⌘S**), keep it in history, or drag the finished image straight into Finder, Mail or a chat. |
+| **Edit anything you've copied** | Open any image from history in the editor with **⌘E**. Saving creates a new item, so the original is never overwritten. |
+
+## Keyboard shortcuts
+
+Global shortcuts can be changed or added in **Settings › Keyboard Shortcuts**.
+
+| Global | |
+|---|---|
+| **⇧⌘V** | Open or close the Hub |
+| **⇧⌘S** | Capture an area |
+| *(assignable)* | Capture window, capture full screen, capture previous area, edit last screenshot, pause/resume history, open Settings |
+
+| In the Hub | |
+|---|---|
+| **← → ↑ ↓** | Move the selection |
+| **Return** / **⇧Return** | Paste / paste as plain text |
+| **⌘1 … ⌘9** | Paste one of the first nine items (hold **⌘** to see the numbers) |
+| *type* / **⌘F** | Search |
+| **Space** | Quick Look |
+| **⌘E** | Annotate the selected image |
+| **⌘O** | Open the selected link, or show the file in Finder |
+| **⌘⌫** | Delete (with undo) |
+| **Esc** | Close |
+
+| In the editor | |
+|---|---|
+| **V A L R O P H T N B C** | Select, arrow, line, rectangle, ellipse, pen, highlighter, text, step counter, pixelate, crop |
+| **⇧** while drawing | Snap to 45°, or draw a square or circle |
+| **← → ↑ ↓** (with **⇧** for 10 pt) | Nudge the selected mark |
+| **⌘[** / **⌘]** | Smaller / larger |
+| **⌘D** · **⌫** | Duplicate · delete the selected mark |
+| **⌘Z** / **⇧⌘Z** | Undo / redo |
+| **⌘C** · **⌘↩** · **⌘S** | Copy · copy and close · save |
+
+## Architecture
+
+Edison is a single native macOS app: SwiftUI for the Hub, editor and Settings, and AppKit where macOS needs it
+(the menu-bar item, global hotkeys, the floating shelf window, pasteboard access and paste-back). It has no
+third-party dependencies and no network code.
+
+```mermaid
+flowchart LR
+    Menu[Menu bar item] --> State
+    Keys[Global hotkeys<br/>Carbon] --> State
+    subgraph App[Edison.app]
+        State[AppState]
+        State --> Clip[ClipboardCoordinator]
+        State --> Cap[CaptureCoordinator]
+        Clip --> Monitor[ClipboardMonitor<br/>NSPasteboard]
+        Clip --> Store[(History store<br/>JSON + sidecars)]
+        Cap --> Engine[CaptureEngine<br/>ScreenCaptureKit]
+        Cap --> Editor[Screenshot editor]
+        State --> Hub[Hub shelf · SwiftUI]
+        Hub --> Paste[Paste-back<br/>Accessibility]
+    end
 ```
 
-- Package-based launch:
+| Layer | Path | What it holds |
+|---|---|---|
+| App shell | [`Edison/App`](Edison/App) | Entry point, `AppState`, window routing, menu bar, paste-back into the previous app |
+| Core | [`Edison/Core`](Edison/Core) | Models, clipboard monitoring, capture, annotation rendering, persistence, search, shortcuts, settings |
+| UI | [`Edison/UI`](Edison/UI) | The Hub shelf, the screenshot editor, Settings and shared components |
+| Tests | [`Edison/Tests`](Edison/Tests) | Unit and AppKit integration tests (Swift Testing) |
+
+A guided tour of the source is in [Edison/README.md](Edison/README.md), and the design in
+[docs/architecture.md](docs/architecture.md).
+
+## Getting started
+
+### Requirements
+
+- macOS 14 Sonoma or later
+- Xcode 16 or later (CI uses Xcode 26). The project uses synchronized folders and the tests use Swift Testing,
+  both of which need Xcode 16's toolchain.
+
+### Build and run
 
 ```bash
-swift run Edison
+git clone https://github.com/chenkahana/Edison.git
 ```
 
-## Local CI check (macOS)
+```bash
+cd Edison && open Edison.xcodeproj
+```
+
+Pick the **Edison** scheme and run. To build and test without Xcode:
+
+```bash
+swift build && swift test
+```
 
 ```bash
 ./scripts/ci-local-macos.sh
 ```
 
-## Default shortcuts
+The Xcode project uses synchronized folders, so new Swift files under `Edison/` are picked up without editing the
+project. To run a signed build on your Mac, set your own team in **Signing & Capabilities**.
 
-- `Shift-Command-V` — open or close the Edison hub
-- `Shift-Command-2` — capture area
-- `Shift-Command-3` — capture window
-- `Shift-Command-4` — capture full screen
+### Permissions
 
-## Notes
+macOS asks for these the first time they're needed:
 
-- The first run may require Accessibility and Screen Recording permissions for shortcuts and capture flows.
-- Screenshot capture is available from both the global shortcuts and the status bar menu.
+| Permission | Why |
+|---|---|
+| **Accessibility** | To paste the chosen item into the app you were using (Edison sends ⌘V on your behalf) |
+| **Screen Recording** | To capture screenshots |
+
+## Repository layout
+
+```
+Edison/
+├── Edison/
+│   ├── App/          App entry point, AppState, windows, menu bar, paste-back
+│   ├── Core/         Models, clipboard, capture, rendering, persistence, search, shortcuts
+│   ├── UI/           Hub shelf, screenshot editor, Settings, components
+│   └── Tests/        Swift Testing suites
+├── Assets.xcassets/  App and menu-bar icons
+├── docs/             Architecture, privacy, UI style guide, developer guides
+├── scripts/          Local CI and the pasteboard inspector
+├── .github/          CI, issue and pull-request templates
+├── Package.swift     Swift package (build and test)
+└── Edison.xcodeproj  Xcode project (run and archive)
+```
+
+## Privacy
+
+Edison collects nothing. There are no accounts, analytics, crash reporters or network requests. Your history,
+screenshots and settings stay in Edison's sandboxed container on your Mac, and deleting an item deletes its files.
+The full policy is in [docs/privacy.md](docs/privacy.md).
+
+## Contributing
+
+Bug reports and feature ideas are welcome through
+[GitHub Issues](https://github.com/chenkahana/Edison/issues/new/choose). Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and report security issues privately as described
+in [SECURITY.md](SECURITY.md). Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+Copyright © 2025–2026 Chen Kahana. Edison is licensed under the [Mozilla Public License 2.0](LICENSE).
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the platform components it relies on.
