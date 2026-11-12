@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1 — unreleased
+## 2.1 — 2026-11-12
 
 ### Install and updates
 - Download Edison as a notarized DMG from GitHub Releases (the README's Download for Mac button).
