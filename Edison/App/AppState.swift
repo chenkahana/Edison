@@ -31,6 +31,7 @@ final class AppState: ObservableObject {
     @Published private(set) var settings: AppSettings
     @Published var showEditorDiscardAlert = false
     @Published private(set) var accessibilityDenied = false
+    @Published private(set) var isHistoryPaused = false
     @Published private(set) var failedShortcutActions: [ShortcutAction] = []
     @Published private(set) var launchAtLoginStatusDescription = "Unavailable"
     @Published private(set) var launchAtLoginErrorMessage: String?
@@ -323,6 +324,8 @@ final class AppState: ObservableObject {
             Task { await startCapture(.previousArea) }
         case .editLastScreenshot:
             editLastScreenshot()
+        case .toggleHistoryPause:
+            setHistoryPaused(!isHistoryPaused)
         case .openSettings:
             windowRouter?.openSettings()
         }
@@ -339,6 +342,13 @@ final class AppState: ObservableObject {
         settingsStore.save(settings)
         refreshLaunchAtLogin(settings.general.launchAtLogin)
         clipboardCoordinator.trimHistoryToSettingsLimit()
+    }
+
+    /// Remembers the editor's last-used colour and size without the side effects of `save(settings:)`.
+    func updateEditorDefaultStyle(_ style: AnnotationStyleSettings) {
+        guard settings.editor.defaultStyle != style else { return }
+        settings.editor.defaultStyle = style
+        settingsStore.save(settings)
     }
 
     func restoreDefaultSettings() {
@@ -512,6 +522,42 @@ final class AppState: ObservableObject {
         showEditorDiscardAlert = false
         windowRouter?.dismissEditor()
         captureCoordinator.activeScreenshotSession = nil
+    }
+
+    /// Opens any history image in the annotation editor. Saving creates a new history item,
+    /// so the original is never overwritten.
+    func editImageItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }),
+              case let .image(image) = item.payload else { return }
+        do {
+            let data = try ImageStore.load(relativePath: image.imagePath)
+            let draft = ScreenshotDraft(baseImageData: data, fileNameHint: settings.defaultFileName())
+            let session = ScreenshotSession(draft: draft, committedSnapshot: .empty)
+            dismissHub()
+            captureCoordinator.openEditor(for: session)
+        } catch {
+            present(error: error, title: "Couldn't Open Image")
+        }
+    }
+
+    /// Opens a link in the default browser or reveals a file in Finder.
+    func openItem(itemID: UUID) {
+        guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
+        if let url = item.linkURL {
+            dismissHub()
+            NSWorkspace.shared.open(url)
+        } else if case let .fileURL(url) = item.payload {
+            dismissHub()
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else if case .image = item.payload {
+            editImageItem(itemID: itemID)
+        }
+    }
+
+    func setHistoryPaused(_ paused: Bool) {
+        isHistoryPaused = paused
+        clipboardMonitor.isPaused = paused
+        NotificationCenter.default.post(name: .edisonHistoryPauseChanged, object: paused)
     }
 
     func editLastScreenshot() {
@@ -738,4 +784,5 @@ extension Notification.Name {
     static let edisonScreenshotCaptured = Notification.Name("edison.screenshot.captured")
     static let edisonShortcutActionRequested = Notification.Name("edison.shortcut-action.requested")
     static let edisonCaptureFailed = Notification.Name("edison.capture.failed")
+    static let edisonHistoryPauseChanged = Notification.Name("edison.history.pause-changed")
 }

@@ -204,6 +204,8 @@ struct HubItemActionMenu: View {
     let onExport: () -> Void
     let onShare: () -> Void
     let onDelete: () -> Void
+    var onEditImage: (() -> Void)?
+    var onOpen: (() -> Void)?
 
     var body: some View {
         Button("Paste", action: onPaste)
@@ -213,6 +215,18 @@ struct HubItemActionMenu: View {
                 .accessibilityLabel("Paste as Plain Text")
         }
         Button("Copy", action: onCopy)
+        if case .image = item.payload, let onEditImage {
+            Divider()
+            Button("Annotate Image…", action: onEditImage)
+                .keyboardShortcut("e", modifiers: [.command])
+        }
+        if item.contentKind == .link, let onOpen {
+            Button("Open Link", action: onOpen)
+                .keyboardShortcut("o", modifiers: [.command])
+        } else if item.isFilePayload, let onOpen {
+            Button("Show in Finder", action: onOpen)
+                .keyboardShortcut("o", modifiers: [.command])
+        }
         Divider()
         Button(item.isFavorite ? "Remove Favorite" : "Add Favorite", action: onToggleFavorite)
         if !collections.isEmpty {
@@ -253,6 +267,9 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onDeleteItem: () -> Void
     let onQuickLook: () -> Void
     let onQuickPaste: (Int) -> Void
+    let onEditItem: () -> Void
+    let onOpenItem: () -> Void
+    let onCommandHeldChanged: (Bool) -> Void
 
     static func confirmMode(
         keyCode: UInt16,
@@ -278,6 +295,9 @@ struct HubWindowAccessor: NSViewRepresentable {
         }
         view.onKeyDown = { [weak coordinator = context.coordinator] event in
             coordinator?.handleKeyDown(event) ?? false
+        }
+        view.onFlagsChanged = { [weak coordinator = context.coordinator] event in
+            coordinator?.handleFlagsChanged(event)
         }
         return view
     }
@@ -319,6 +339,7 @@ struct HubWindowAccessor: NSViewRepresentable {
         }
 
         func windowDidResignKey(_ notification: Notification) {
+            parent.onCommandHeldChanged(false)
             guard let window,
                   window.attachedSheet == nil,
                   window.childWindows?.isEmpty ?? true else { return }
@@ -342,9 +363,27 @@ struct HubWindowAccessor: NSViewRepresentable {
             }
         }
 
+        func handleFlagsChanged(_ event: NSEvent) {
+            let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            parent.onCommandHeldChanged(modifiers == [.command])
+        }
+
         func handleKeyDown(_ event: NSEvent) -> Bool {
             guard let window,
                   event.window == window || window.isKeyWindow else { return false }
+
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command] {
+                switch event.charactersIgnoringModifiers?.lowercased() {
+                case "e":
+                    parent.onEditItem()
+                    return true
+                case "o":
+                    parent.onOpenItem()
+                    return true
+                default:
+                    break
+                }
+            }
 
             if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command],
                event.charactersIgnoringModifiers?.lowercased() == "f" {
@@ -426,6 +465,7 @@ struct HubWindowAccessor: NSViewRepresentable {
         var onResolveWindow: (NSWindow?) -> Void = { _ in }
         var onAttachWindow: (HubWindowReaderView, NSWindow?) -> Void = { _, _ in }
         var onKeyDown: (NSEvent) -> Bool = { _ in false }
+        var onFlagsChanged: (NSEvent) -> Void = { _ in }
 
         override var acceptsFirstResponder: Bool { true }
         override var canBecomeKeyView: Bool { true }
@@ -433,6 +473,11 @@ struct HubWindowAccessor: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             resolveWindow()
+        }
+
+        override func flagsChanged(with event: NSEvent) {
+            onFlagsChanged(event)
+            super.flagsChanged(with: event)
         }
 
         override func keyDown(with event: NSEvent) {

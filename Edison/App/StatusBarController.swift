@@ -9,17 +9,38 @@ final class StatusBarController: NSObject {
         let captureFullScreen: () -> Void
         let capturePreviousArea: () -> Void
         let editLastScreenshot: () -> Void
+        let toggleHistoryPause: () -> Void
         let openSettings: () -> Void
         let quit: () -> Void
     }
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let actions: Actions
+    private let pauseItem = NSMenuItem(title: "Pause Clipboard History", action: nil, keyEquivalent: "")
+    private var pauseObserver: NSObjectProtocol?
 
     init(actions: Actions) {
         self.actions = actions
         super.init()
         constructMenu()
+        pauseObserver = NotificationCenter.default.addObserver(
+            forName: .edisonHistoryPauseChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            let paused = (note.object as? Bool) ?? false
+            MainActor.assumeIsolated {
+                self?.reflectPause(paused)
+            }
+        }
+    }
+
+    private func reflectPause(_ paused: Bool) {
+        pauseItem.title = paused ? "Resume Clipboard History" : "Pause Clipboard History"
+        pauseItem.state = paused ? .on : .off
+        // A dimmed menu-bar icon makes a paused history obvious at a glance.
+        statusItem.button?.appearsDisabled = paused
+        statusItem.button?.toolTip = paused ? "Edison — clipboard history paused" : "Edison"
     }
 
     private func constructMenu() {
@@ -39,6 +60,9 @@ final class StatusBarController: NSObject {
         menu.addItem(NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Capture Previous Area", action: #selector(capturePreviousArea), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Edit Last Screenshot", action: #selector(editLastScreenshot), keyEquivalent: ""))
+        menu.addItem(.separator())
+        pauseItem.action = #selector(toggleHistoryPause)
+        menu.addItem(pauseItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
@@ -73,6 +97,10 @@ final class StatusBarController: NSObject {
 
     @objc private func editLastScreenshot() {
         actions.editLastScreenshot()
+    }
+
+    @objc private func toggleHistoryPause() {
+        actions.toggleHistoryPause()
     }
 
     @objc private func quit() {

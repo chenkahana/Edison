@@ -9,6 +9,7 @@ enum ShortcutAction: String, CaseIterable, Codable, Hashable, Identifiable {
     case captureFullScreen
     case capturePreviousArea
     case editLastScreenshot
+    case toggleHistoryPause
     case openSettings
 
     var id: String { rawValue }
@@ -21,6 +22,7 @@ enum ShortcutAction: String, CaseIterable, Codable, Hashable, Identifiable {
         case .captureFullScreen: return "Capture Full Screen"
         case .capturePreviousArea: return "Capture Previous Area"
         case .editLastScreenshot: return "Edit Last Screenshot"
+        case .toggleHistoryPause: return "Pause / Resume History"
         case .openSettings: return "Open Settings"
         }
     }
@@ -59,7 +61,7 @@ struct ShortcutSet: Codable, Hashable {
             return .defaultOpenHub
         case .captureScreenshot:
             return .defaultCaptureScreenshot
-        case .captureWindow, .captureFullScreen, .capturePreviousArea, .editLastScreenshot, .openSettings:
+        case .captureWindow, .captureFullScreen, .capturePreviousArea, .editLastScreenshot, .toggleHistoryPause, .openSettings:
             return nil
         }
     }
