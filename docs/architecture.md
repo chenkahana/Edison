@@ -1,6 +1,6 @@
 # Architecture
 
-Edison is one sandboxed macOS app with no dependencies beyond Apple's SDKs and no network code. This document
+Edison is one sandboxed macOS app built on Apple's SDKs, with Sparkle for updates and no network code of its own. This document
 explains the shape of the code and the rules that keep it reliable. For a file-by-file map, see the
 [source tour](../Edison/README.md).
 

@@ -28,7 +28,8 @@ reasonable chance to ship a fix before disclosing publicly; we're happy to credi
 
 ## Scope
 
-Edison is a local-only, sandboxed macOS app with no backend, no accounts and no network code. In scope:
+Edison is a local-only, sandboxed macOS app with no backend, no accounts and no network code of its own; its only
+connection is Sparkle's update check against GitHub Releases. In scope:
 
 - other processes or users reading Edison's history, screenshots or temporary files,
 - clipboard items marked concealed or transient (for example by password managers) being stored,
@@ -42,7 +43,8 @@ those to [Apple](https://security.apple.com)).
 
 ## Hardening already in place
 
-- App Sandbox and hardened runtime are enabled; the app makes no network connections.
+- App Sandbox and hardened runtime are enabled; the app has no network entitlement. Updates are fetched by
+  Sparkle's sandboxed downloader service and installed only if their EdDSA signature matches the key in the app.
 - Concealed and transient pasteboard items are skipped; history can be paused.
 - Logs contain error descriptions only, never clipboard or screenshot content.
 - Scratch files for previews and drag-out live in an owner-only folder that is cleared when they close and on launch.

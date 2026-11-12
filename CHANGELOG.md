@@ -2,6 +2,10 @@
 
 ## 2.1 — unreleased
 
+### Install and updates
+- Download Edison as a notarized DMG from GitHub Releases (the README's Download for Mac button).
+- Edison updates itself with Sparkle: after asking, it checks once a day, and from the menu bar's Check for Updates…. Updates install only if they're signed with Edison's key.
+
 ### Capture fixes
 - The Hub (⇧⌘V) and the screenshot editor always open. They were SwiftUI scenes that macOS sometimes never created at launch, leaving nothing to show.
 - "Copy + Open Editor" copies the capture to the clipboard (and history) immediately.

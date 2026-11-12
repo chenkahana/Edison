@@ -12,6 +12,8 @@ final class StatusBarController: NSObject {
         let toggleHistoryPause: () -> Void
         let openSettings: () -> Void
         let quit: () -> Void
+        /// Nil in builds without Sparkle (`swift build`), which have no updater.
+        var checkForUpdates: (() -> Void)?
     }
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -65,6 +67,9 @@ final class StatusBarController: NSObject {
         menu.addItem(pauseItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
+        if actions.checkForUpdates != nil {
+            menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: ""))
+        }
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
 
         menu.items.forEach { $0.target = self }
@@ -101,6 +106,10 @@ final class StatusBarController: NSObject {
 
     @objc private func toggleHistoryPause() {
         actions.toggleHistoryPause()
+    }
+
+    @objc private func checkForUpdates() {
+        actions.checkForUpdates?()
     }
 
     @objc private func quit() {
