@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        TemporaryFiles.purgeAll()
         statusController = StatusBarController(
             actions: .init(
                 openHub: { [weak self] in

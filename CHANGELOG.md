@@ -19,6 +19,17 @@
 - Pause / resume clipboard history from the menu bar, a bindable shortcut, or the Hub; the menu-bar icon dims while paused and nothing copied in the meantime is captured on resume.
 - Thumbnails are decoded once and cached instead of on every redraw.
 
+### Open source
+- Relicensed under the Mozilla Public License 2.0.
+- New README, source tour, architecture and privacy docs; contributing, security, support, code-of-conduct and
+  third-party notices; issue and pull-request templates and CODEOWNERS.
+- Quick Look previews and drag-out images now live in an owner-only temporary folder that is cleared when they close
+  and at launch, so deleted items don't linger on disk.
+- CI runs with read-only permissions, a pinned checkout action and no persisted credentials; Dependabot tracks
+  Actions.
+- Internal planning notes and per-folder agent files are no longer published; an unused build-settings file is no
+  longer copied into the app bundle.
+
 ## 2.0 — 2026-08-08
 
 ### Clipboard fidelity
@@ -66,7 +77,7 @@
 
 ## 1.1 — 2026-04-11
 
-See `docs/app-store-release-1.1.md`.
+Release hardening: images moved out of the history file into an image store, structured logging, visible capture and permission errors, and repository governance (#22).
 
 ## 1.0
 

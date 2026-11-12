@@ -1,6 +1,0 @@
-// Release.xcconfig — v2.0 warnings-as-errors reference
-// Enforces AC10: zero compiler warnings in Release build.
-// The same settings are applied directly to the target Release configuration.
-
-GCC_TREAT_WARNINGS_AS_ERRORS = YES
-SWIFT_TREAT_WARNINGS_AS_ERRORS = YES

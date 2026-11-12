@@ -3,20 +3,7 @@ import PackageDescription
 
 let targetExcludes = [
     "Tests",
-    "AGENTS.md",
-    "App/AGENTS.md",
-    "Core/AGENTS.md",
-    "Core/Capture/AGENTS.md",
-    "Core/Clipboard/AGENTS.md",
-    "Core/Models/AGENTS.md",
-    "Core/Persistence/AGENTS.md",
-    "Core/Search/AGENTS.md",
-    "Core/Shortcuts/AGENTS.md",
-    "Configs",
-    "UI/AGENTS.md",
-    "UI/Components/AGENTS.md",
-    "UI/EditorUI/AGENTS.md",
-    "UI/Hub/AGENTS.md"
+    "README.md"
 ]
 
 let package = Package(
@@ -39,8 +26,7 @@ let package = Package(
         .testTarget(
             name: "EdisonTests",
             dependencies: ["Edison"],
-            path: "Edison/Tests",
-            exclude: ["AGENTS.md"]
+            path: "Edison/Tests"
         )
     ]
 )

@@ -158,6 +158,10 @@ struct HubView: View {
             resetSelectionToLatest()
             hubOpenSequence += 1
         }
+        .onChange(of: showQuickLook) { _, isShowing in
+            // Preview copies hold clipboard content; don't keep them once the panel closes.
+            if !isShowing { TemporaryFiles.purge(.quickLook) }
+        }
         .onChange(of: filter) { _, _ in
             syncSelection()
         }
@@ -502,15 +506,16 @@ struct HubView: View {
     }
 
     private func quickLookURL(for item: ClipboardItem) -> URL? {
-        let tmp = FileManager.default.temporaryDirectory
         switch item.payload {
         case let .text(text):
-            let url = tmp.appendingPathComponent("edison-ql-\(item.id).txt")
-            try? text.write(to: url, atomically: true, encoding: .utf8)
+            guard let url = try? TemporaryFiles.url(in: .quickLook, fileName: "\(item.id).txt"),
+                  (try? text.write(to: url, atomically: true, encoding: .utf8)) != nil else {
+                return nil
+            }
             return url
         case let .image(imageData):
-            let url = tmp.appendingPathComponent("edison-ql-\(item.id).png")
-            guard let data = try? ImageStore.load(relativePath: imageData.imagePath),
+            guard let url = try? TemporaryFiles.url(in: .quickLook, fileName: "\(item.id).png"),
+                  let data = try? ImageStore.load(relativePath: imageData.imagePath),
                   (try? data.write(to: url, options: .atomic)) != nil else {
                 return nil
             }

@@ -519,6 +519,7 @@ final class AppState: ObservableObject {
     }
 
     func closeEditorImmediately() {
+        TemporaryFiles.purge(.dragOut)
         showEditorDiscardAlert = false
         windowRouter?.dismissEditor()
         captureCoordinator.activeScreenshotSession = nil

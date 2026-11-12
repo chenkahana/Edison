@@ -273,7 +273,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					"Tests/*",
-					AGENTS.md,
+					"*.md",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -321,7 +321,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					"Tests/*",
-					AGENTS.md,
+					"*.md",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
