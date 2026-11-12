@@ -215,11 +215,7 @@ final class WindowRouter {
             return titledWindow
         }
 
-        let fallback = NSApp.windows.first { $0.canBecomeKey && !($0 is NSPanel) }
-        if let fallback {
-            hubWindow = fallback
-        }
-        return fallback
+        return nil
     }
 
     private func resolveEditorWindow() -> NSWindow? {
