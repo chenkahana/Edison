@@ -117,6 +117,9 @@ final class CaptureCoordinator: ObservableObject {
             let session = ScreenshotSession(draft: draft)
 
             if settings.capture.openEditorAfterCapture || settings.capture.defaultResult != .keepInHistory {
+                if settings.capture.defaultResult == .copyAndOpenEditor {
+                    persistAndCopy(session, copyToClipboard: true)
+                }
                 openEditor(for: session)
             } else {
                 activeScreenshotSession = session
@@ -144,6 +147,14 @@ final class CaptureCoordinator: ObservableObject {
     }
 
     func commitScreenshotSession(_ session: ScreenshotSession, copyToClipboard: Bool) {
+        guard persistAndCopy(session, copyToClipboard: copyToClipboard) else { return }
+        if currentSettings().editor.closeAfterCopySave {
+            closeEditor()
+        }
+    }
+
+    @discardableResult
+    private func persistAndCopy(_ session: ScreenshotSession, copyToClipboard: Bool) -> Bool {
         do {
             let pngData = try session.renderedPNGData()
             let item = try persistScreenshotImage(pngData, existingItemID: session.committedItemID)
@@ -153,12 +164,10 @@ final class CaptureCoordinator: ObservableObject {
             if copyToClipboard {
                 writeImageDataToClipboard(pngData, payload: item.payload)
             }
-
-            if currentSettings().editor.closeAfterCopySave {
-                closeEditor()
-            }
+            return true
         } catch {
             presentError(error, "Screenshot Commit Failed")
+            return false
         }
     }
 

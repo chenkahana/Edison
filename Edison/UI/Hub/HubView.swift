@@ -29,7 +29,6 @@ enum HubItemIcon {
 
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
-    @Environment(\.openWindow) private var openWindow
     @FocusState private var focusedField: HubFocusTarget?
     @State private var filter: HubFilter = .all
     @State private var layoutMode: HubLayoutMode = .rail
@@ -142,12 +141,6 @@ struct HubView: View {
         )
         .ignoresSafeArea()
         .onAppear {
-            appState.windowRouter?.setOpenHubAction {
-                openWindow(id: "hub")
-            }
-            appState.windowRouter?.setOpenEditorAction {
-                openWindow(id: "editor")
-            }
             focusedField = nil
             syncSelection()
         }

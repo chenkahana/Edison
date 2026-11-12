@@ -2,6 +2,12 @@
 
 ## 2.1 — unreleased
 
+### Capture fixes
+- The Hub (⇧⌘V) and the screenshot editor always open. They were SwiftUI scenes that macOS sometimes never created at launch, leaving nothing to show.
+- "Copy + Open Editor" copies the capture to the clipboard (and history) immediately.
+- Area and window selection now work on every display, including ones left of or above the main display.
+- Area captures now grab exactly the selected region, which used to be mirrored vertically.
+
 ### Screenshot editor
 - New tools: line, ellipse, freehand pen, highlighter, numbered step counter, and pixelate (replaces the soft blur, which could leak text).
 - Icon toolbar with single-key tool shortcuts (V A L R O P H T N B C), Shift to snap lines to 45° and draw squares/circles, arrow-key nudge, ⌘D duplicate, ⌘[ / ⌘] size, ⌘↩ copy and close.

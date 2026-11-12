@@ -97,13 +97,14 @@ final class CaptureEngine {
             return .success(data: data, displayID: displayID, rect: standardized)
         }
 
+        let topLeftRect = flippedGlobalRect(standardized)
         if let data = try? await LegacyScreenshotCapture.capture(arguments: [
             "-R",
             [
-                Int(standardized.origin.x.rounded(.down)),
-                Int(standardized.origin.y.rounded(.down)),
-                Int(standardized.width.rounded(.up)),
-                Int(standardized.height.rounded(.up))
+                Int(topLeftRect.origin.x.rounded(.down)),
+                Int(topLeftRect.origin.y.rounded(.down)),
+                Int(topLeftRect.width.rounded(.up)),
+                Int(topLeftRect.height.rounded(.up))
             ].map(String.init).joined(separator: ","),
             "-x"
         ]) {
@@ -172,10 +173,12 @@ final class CaptureEngine {
             filter.includeMenuBar = true
         }
 
+        // SCDisplay.frame and sourceRect use top-left global coordinates; the selection is bottom-left.
         let displayFrame = display.frame
+        let topLeftRect = flippedGlobalRect(rect)
         let sourceRect = CGRect(
-            x: rect.minX - displayFrame.minX,
-            y: rect.minY - displayFrame.minY,
+            x: topLeftRect.minX - displayFrame.minX,
+            y: topLeftRect.minY - displayFrame.minY,
             width: rect.width,
             height: rect.height
         )
@@ -240,6 +243,13 @@ final class CaptureEngine {
 
 }
 
+/// Converts between AppKit's bottom-left and Core Graphics' top-left global screen coordinates.
+/// Both are anchored to the primary display, so the conversion is its own inverse.
+private func flippedGlobalRect(_ rect: CGRect) -> CGRect {
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+    return CGRect(x: rect.minX, y: primaryHeight - rect.maxY, width: rect.width, height: rect.height)
+}
+
 private enum SelectionMode {
     case area
     case window
@@ -295,6 +305,9 @@ private final class RegionSelectionSession: NSObject {
                 defer: false,
                 screen: screen
             )
+            // With an explicit screen, the initializer offsets contentRect by that screen's origin,
+            // which pushes overlays for non-primary displays off-screen. Set the global frame directly.
+            window.setFrame(screen.frame, display: false)
             window.level = .screenSaver
             window.backgroundColor = .clear
             window.isOpaque = false
@@ -458,12 +471,12 @@ private final class RegionSelectionSession: NSObject {
                 continue
             }
 
-            let rect = CGRect(
+            let rect = flippedGlobalRect(CGRect(
                 x: bounds["X"] ?? 0,
                 y: bounds["Y"] ?? 0,
                 width: bounds["Width"] ?? 0,
                 height: bounds["Height"] ?? 0
-            )
+            ))
             guard rect.contains(point), rect.width > 10, rect.height > 10 else { continue }
             return WindowSelectionInfo(windowID: CGWindowID(windowNumber), frame: rect)
         }
@@ -610,7 +623,8 @@ private final class SelectionOverlayView: NSView {
     }
 
     private func convertGlobalRectToLocal(_ rect: CGRect) -> CGRect {
-        let localOrigin = convert(rect.origin, from: nil)
+        let windowOrigin = window?.convertPoint(fromScreen: rect.origin) ?? rect.origin
+        let localOrigin = convert(windowOrigin, from: nil)
         return CGRect(
             x: localOrigin.x,
             y: localOrigin.y,
