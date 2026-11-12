@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1 — unreleased
+
+### Screenshot editor
+- New tools: line, ellipse, freehand pen, highlighter, numbered step counter, and pixelate (replaces the soft blur, which could leak text).
+- Icon toolbar with single-key tool shortcuts (V A L R O P H T N B C), Shift to snap lines to 45° and draw squares/circles, arrow-key nudge, ⌘D duplicate, ⌘[ / ⌘] size, ⌘↩ copy and close.
+- One renderer draws both the canvas and the exported PNG, so arrowheads, pixelation, text, and the legibility halo look identical before and after export.
+- Always-visible colour and size bar; the last-used style is remembered.
+- Text is typed in place and can be re-edited; crop previews with a dimmed mask instead of zooming mid-drag, and can be reset.
+- Drag the finished image straight from the editor into any app.
+- Fix: crops and Retina exports now use correct pixel coordinates and keep their point size.
+
+### Hub
+- Cards show what an item is — link (site and path), colour (live swatch), code (monospaced), text, image (pixel size), file (Finder icon and folder) — with source app and favourite in a tinted header.
+- Hold ⌘ to reveal ⌘1–⌘9 quick-paste badges.
+- Search with `app:` and `type:` tokens; every word must match. New Links, Files, and Colours type filters.
+- Annotate any history image (⌘E or context menu) without overwriting the original; ⌘O opens links and reveals files.
+- Pause / resume clipboard history from the menu bar, a bindable shortcut, or the Hub; the menu-bar icon dims while paused and nothing copied in the meantime is captured on resume.
+- Thumbnails are decoded once and cached instead of on every redraw.
+
 ## 2.0 — 2026-08-08
 
 ### Clipboard fidelity

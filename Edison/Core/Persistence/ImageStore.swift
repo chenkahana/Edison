@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import OSLog
 
 /// Manages on-disk storage for clipboard image and thumbnail files.
@@ -33,9 +34,30 @@ enum ImageStore {
         return try Data(contentsOf: url)
     }
 
+    private static let pixelSizeCache = NSCache<NSString, NSValue>()
+
+    /// Pixel dimensions read from the image header only (no full decode), cached per path.
+    static func pixelSize(relativePath: String) -> CGSize? {
+        let key = relativePath as NSString
+        if let cached = pixelSizeCache.object(forKey: key) {
+            return cached.sizeValue
+        }
+        let url = imagesDirectoryURL.appendingPathComponent(relativePath)
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else {
+            return nil
+        }
+        let size = CGSize(width: width, height: height)
+        pixelSizeCache.setObject(NSValue(size: size), forKey: key)
+        return size
+    }
+
     /// Silently deletes the file for a relative path. Safe to call with stale paths.
     static func delete(relativePath: String) {
         let url = imagesDirectoryURL.appendingPathComponent(relativePath)
+        pixelSizeCache.removeObject(forKey: relativePath as NSString)
         try? FileManager.default.removeItem(at: url)
     }
 

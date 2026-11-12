@@ -16,6 +16,8 @@ struct HubHeaderView: View {
                     .frame(minWidth: 240, idealWidth: 320, maxWidth: 360)
                     .layoutPriority(1)
 
+                pausedPill
+
                 Spacer(minLength: 0)
 
                 trailingControls
@@ -24,6 +26,7 @@ struct HubHeaderView: View {
             VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
                 HStack(alignment: .center, spacing: HubTheme.Space.x3) {
                     searchPill
+                    pausedPill
                     Spacer(minLength: 0)
                     filterControls
                 }
@@ -39,7 +42,7 @@ struct HubHeaderView: View {
             filterPicker
                 .frame(width: 112)
             typePicker
-                .frame(width: 162)
+                .frame(width: 216)
             layoutPicker
                 .frame(width: 150)
         }
@@ -69,7 +72,7 @@ struct HubHeaderView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(HubTheme.textSecondary)
-            TextField("Search clipboard and screenshots", text: $appState.activeQuery)
+            TextField("Search — try app:Safari or type:link", text: $appState.activeQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($focusedField, equals: .search)
@@ -81,6 +84,25 @@ struct HubHeaderView: View {
                 .fill(HubTheme.cardFillMuted)
         )
         .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var pausedPill: some View {
+        if appState.isHistoryPaused {
+            Button {
+                appState.setHistoryPaused(false)
+            } label: {
+                Label("History paused — Resume", systemImage: "pause.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(HubTheme.accentBrand)
+                    .padding(.horizontal, HubTheme.Space.x3)
+                    .frame(height: HubTheme.searchPillHeight)
+                    .background(Capsule(style: .continuous).fill(HubTheme.accentBrand.opacity(0.14)))
+            }
+            .buttonStyle(.plain)
+            .fixedSize()
+            .help("Edison is not recording new clipboard items")
+        }
     }
 
     private var filterPicker: some View {
@@ -96,7 +118,10 @@ struct HubHeaderView: View {
     private var typePicker: some View {
         Picker("Type", selection: $appState.selectedTypeFilter) {
             ForEach(HistoryItemTypeFilter.allCases) { option in
-                Text(option.rawValue).tag(option)
+                Image(systemName: option.symbolName)
+                    .help(option.rawValue)
+                    .accessibilityLabel(option.rawValue)
+                    .tag(option)
             }
         }
         .labelsHidden()

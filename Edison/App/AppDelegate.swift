@@ -42,6 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         object: ShortcutAction.editLastScreenshot.rawValue
                     )
                 },
+                toggleHistoryPause: {
+                    NotificationCenter.default.post(
+                        name: .edisonShortcutActionRequested,
+                        object: ShortcutAction.toggleHistoryPause.rawValue
+                    )
+                },
                 openSettings: { [weak self] in
                     self?.windowRouter.openSettings()
                 },

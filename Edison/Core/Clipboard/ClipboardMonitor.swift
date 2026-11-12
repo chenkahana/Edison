@@ -10,6 +10,9 @@ final class ClipboardMonitor {
     private let representationStore: ClipboardRepresentationStore
     private let sourceApplicationProvider: () -> ClipboardSourceApplication?
     private var timer: Timer?
+    /// While paused, clipboard changes are acknowledged but never stored, so resuming
+    /// does not retroactively capture what was copied in the meantime.
+    var isPaused = false
     private var lastChangeCount: Int
     private var onNewItem: ((ClipboardItem) -> Void)?
     private var wakeObserver: NSObjectProtocol?
@@ -63,6 +66,7 @@ final class ClipboardMonitor {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
+        guard !isPaused else { return }
         processPasteboardSnapshot(expectedChangeCount: changeCount)
     }
 
@@ -81,6 +85,7 @@ final class ClipboardMonitor {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
+        guard !isPaused else { return }
         processPasteboardSnapshot(expectedChangeCount: changeCount)
     }
 

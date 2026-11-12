@@ -1,3 +1,33 @@
+# Edison 2.1 — Paste × Monosnap refinement
+
+Evidence: Monosnap 7.0 bundle strings (editor tools, ⌘1–8 tool hotkeys, Shift constraints,
+⌘ highlighter, shadow/outline, drag-out, "Open from Clipboard"). Paste not installed; its
+documented behaviour (typed cards, ⌘-number quick paste, app/type search, pause) is the reference.
+
+## Editor (Monosnap, improved)
+- [x] Tools: select, arrow, line, rectangle, ellipse, pen, highlighter, text, step counter, pixelate, crop
+- [x] Icon toolbar, single-key + ⌘1–9 tool shortcuts, tooltips
+- [x] WYSIWYG canvas: same geometry as export (arrowheads, live pixelation, shadows)
+- [x] Shift: 45° lines/arrows, square/circle shapes
+- [x] Always-visible style bar (colour, width) — applies to selection or next mark, remembered
+- [x] Drag the finished image out of the editor; ⌘↩ copy & close; arrow-key nudge
+
+## Hub (Paste, improved)
+- [x] Content kinds: link, colour, code, text, image, file — typed card header + rich preview
+- [x] Hold ⌘ → 1–9 quick-paste badges
+- [x] Search by source app; `app:` / `type:` tokens; Link/File/Colour type filters
+- [x] "Edit Image" from history (⌘E / context menu) opens the annotation editor
+- [x] Pause/resume clipboard history (menu bar + shortcut)
+
+## Verify
+- [x] swift build, swift test (44/44), Xcode Release build (no warnings)
+- [x] Scratch render checks: export PNG and live canvas match (pixelate, arrow, text, counter, crop)
+- [ ] Hands-on run of the app (hotkeys, ⌘ badges, drag-out, pause) — not done
+
+## Review
+Editor and Hub refinements landed; crop/Retina export bug fixed along the way. Remaining risk is
+interactive behaviour only exercised by compile + render checks, not by driving the running app.
+
 Spawn the following subagents:
 1. `explorer` / read-only — deterministic discovery: rg/git/gh/MCP evidence, no LLM guessing.
 2. `architect` / read-only — design, boundaries, risks, phase plan.

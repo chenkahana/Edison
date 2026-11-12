@@ -40,6 +40,7 @@ struct HubView: View {
     @State private var showQuickLook = false
     @State private var hubOpenSequence = 0
     @State private var showAccessibilityAlert = false
+    @State private var showsQuickPasteBadges = false
 
     private var items: [ClipboardItem] {
         switch filter {
@@ -122,7 +123,20 @@ struct HubView: View {
                 },
                 onQuickPaste: { idx in
                     guard idx < items.count else { return }
+                    showsQuickPasteBadges = false
                     appState.pasteItem(itemID: items[idx].id)
+                },
+                onEditItem: {
+                    guard let selectedItem, case .image = selectedItem.payload else { return }
+                    appState.editImageItem(itemID: selectedItem.id)
+                },
+                onOpenItem: {
+                    guard let selectedItem else { return }
+                    appState.openItem(itemID: selectedItem.id)
+                },
+                onCommandHeldChanged: { isHeld in
+                    guard showsQuickPasteBadges != isHeld else { return }
+                    showsQuickPasteBadges = isHeld
                 }
             )
         )
@@ -140,6 +154,7 @@ struct HubView: View {
         .onReceive(NotificationCenter.default.publisher(for: .edisonHubWillOpen)) { _ in
             focusedField = nil
             showQuickLook = false
+            showsQuickPasteBadges = false
             resetSelectionToLatest()
             hubOpenSequence += 1
         }
@@ -240,7 +255,7 @@ struct HubView: View {
             Text(
                 isFilteringActive
                     ? "Try a different search query, collection, or type filter."
-                    : "Copy text, images, or files to start building the shelf."
+                    : "Copy text, images, or files — or capture a screenshot — to start building the shelf."
             )
             .font(.system(size: 13))
             .foregroundStyle(HubTheme.textSecondary)
@@ -261,6 +276,7 @@ struct HubView: View {
                         selectedItem: selectedItem,
                         sideLength: cardSide,
                         hubOpenSequence: hubOpenSequence,
+                        showsQuickPasteBadges: showsQuickPasteBadges,
                         collections: appState.collections,
                         isInCollection: { itemID, collectionID in
                             appState.collectionContains(itemID, collectionID: collectionID)
@@ -276,6 +292,8 @@ struct HubView: View {
                         onExport: { appState.exportItem(itemID: $0) },
                         onShare: { appState.shareItem(itemID: $0) },
                         onDelete: { appState.deleteItem(itemID: $0) },
+                        onEditImage: { appState.editImageItem(itemID: $0) },
+                        onOpen: { appState.openItem(itemID: $0) },
                         scrollToSelection: { proxy, itemID, opening in
                             scrollSelection(with: proxy, to: itemID, in: .rail, opening: opening)
                         }
@@ -285,6 +303,7 @@ struct HubView: View {
                         items: items,
                         selectedItem: selectedItem,
                         hubOpenSequence: hubOpenSequence,
+                        showsQuickPasteBadges: showsQuickPasteBadges,
                         collections: appState.collections,
                         isInCollection: { itemID, collectionID in
                             appState.collectionContains(itemID, collectionID: collectionID)
@@ -300,6 +319,8 @@ struct HubView: View {
                         onExport: { appState.exportItem(itemID: $0) },
                         onShare: { appState.shareItem(itemID: $0) },
                         onDelete: { appState.deleteItem(itemID: $0) },
+                        onEditImage: { appState.editImageItem(itemID: $0) },
+                        onOpen: { appState.openItem(itemID: $0) },
                         scrollToSelection: { proxy, itemID, opening in
                             scrollSelection(with: proxy, to: itemID, in: .list, opening: opening)
                         }
@@ -311,12 +332,13 @@ struct HubView: View {
                                 columns: [GridItem(.adaptive(minimum: cardSide), spacing: HubTheme.Space.x4)],
                                 spacing: HubTheme.Space.x4
                             ) {
-                                ForEach(Array(items.enumerated()), id: \.element.id) { _, item in
+                                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                                     HubShelfCardView(
                                         item: item,
                                         sideLength: cardSide,
                                         collections: appState.collections,
                                         isSelected: item.id == selectedItem?.id,
+                                        quickPasteNumber: showsQuickPasteBadges && index < 9 ? index + 1 : nil,
                                         isInCollection: { collectionID in
                                             appState.collectionContains(item.id, collectionID: collectionID)
                                         },
@@ -332,7 +354,9 @@ struct HubView: View {
                                         },
                                         onExport: { appState.exportItem(itemID: item.id) },
                                         onShare: { appState.shareItem(itemID: item.id) },
-                                        onDelete: { appState.deleteItem(itemID: item.id) }
+                                        onDelete: { appState.deleteItem(itemID: item.id) },
+                                        onEditImage: { appState.editImageItem(itemID: item.id) },
+                                        onOpen: { appState.openItem(itemID: item.id) }
                                     )
                                     .id(item.id)
                                 }
