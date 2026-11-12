@@ -9,8 +9,8 @@ terms; they are rendered by the system at run time and are not included as files
 
 ## Sparkle
 
-- Use: installing updates for copies downloaded from GitHub Releases (linked by the Xcode project only; `swift build`
-  doesn't include it)
+- Use: installing updates for copies downloaded from GitHub Releases (linked by the "Edison DMG" target only; the App
+  Store build and `swift build` don't include it)
 - Source: https://github.com/sparkle-project/Sparkle
 - License: MIT. Sparkle also contains bsdiff 4.3 (Colin Percival), sais-lite (Yuta Mori), Ed25519 (Orson Peters)
   and SUSignatureVerifier (Mark Hamlin) under their own permissive licenses, whose full texts are in

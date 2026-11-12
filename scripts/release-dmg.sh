@@ -33,8 +33,8 @@ fi
 rm -rf "$OUT" && mkdir -p "$OUT"
 mv "$NOTES" "$OUT/notes.md"
 
-echo "==> Archiving Edison $VERSION"
-xcodebuild archive -project Edison.xcodeproj -scheme Edison -configuration Release \
+echo "==> Archiving Edison $VERSION (the DMG target, with Sparkle)"
+xcodebuild archive -project Edison.xcodeproj -scheme "Edison DMG" -configuration Release \
     -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" -allowProvisioningUpdates -quiet \
     -clonedSourcePackagesDirPath "$PACKAGES" MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD"
 

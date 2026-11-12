@@ -1,10 +1,11 @@
-#if canImport(Sparkle)
+#if SPARKLE
 import Sparkle
 
 /// Sparkle updates for copies installed from the DMG on GitHub Releases. It reads the newest release's
 /// `appcast.xml` (`SUFeedURL` in Config/Info.plist) and installs a DMG only if its EdDSA signature matches
-/// `SUPublicEDKey`. Sparkle asks before its first automatic check. `swift build` doesn't link Sparkle, so this
-/// file is compiled only by the Xcode project. See docs/release.md.
+/// `SUPublicEDKey`. Sparkle asks before its first automatic check. Only the "Edison DMG" target links Sparkle
+/// and defines SPARKLE: the App Store build ("Edison") must not contain it, and `swift build` doesn't resolve it.
+/// See docs/release.md.
 @MainActor
 final class Updater {
     private let controller = SPUStandardUpdaterController(

@@ -21,8 +21,15 @@ its launcher service (`SUEnableInstallerLauncherService`, with the mach-lookup e
 `-spki` in [`Config/Edison.entitlements`](../Config/Edison.entitlements)). The Sparkle keys are in
 [`Config/Info.plist`](../Config/Info.plist), which Xcode merges into the generated Info.plist.
 
-Sparkle is a Swift package of the Xcode project only. `swift build` and `swift test` don't resolve it, and
-[`Updater.swift`](../Edison/App/Updater.swift) compiles only `#if canImport(Sparkle)`.
+Sparkle is only in the DMG. The Xcode project has two targets built from the same sources:
+
+| Target | Ships as | Sparkle |
+|---|---|---|
+| `Edison` | the App Store build (archive this scheme for App Store Connect) | none: App Store Connect rejects Sparkle's unsandboxed helpers, and the App Store updates the app itself |
+| `Edison DMG` | `Edison.dmg` on GitHub Releases (`release-dmg.sh` archives it) | linked, with `Config/Info.plist`, `Config/Edison.entitlements` and the `SPARKLE` compilation condition that compiles [`Updater.swift`](../Edison/App/Updater.swift) |
+
+Both have the same bundle ID and product name, so install one copy at a time in `/Applications`. `swift build` and
+`swift test` don't resolve Sparkle. CI archives the App Store target and fails if `Sparkle.framework` is inside.
 
 Copies built before 2.1 have no updater, so people on those versions download the DMG once. From 2.1 on, updates
 arrive in the app.
