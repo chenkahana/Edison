@@ -4,6 +4,7 @@
 |---|---|
 | [architecture.md](architecture.md) | How the app is put together, and the rules that keep clipboard data exact |
 | [privacy.md](privacy.md) | What Edison stores, where, and what it never does |
+| [release.md](release.md) | Publishing the DMG on GitHub Releases, and how installed copies update |
 | [ui-style-guide.md](ui-style-guide.md) | Visual system, materials, layout and interaction guidelines for the Hub and editor |
 | [pasteboard-fixture-workflow.md](pasteboard-fixture-workflow.md) | Recording what other apps put on the pasteboard, for fidelity fixtures |
 | [assets/](assets) | App icon and brand artwork |

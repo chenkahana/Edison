@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // scene windows when it chooses to, which left the app with no window to show.
     private var hubWindow: NSWindow?
     private var editorWindow: NSWindow?
+    #if canImport(Sparkle)
+    private let updater = Updater()
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -63,9 +66,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 quit: {
                     NSApp.terminate(nil)
-                }
+                },
+                checkForUpdates: checkForUpdatesAction
             )
         )
+    }
+
+    private var checkForUpdatesAction: (() -> Void)? {
+        #if canImport(Sparkle)
+        return { [weak self] in self?.updater.checkForUpdates() }
+        #else
+        return nil
+        #endif
     }
 
     private func makeHubWindow() {

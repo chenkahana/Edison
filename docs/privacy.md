@@ -25,7 +25,16 @@ uploaded.
 ## What Edison does not do
 
 - No accounts, sign-in, analytics, advertising, tracking or crash-reporting services.
-- No network connections of any kind, and no third-party SDKs.
+- No network connections, except the update check below. The app itself has no network entitlement.
+
+## Updates
+
+Copies installed from the DMG use [Sparkle](https://sparkle-project.org) to stay up to date. Sparkle asks before it
+checks automatically. When it checks (once a day, or when you choose Check for Updates…), its sandboxed downloader
+fetches `appcast.xml` from Edison's GitHub Releases, and downloads the new DMG if you choose to install it. The
+request carries Edison's version, like any download, and nothing about your clipboard, screenshots or Mac.
+GitHub sees your IP address, as for any visit. To turn automatic checks off, choose No when Sparkle asks, or run
+`defaults write com.chenkahana.Edison SUEnableAutomaticChecks -bool NO`.
 - No sale or sharing of data with anyone.
 
 ## Permissions

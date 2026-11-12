@@ -7,7 +7,7 @@ what an agent needs to work safely.
 ## What Edison is
 
 A sandboxed macOS 14+ menu-bar app: clipboard history in a keyboard-driven "Hub" shelf, plus screenshot capture and
-annotation. Pure Apple SDKs, no dependencies, no network code.
+annotation. Apple SDKs plus Sparkle (updates, Xcode project only); no network code of its own.
 
 ## Build and verify
 

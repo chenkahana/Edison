@@ -14,6 +14,7 @@ SwiftUI, and views never hold business logic.
 | [`AppDelegate.swift`](App/AppDelegate.swift) | Runs Edison as a menu-bar (`.accessory`) app, owns `AppState`, builds the status item, creates the Hub and editor windows, clears scratch files on launch |
 | [`AppState.swift`](App/AppState.swift) | The single `ObservableObject`: owns the services and exposes every user action (paste, copy, delete, collections, capture, editor, pause, export) |
 | [`WindowRouter.swift`](App/WindowRouter.swift) | Opens, positions and dismisses the Hub shelf, editor and Settings windows across displays and Spaces |
+| [`Updater.swift`](App/Updater.swift) | Sparkle updates for copies installed from the DMG (Xcode builds only) |
 | [`StatusBarController.swift`](App/StatusBarController.swift) | The menu-bar item and its menu, including the pause indicator |
 | [`PasteBackCoordinator.swift`](App/PasteBackCoordinator.swift) | Returns focus to the app you came from and sends ⌘V through Accessibility |
 

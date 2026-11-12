@@ -14,7 +14,9 @@ and it captures, annotates and shares screenshots without leaving the flow. Ever
 ![Swift 5.10](https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-MPL--2.0-brightgreen)](LICENSE)
 
-[Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Edison.dmg-F5A623?style=for-the-badge&logo=apple)](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg)
+
+[Install](#install) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hub-dark.png">
@@ -26,6 +28,16 @@ and it captures, annotates and shares screenshots without leaving the flow. Ever
 </div>
 
 ---
+
+## Install
+
+Download **[Edison.dmg](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg)**, open it and drag
+Edison to Applications. It needs macOS 14 Sonoma or later, and it's signed with Developer ID and notarized by Apple.
+Every version is on the [Releases](https://github.com/chenkahana/Edison/releases) page.
+
+Edison keeps itself up to date. After the second launch it asks whether to check for updates automatically; you can
+also choose **Check for Updates…** from the menu-bar icon at any time. Updates are verified against Edison's
+signing key before they're installed.
 
 ## Features
 
@@ -86,8 +98,8 @@ Global shortcuts can be changed or added in **Settings › Keyboard Shortcuts**.
 ## Architecture
 
 Edison is a single native macOS app: SwiftUI for the Hub, editor and Settings, and AppKit where macOS needs it
-(the menu-bar item, global hotkeys, the floating shelf window, pasteboard access and paste-back). It has no
-third-party dependencies and no network code.
+(the menu-bar item, global hotkeys, the floating shelf window, pasteboard access and paste-back). Its one
+dependency is [Sparkle](https://sparkle-project.org), which installs updates; Edison itself has no network code.
 
 ```mermaid
 flowchart LR
@@ -167,7 +179,8 @@ Edison/
 │   └── Tests/        Swift Testing suites
 ├── Assets.xcassets/  App and menu-bar icons
 ├── docs/             Architecture, privacy, UI style guide, developer guides
-├── scripts/          Local CI and the pasteboard inspector
+├── Config/           Info.plist keys and entitlements for updates
+├── scripts/          Local CI, the release script and the pasteboard inspector
 ├── .github/          CI, issue and pull-request templates
 ├── Package.swift     Swift package (build and test)
 └── Edison.xcodeproj  Xcode project (run and archive)
@@ -175,7 +188,8 @@ Edison/
 
 ## Privacy
 
-Edison collects nothing. There are no accounts, analytics, crash reporters or network requests. Your history,
+Edison collects nothing. There are no accounts, analytics or crash reporters, and the only network request is the
+update check, which sends nothing about you or your clipboard. Your history,
 screenshots and settings stay in Edison's sandboxed container on your Mac, and deleting an item deletes its files.
 The full policy is in [docs/privacy.md](docs/privacy.md).
 
