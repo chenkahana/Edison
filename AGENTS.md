@@ -7,7 +7,7 @@ what an agent needs to work safely.
 ## What Edison is
 
 A sandboxed macOS 14+ menu-bar app: clipboard history in a keyboard-driven "Hub" shelf, plus screenshot capture and
-annotation. Apple SDKs plus Sparkle (updates, Xcode project only); no network code of its own.
+annotation. Apple SDKs plus Sparkle (updates, in the "Edison DMG" target only); no network code of its own.
 
 ## Build and verify
 
@@ -16,6 +16,8 @@ swift build && swift test
 ```
 
 - Release builds treat warnings as errors; CI also builds Debug and Release with `xcodebuild` and archives.
+- Two Xcode targets share the sources: `Edison` is the App Store build and must never link Sparkle; `Edison DMG`
+  adds Sparkle for GitHub Releases (docs/release.md). CI fails if Sparkle reaches the App Store archive.
 - The Xcode project uses synchronized folders: add files under `Edison/`, never hand-edit `project.pbxproj`.
 - Non-Swift files inside `Edison/` must be excluded in `Package.swift` (`targetExcludes`).
 

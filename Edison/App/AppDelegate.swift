@@ -10,7 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // scene windows when it chooses to, which left the app with no window to show.
     private var hubWindow: NSWindow?
     private var editorWindow: NSWindow?
-    #if canImport(Sparkle)
+    #if SPARKLE
     private let updater = Updater()
     #endif
 
@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var checkForUpdatesAction: (() -> Void)? {
-        #if canImport(Sparkle)
+        #if SPARKLE
         return { [weak self] in self?.updater.checkForUpdates() }
         #else
         return nil

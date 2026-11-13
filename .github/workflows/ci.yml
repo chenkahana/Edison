@@ -93,5 +93,16 @@ jobs:
             -archivePath "$RUNNER_TEMP/Edison.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
           test -x "$RUNNER_TEMP/Edison.xcarchive/Products/Applications/Edison - Clipboard Manager.app/Contents/MacOS/Edison - Clipboard Manager"
+          # The App Store build must not contain Sparkle: App Store Connect rejects its unsandboxed helpers.
+          test ! -e "$RUNNER_TEMP/Edison.xcarchive/Products/Applications/Edison - Clipboard Manager.app/Contents/Frameworks/Sparkle.framework"
           test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "2.0"
           test "$(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$RUNNER_TEMP/Edison.xcarchive/Info.plist")" = "4"
+
+      - name: Build the DMG variant (with Sparkle)
+        run: |
+          xcodebuild build \
+            -project Edison.xcodeproj \
+            -scheme "Edison DMG" \
+            -destination "platform=macOS" \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO
