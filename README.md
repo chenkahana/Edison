@@ -9,15 +9,15 @@
 Edison lives in the menu bar. It keeps everything you copy in a shelf you can search and paste from the keyboard,
 and it captures, annotates and shares screenshots without leaving the flow. Everything stays on your Mac.
 
-[![CI](https://github.com/chenkahana/Edison/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenkahana/Edison/actions/workflows/ci.yml)
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple)
 ![Swift 5.10](https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white)
-[![License](https://img.shields.io/badge/license-MPL--2.0-brightgreen)](LICENSE)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-F5A623)](CONTRIBUTING.md)
+[![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
+[![CI](https://github.com/chenkahana/Edison/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chenkahana/Edison/actions/workflows/ci.yml)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
 
-[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Edison.dmg-F5A623?style=for-the-badge&logo=apple)](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg)
+[![Download for Mac](https://img.shields.io/badge/Download-Edison.dmg-F5A623?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg) [![Website](https://img.shields.io/badge/Website-chenkahana.com%2Fedison-111111?style=for-the-badge&logo=safari&logoColor=white)](https://chenkahana.com/edison)
 
-[Website](https://chenkahana.com/edison) · [Install](#install) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
+[Install](#install) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hub-dark.png">
@@ -208,6 +208,21 @@ Contributions are welcome, from a typo fix to a new annotation tool.
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Changes are recorded in
 [CHANGELOG.md](CHANGELOG.md).
+
+## The family
+
+Boaz, Jimmy and Edison are made by one independent developer, on the same principles: native Swift and SwiftUI,
+private by design (no accounts, analytics or tracking), and open source under the Mozilla Public License 2.0.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><a href="https://github.com/chenkahana/Boaz"><img src="https://raw.githubusercontent.com/chenkahana/Boaz/master/docs/assets/icon.png" width="88" alt="Boaz app icon"></a><br><b><a href="https://github.com/chenkahana/Boaz">Boaz</a></b><br><sub>A calm web browser for iPhone and Mac</sub></td>
+    <td align="center" width="33%"><a href="https://github.com/chenkahana/Jimmy"><img src="https://raw.githubusercontent.com/chenkahana/Jimmy/main/docs/assets/icon.png" width="88" alt="Jimmy app icon"></a><br><b><a href="https://github.com/chenkahana/Jimmy">Jimmy</a></b><br><sub>A queue-centric podcast player for iPhone</sub></td>
+    <td align="center" width="33%"><a href="https://github.com/chenkahana/Edison"><img src="https://raw.githubusercontent.com/chenkahana/Edison/main/docs/assets/icon.png" width="88" alt="Edison app icon"></a><br><b><a href="https://github.com/chenkahana/Edison">Edison</a></b><br><sub>Clipboard history and screenshots for Mac</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>More at <a href="https://chenkahana.com">chenkahana.com</a></sub></p>
 
 ## License
 
