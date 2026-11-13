@@ -17,7 +17,7 @@ and it captures, annotates and shares screenshots without leaving the flow. Ever
 
 [![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Edison.dmg-F5A623?style=for-the-badge&logo=apple)](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg)
 
-[Install](#install) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
+[Website](https://chenkahana.com/edison) · [Install](#install) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Architecture](#architecture) · [Getting started](#getting-started) · [Privacy](#privacy) · [Contributing](#contributing)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hub-dark.png">
