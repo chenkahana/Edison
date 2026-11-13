@@ -1,7 +1,12 @@
+# Dependency updates, grouped into one pull request each week. They merge on their own once CI is green
+# (.github/workflows/dependabot-auto-merge.yml). Edison has no Swift package dependencies; Sparkle is pinned in the
+# Xcode project and updated by hand.
 version: 2
 updates:
-  # Edison has no package dependencies; keep the CI actions current.
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
