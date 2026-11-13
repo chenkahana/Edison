@@ -24,6 +24,10 @@ Requirements and permissions are in the [README](README.md#getting-started); a t
 [Edison/README.md](Edison/README.md). The Xcode project uses synchronized folders: add Swift files under `Edison/`
 and they are compiled by both Xcode and `swift build` without editing the project.
 
+New to the codebase? Pick an issue labelled
+[`good first issue`](https://github.com/chenkahana/Edison/labels/good%20first%20issue) and comment on it so nobody
+duplicates the work.
+
 ## Branches and commits
 
 - `main` is always releasable. Work on a branch named `<type>/<short-description>`, e.g. `fix/hub-focus`.
