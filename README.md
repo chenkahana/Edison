@@ -13,6 +13,7 @@ and it captures, annotates and shares screenshots without leaving the flow. Ever
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple)
 ![Swift 5.10](https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-MPL--2.0-brightgreen)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-F5A623)](CONTRIBUTING.md)
 
 [![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Edison.dmg-F5A623?style=for-the-badge&logo=apple)](https://github.com/chenkahana/Edison/releases/latest/download/Edison.dmg)
 
@@ -195,10 +196,18 @@ The full policy is in [docs/privacy.md](docs/privacy.md).
 
 ## Contributing
 
-Bug reports and feature ideas are welcome through
-[GitHub Issues](https://github.com/chenkahana/Edison/issues/new/choose). Please read
-[CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and report security issues privately as described
-in [SECURITY.md](SECURITY.md). Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+Contributions are welcome, from a typo fix to a new annotation tool.
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions and the review checklist, and the
+  [source tour](Edison/README.md) to find your way around.
+- Looking for a place to start? Try an issue labelled
+  [`good first issue`](https://github.com/chenkahana/Edison/labels/good%20first%20issue) or
+  [`help wanted`](https://github.com/chenkahana/Edison/labels/help%20wanted).
+- Found a bug? Open a [bug report](https://github.com/chenkahana/Edison/issues/new?template=bug_report.yml).
+- Security issues go through [SECURITY.md](SECURITY.md), never public issues.
+
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Changes are recorded in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
