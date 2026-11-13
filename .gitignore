@@ -12,11 +12,24 @@ xcuserdata/
 # macOS
 .DS_Store
 
-# Local tooling state
-.codex-recovery/
-.codex/
-.omc/
+# AI coding agents: local state, memory and scratch notes. Agent guides (AGENTS.md, CLAUDE.md) stay tracked.
 .claude/
-
-# Internal working notes (kept locally, not published)
+.codex/
+.codex-recovery/
+.omc/
+.kiro/
+.agent/
+.agents/
+.cursor/
+.windsurf/
+.gemini/
+.serena/
+.specstory/
+.aider*
+.mcp.json
+CLAUDE.local.md
 tasks/
+/PLAN.md
+/STATUS.md
+/ADR.md
+/HANDOFF.md
