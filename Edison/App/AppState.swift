@@ -209,6 +209,9 @@ final class AppState: ObservableObject {
         captureCoordinator.presentError = { [weak self] error, title in
             self?.present(error: error, title: title)
         }
+        captureCoordinator.requestScreenRecordingAccess = { [weak self] in
+            self?.requestScreenRecordingAccess()
+        }
 
         // Forward both coordinators' objectWillChange into AppState's objectWillChange
         // so views that observe AppState get re-rendered when coordinator state changes.
