@@ -13,8 +13,8 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R0.1 Build and run (`swift build`, `swift test`, app launch feasibility)
 - [x] R0.2 Code-sweep signals re-run on `origin/main`
 - [x] R0.3 Recordings per flow: hotkey summon/dismiss, focus return + paste, search, collections, drag out, capture area/window/full, editor tools, settings, permissions onboarding (script + predictions done; recordings need Chen session)
-- [x] R0.4 External display pass
-- [x] R0.5 Instruments traces (Hub summon, scroll, search, capture)
+- [x] R0.4 External display pass (script + predictions done; takes need Chen session)
+- [x] R0.5 Instruments traces (Hub summon, scroll, search, capture) (commands + hotspots done; traces need Chen session)
 - [x] R0.6 `R0-baseline.md`
 
 ### R1 Inventory
