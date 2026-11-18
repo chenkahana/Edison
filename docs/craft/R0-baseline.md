@@ -84,3 +84,21 @@ happen, so the recording confirms or refutes a specific prediction. File names g
 | F8 | Settings | Status menu → Settings, visit each pane, close, reopen. Toggle a setting with a large history. | 960×720 split view with search field; always reopens on General (`SettingsView.swift:55`); storage size recalculated on the main thread after every change (`SettingsView.swift:116-120,429-447`); Clear History has no confirmation (`SettingsView.swift:302-305`). |
 | F9 | Permissions onboarding | Fresh user (or `tccutil reset ScreenCapture com.chenkahana.Edison` in a test account only): first launch, first capture, first paste. | No onboarding at all. First capture: alert "Allow Screen Recording" → "Open System Settings" calls `CGRequestScreenCaptureAccess()`, which does not open Settings after the first prompt (`CaptureCoordinator.swift:212-223`). No relaunch prompt after granting. |
 | F10 | Status item | Click the menu-bar icon; pause history; resume. | Menu, not the Hub, on click; no shortcuts shown next to Open Hub or the capture items (`StatusBarController.swift:57-76`); paused icon dims (`StatusBarController.swift:44`). |
+
+## R0.4 External display pass
+
+Current setup (`system_profiler SPDisplaysDataType`, read-only): two DELL P2419H at 1920×1080, 1× scale, 60 Hz,
+the left-hand one is main; the built-in ProMotion panel is not active (lid closed). So a live pass today covers
+multi-display and 1× rendering but not 120 Hz or Retina; the Retina/120 Hz takes need the lid open.
+
+Script (Chen session), recording both displays:
+
+| # | Take | Code-traced prediction |
+|---|---|---|
+| D1 | Pointer on display B, key window on display A: ⇧⌘V. Then move the pointer to A, ⇧⌘V again. | The shelf frame is computed from `window.screen ?? NSScreen.main` (`HubTheme.swift:200`, `WindowRouter.swift:234`): it reopens on whatever display it was last on, not the pointer's display or the key window's. Likely wrong-display summon after the first use. |
+| D2 | Full-screen Safari on B: ⇧⌘V. | `.floating` + `.fullScreenAuxiliary` + `.moveToActiveSpace` (`HubTheme.swift:188-191`) should show over the full-screen Space; confirm it does not jump Spaces. |
+| D3 | Stage Manager on: ⇧⌘V, paste into a staged window. | Not handled explicitly; check the shelf does not get its own stage and that the paste target is restored. |
+| D4 | ⇧⌘S, drag an area that crosses from A to B. | One overlay window per display (`CaptureEngine.swift:299-330`). The capture goes to the display that contains the rect's midpoint (`CaptureEngine.swift:384`), so the part on the other display is cut off. Measurement badge shows points. |
+| D5 | Window mode on B, hover windows on A and B quickly. | Highlight follows via a global mouse monitor plus `Task` hop (`CaptureEngine.swift:357-362`); check lag on the non-key display. |
+| D6 | Unplug/replug B while the Hub is open, then ⇧⌘V. | Shelf frame is re-applied on each open (`WindowRouter.swift:73`), so it should recover; confirm no off-screen shelf. |
+| D7 | Retina (lid open): capture an area, paste into Preview, check pixel size. | `pointPixelScale(for:)` (`CaptureEngine.swift:196`) should give 2× pixels on Retina and 1× on the Dells. |
