@@ -1,10 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- Quick Look writes its preview copy once when it opens (and when the selection changes), not on every redraw.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
