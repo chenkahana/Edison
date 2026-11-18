@@ -23,6 +23,7 @@ struct HubShelfView: View {
     let onDelete: (UUID) -> Void
     let onEditImage: (UUID) -> Void
     let onOpen: (UUID) -> Void
+    let makeDragItemProvider: (ClipboardItem) -> NSItemProvider
     let scrollToSelection: (ScrollViewProxy, UUID?, Bool) -> Void
 
     var body: some View {
@@ -51,7 +52,8 @@ struct HubShelfView: View {
                             onShare: { onShare(item.id) },
                             onDelete: { onDelete(item.id) },
                             onEditImage: { onEditImage(item.id) },
-                            onOpen: { onOpen(item.id) }
+                            onOpen: { onOpen(item.id) },
+                            makeDragItemProvider: { makeDragItemProvider(item) }
                         )
                         .id(item.id)
                     }
@@ -94,6 +96,7 @@ struct HubShelfCardView: View {
     let onDelete: () -> Void
     var onEditImage: (() -> Void)?
     var onOpen: (() -> Void)?
+    let makeDragItemProvider: () -> NSItemProvider
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovered = false
@@ -149,7 +152,7 @@ struct HubShelfCardView: View {
         .animation(HubTheme.Anim.fastSpring, value: quickPasteNumber)
         .contentShape(cardShape)
         .onHover { isHovered = $0 }
-        .draggable(item)
+        .onDrag(makeDragItemProvider)
         .onTapGesture {
             onSelect()
         }
