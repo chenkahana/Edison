@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Menu bar
-- Capture Previous Area and Edit Last Screenshot are dimmed when there's no area or screenshot yet, instead of
-  doing nothing.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
