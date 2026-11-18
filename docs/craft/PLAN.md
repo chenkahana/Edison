@@ -32,7 +32,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R2.9 Onboarding / permissions
 - [x] R2.10 Share / export
 - [x] R2.11 Accessibility passes (VoiceOver, Full Keyboard Access, Reduce Motion, Reduce Transparency, Increase Contrast)
-- [ ] R2.12 Craft score table (0-3 per surface per check)
+- [x] R2.12 Craft score table (0-3 per surface per check)
 
 ### R3 References (mechanics, not looks)
 - [ ] R3.1 Paste

@@ -1,4 +1,4 @@
-RESUME HERE: R2.12 craft score table: 0-3 per surface (10) per rubric check (14) appended to R2-findings.md, with totals.
+RESUME HERE: R3.1 Paste reference mechanics -> docs/craft/R3-references.md (summon, panel type, focus, motion, keyboard, drag, states). Check if Paste/Raycast/Maccy/CleanShot are installed (ls /Applications) - inspect bundles read-only; do not launch.
 
 # Progress log (append-only)
 
@@ -22,4 +22,5 @@ RESUME HERE: R2.12 craft score table: 0-3 per surface (10) per rubric check (14)
 | 2026-11-18 | R2.8 settings findings | E59-E67 settings (unconfirmed Clear History S1, hotkey collisions, dead toggle, stale permissions, main-thread storage walk, copy drift) | d56a0fb |
 | 2026-11-18 | R2.9 onboarding/permissions findings | E68-E72 permissions (capture alert button is a no-op after first prompt S1, AX fallback copy, no first run, no relaunch recovery, app-modal alerts) | 82e8700 |
 | 2026-11-18 | R2.10 share/export findings | E73-E76 share/export (drag-out types vs paste fidelity S1, share anchor/rich loss, export naming + main-thread file read, editor drag render) | bf1e339 |
-| 2026-11-18 | R2.11 accessibility findings | E77-E82 accessibility (VO selection/actions, FKA can't reach cards, swatch labels, Increase Contrast, RM/RT coverage, canvas) | (this commit) |
+| 2026-11-18 | R2.11 accessibility findings | E77-E82 accessibility (VO selection/actions, FKA can't reach cards, swatch labels, Increase Contrast, RM/RT coverage, canvas) | 61c4dbd |
+| 2026-11-18 | R2.12 craft score table | Provisional 0-3 scores, 10 surfaces x 14 checks; app 143/306 (47%); Hub 39%, Collections 33% | (this commit) |

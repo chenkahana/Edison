@@ -155,3 +155,32 @@ Code pass only; each row names the Accessibility Inspector or VoiceOver take tha
 | E80 | **No Increase Contrast variants.** Glass stroke is 8 % white in dark, card fill 22 %, type accents are fixed hex values with no high-contrast versions, and selection relies on colour (E10). | 9, 14 | `HubTheme.swift:39-98`; 0 `colorSchemeContrast` | S3 | O | M | 2 | none | verify live (Increase Contrast on) |
 | E81 | **Reduce Motion: not honoured anywhere** (see E12). **Reduce Transparency: honoured for the Hub glass only**; that covers the shelf, toasts and the Settings detail background, which all sit on `HubGlassBackground`. The capture overlay's 28 % dim over a frozen frame is unaffected (acceptable). | 2, 9, 14 | `HubTheme.swift:139-177` | S3 | E | S | 8 | none | code (counted once with E12 in R5) |
 | E82 | **Annotations and the canvas are invisible to VoiceOver**; tool buttons are labelled and expose `.isSelected` (good), but nothing describes what is on the canvas or offers the selected annotation's actions. | 14 | `EditorWindowView.swift:296-341,917-931` | S3 | R | L | 0.5 | none | code |
+
+## R2.12 Craft scores (0–3 per surface per check)
+
+0 broken or absent · 1 present but visibly unpolished · 2 good with gaps · 3 feels Apple-shipped · – not applicable.
+Scores are provisional from code; re-score after the R0 Chen session and after each workstream. Same scale as the
+Boaz and Jimmy passes.
+
+| Check | Menu bar | Hub shelf | Preview | Search | Collections | Capture overlay | Editor | Settings | Permissions | Share/export |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1. Summon and dismiss | 2 | 1 | 1 | 1 | – | 1 | 2 | 2 | 1 | – |
+| 2. Motion | – | 1 | 2 | 0 | 1 | 2 | 2 | 3 | 3 | 2 |
+| 3. Panel behavior | 3 | 1 | 1 | – | – | 2 | 2 | 2 | 1 | 2 |
+| 4. Keyboard | 1 | 2 | 1 | 1 | 0 | 2 | 2 | 2 | 2 | 1 |
+| 5. Direct manipulation | – | 2 | – | – | 0 | 1 | 2 | – | – | 0 |
+| 6. Screenshot overlay | – | – | – | – | – | 1 | – | – | – | – |
+| 7. Editor | – | – | – | – | – | – | 1 | – | – | – |
+| 8. Geometry and type | 1 | 1 | – | 2 | 1 | 1 | 2 | 2 | – | – |
+| 9. Color and materials | 2 | 1 | – | 2 | 2 | 1 | 2 | 2 | – | – |
+| 10. Every state designed | 1 | 1 | 1 | 1 | 0 | 0 | 2 | 1 | 0 | 1 |
+| 11. Words | 1 | 2 | – | 2 | 1 | 1 | 1 | 1 | 1 | 1 |
+| 12. System citizen | 2 | 1 | 2 | – | – | 1 | 1 | 1 | 1 | 1 |
+| 13. Speed | 3 | 1 | 2 | 2 | 3 | 1 | 1 | 2 | – | 1 |
+| 14. Accessibility | 2 | 0 | 2 | 1 | 1 | 1 | 1 | 2 | 2 | 2 |
+| **Total** | **18/30** | **14/36** | **12/24** | **12/27** | **9/27** | **15/39** | **21/39** | **20/33** | **11/24** | **11/27** |
+| **%** | 60% | 39% | 50% | 44% | 33% | 38% | 54% | 61% | 46% | 41% |
+
+**App total: 143/306 (47%).** Lowest: Collections (33%), Capture overlay (38%), Hub shelf (39%) and
+Share/export (41%), mostly on states, keyboard and accessibility; highest: Settings (61%) and Menu bar (60%), which
+lean on system controls. The Hub is the surface used every session and scores third from the bottom.
