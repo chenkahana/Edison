@@ -166,6 +166,16 @@ final class WindowRouter {
         NSApp.hide(nil)
     }
 
+    /// Hands focus back to the app the user was in once no Edison window is left on screen.
+    /// Hiding the app is what makes macOS reactivate the previous app.
+    func yieldFocusIfIdle() {
+        guard !hubRequestedVisible, NSApp.isActive else { return }
+        let hasVisibleWindow = NSApp.windows.contains { $0.isVisible && $0.canBecomeKey }
+        if !hasVisibleWindow {
+            NSApp.hide(nil)
+        }
+    }
+
     var isHubPresented: Bool {
         if hubWindows().contains(where: isWindowPresented(_:)) {
             return true
@@ -269,6 +279,7 @@ final class WindowRouter {
         } completionHandler: {
             window.orderOut(nil)
             window.setFrame(startFrame, display: false)
+            self.yieldFocusIfIdle()
         }
     }
 

@@ -124,10 +124,12 @@ final class CaptureCoordinator: ObservableObject {
             } else {
                 activeScreenshotSession = session
                 commitScreenshotSession(session, copyToClipboard: false)
+                windowRouter?.yieldFocusIfIdle()
             }
 
         case .cancelled:
             captureError = nil
+            windowRouter?.yieldFocusIfIdle()
         case .permissionDenied:
             screenRecordingAccessGranted = false
             lastCaptureFailureReason = "Screen Recording permission is required before Edison can capture screenshots."
