@@ -599,9 +599,25 @@ final class AppState: ObservableObject {
                 panel.directoryURL = URL(fileURLWithPath: defaultSaveFolderPath, isDirectory: true)
             }
 
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            try png.write(to: url, options: .atomic)
-            captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+            let save: (URL) -> Void = { [weak self] url in
+                Task { [weak self] in
+                    do {
+                        // Writing can be slow on network or external volumes; keep it off the main thread.
+                        try await Task.detached { try png.write(to: url, options: .atomic) }.value
+                        self?.captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+                    } catch {
+                        self?.present(error: error, title: "Save Failed")
+                    }
+                }
+            }
+            if let editorWindow = windowRouter?.editorWindow {
+                panel.beginSheetModal(for: editorWindow) { response in
+                    guard response == .OK, let url = panel.url else { return }
+                    save(url)
+                }
+            } else if panel.runModal() == .OK, let url = panel.url {
+                save(url)
+            }
         } catch {
             present(error: error, title: "Save Failed")
         }
