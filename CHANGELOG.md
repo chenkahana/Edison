@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Screenshot editor
+- The colour swatches have names (VoiceOver reads "Red, selected", and each has a tooltip) instead of all
+  reading "Colour".
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
