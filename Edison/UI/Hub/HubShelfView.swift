@@ -458,7 +458,7 @@ struct HubCardFooter: View {
                     .foregroundStyle(HubTheme.textTertiary)
                 Text(detail)
                     .font(.system(size: 12, weight: .medium).monospacedDigit())
-                    .foregroundStyle(HubTheme.textTertiary)
+                    .foregroundStyle(HubTheme.textSecondary)
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
