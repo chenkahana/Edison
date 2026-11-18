@@ -1,10 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Capture
-- Captures play the macOS screenshot sound, unless "Play user interface sound effects" is off.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
