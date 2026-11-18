@@ -1,4 +1,4 @@
-RESUME HERE: R5.1 scoring: R5-backlog.md ranked table of all findings (S1 first, then score), dedupe into backlog items B01+, mark needs Chen.
+RESUME HERE: R5.2 workstreams: group findings into W1-W9 (Boaz-compatible names), with dependency on R4 systems; then R5.3 PR slices.
 
 # Progress log (append-only)
 
@@ -34,4 +34,5 @@ RESUME HERE: R5.1 scoring: R5-backlog.md ranked table of all findings (S1 first,
 | 2026-11-18 | R4.3 layout tokens | Layout tokens: derived concentric radii (28/12/16/4), control radius 8, spacing lint rule, shelf 278 reconciled, single selection ring, hit.min 28, lighter card shadow | fec2673 |
 | 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | 89e8ff9 |
 | 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | f7368f9 |
-| 2026-11-18 | R4.6 state kit | State kit: HubEmptyState variants, InlineBanner per error kind, UndoToast with ⌘Z, CaptureHUD, ConfirmDestructive, PermissionFlow states, LargeItemPreview, menu validation; placement rules | (this commit) |
+| 2026-11-18 | R4.6 state kit | State kit: HubEmptyState variants, InlineBanner per error kind, UndoToast with ⌘Z, CaptureHUD, ConfirmDestructive, PermissionFlow states, LargeItemPreview, menu validation; placement rules | 1b711ee |
+| 2026-11-18 | R5.1 ranked findings | R5-backlog.md: 83 findings ranked S1-first then score; 34 verify-live; R0 session gate stated | (this commit) |
