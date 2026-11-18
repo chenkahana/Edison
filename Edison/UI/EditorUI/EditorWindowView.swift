@@ -98,7 +98,7 @@ private struct EditorSessionView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This screenshot has changes that haven't been copied, saved, or kept yet.")
+            Text("This screenshot has changes that haven't been copied, saved, or added to history yet.")
         }
         .onChange(of: session.id) { _, _ in
             resetTransientState()
@@ -143,18 +143,18 @@ private struct EditorSessionView: View {
 
             dragOutChip
 
-            Button("Save") {
+            Button("Save…") {
                 commitPreviewIfNeeded()
                 appState.saveActiveScreenshot()
             }
             .keyboardShortcut("s", modifiers: .command)
             .help("Save as PNG (⌘S)")
 
-            Button("Keep") {
+            Button("Add to History") {
                 commitPreviewIfNeeded()
                 appState.keepActiveScreenshot()
             }
-            .help("Keep in Edison history without copying")
+            .help("Add to Edison history without copying")
 
             Button("Copy") {
                 commitPreviewIfNeeded()
@@ -162,14 +162,14 @@ private struct EditorSessionView: View {
             }
             .keyboardShortcut("c", modifiers: .command)
             .help("Copy to clipboard (⌘C) · Copy and close (⌘↩)")
+            .buttonStyle(.borderedProminent)
+            .tint(HubTheme.accentBrand)
 
-            Button("Done") {
+            Button("Close") {
                 commitPreviewIfNeeded()
                 appState.requestEditorClose()
             }
             .keyboardShortcut(.cancelAction)
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.accentBrand)
         }
         .controlSize(.regular)
     }
