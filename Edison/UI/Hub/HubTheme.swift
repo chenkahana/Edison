@@ -84,6 +84,11 @@ enum HubTheme {
         light: NSColor(calibratedRed: 0, green: 122 / 255, blue: 1, alpha: 0.18),
         dark: NSColor(calibratedRed: 10 / 255, green: 132 / 255, blue: 1, alpha: 0.28)
     ))
+    /// The one selection ring every card and row uses, whatever the item's type colour.
+    static let selectionStroke = Color(nsColor: dynamicColor(
+        light: NSColor(calibratedRed: 0, green: 122 / 255, blue: 1, alpha: 1),
+        dark: NSColor(calibratedRed: 10 / 255, green: 132 / 255, blue: 1, alpha: 1)
+    ))
     static let cardFill = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 1, alpha: 0.18),
         dark: NSColor(calibratedWhite: 0.16, alpha: 0.22)

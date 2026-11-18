@@ -135,7 +135,7 @@ struct HubShelfCardView: View {
         .overlay(
             cardShape
                 .strokeBorder(
-                    isSelected ? accent.opacity(0.85) : HubTheme.glassStroke.opacity(isHovered ? 0.9 : 0.55),
+                    isSelected ? HubTheme.selectionStroke : HubTheme.glassStroke.opacity(isHovered ? 0.9 : 0.55),
                     lineWidth: isSelected ? 2 : 1
                 )
         )
