@@ -47,7 +47,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R4.3 Layout tokens
 - [x] R4.4 Type ramp
 - [x] R4.5 Copy rules (English String Catalog)
-- [ ] R4.6 State kit
+- [x] R4.6 State kit
 
 ### R5 Backlog
 - [ ] R5.1 Scoring

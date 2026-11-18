@@ -1,4 +1,4 @@
-RESUME HERE: R4.6 state kit: empty/no-results/empty-collection/favorites-empty/loading/permission/error/huge/unsupported; components (ContentUnavailableView, inline banner w/ action, toast w/ ⌘Z), placement rules for errors when Hub closed.
+RESUME HERE: R5.1 scoring: R5-backlog.md ranked table of all findings (S1 first, then score), dedupe into backlog items B01+, mark needs Chen.
 
 # Progress log (append-only)
 
@@ -33,4 +33,5 @@ RESUME HERE: R4.6 state kit: empty/no-results/empty-collection/favorites-empty/l
 | 2026-11-18 | R4.2 haptic map | Haptic map: editor snaps (.alignment), crop edge (.generic), collection drop target; none for keyboard/Hub list | 6eb6d4b |
 | 2026-11-18 | R4.3 layout tokens | Layout tokens: derived concentric radii (28/12/16/4), control radius 8, spacing lint rule, shelf 278 reconciled, single selection ring, hit.min 28, lighter card shadow | fec2673 |
 | 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | 89e8ff9 |
-| 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | (this commit) |
+| 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | f7368f9 |
+| 2026-11-18 | R4.6 state kit | State kit: HubEmptyState variants, InlineBanner per error kind, UndoToast with ⌘Z, CaptureHUD, ConfirmDestructive, PermissionFlow states, LargeItemPreview, menu validation; placement rules | (this commit) |

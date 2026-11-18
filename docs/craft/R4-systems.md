@@ -178,3 +178,32 @@ capture, two for pixelate (R1 "Names in use"); missing ellipses; hand-rolled plu
 | Editor exits | **Copy**, **Save…**, **Add to History** (was Keep), **Close** (was Done; discards with a prompt) | "Keep", "Done" |
 
 **Closes:** E04, E24, E42 (rename), E51, E64, E69 (copy), E75 (ellipsis), E79 (spelling), and the naming rows in R1.
+
+## R4.6 State kit
+
+**Today.** One custom empty state with two variants (`HubView.swift:243-262`), one capture-error banner that always
+offers "Screen Recording", a 4 s undo toast, app-modal `NSAlert`s for everything else, and no confirmation on any
+destructive action. Capture errors render only inside the Hub.
+
+**Components.**
+
+| Component | Built on | Variants and rules |
+|---|---|---|
+| `HubEmptyState` | `ContentUnavailableView` | **No history** ("Copy something or press ⇧⌘S to capture"), **No results** for "query" (button: Clear Search), **No favorites** (how to favorite), **Empty collection** "Name" (right-click → Collections, or drag a card here), **History paused** (button: Resume), **Loading** (spinner shown only after 300 ms, so a fast load never flashes) |
+| `InlineBanner` | Capsule on glass | One per error kind, each with its own action: permission → "Open Screen Recording Settings"; stale target → none; auto-dismiss 6 s for non-actionable kinds |
+| `UndoToast` | Capsule on glass | Message + "Undo" + "⌘Z" hint; stays while hovered; ⌘Z works while the Hub is open and on the next open within 30 s |
+| `CaptureHUD` | Non-activating `NSPanel` near the pointer | Where capture results and errors go when the Hub is closed: "Copied", "Saved to History", or the error with its action; 2 s, never takes focus |
+| `ConfirmDestructive` | `confirmationDialog` (sheet on the owning window) | States the scope with counts: "Delete 312 items and 4 collections?"; default button is Cancel; offer undo after where feasible |
+| `PermissionFlow` | Settings pane + sheet | States: not asked → priming sentence, then the system prompt; denied → "Open … Settings"; granted but needs relaunch → "Quit & Reopen"; granted. Re-checks on `NSApplication.didBecomeActiveNotification` so cards update without "Refresh Status". |
+| `LargeItemPreview` | Card content | Parse and measure only the first 8 KB, cached per item id; footer says "Large text · 2.4 MB"; Quick Look gets the full item |
+| `UnavailableAction` | Menu validation | Disable menu items that can't run (Edit Last Screenshot with none, Paste as Plain Text on an image) instead of failing silently; a beep only for keyboard paths with no menu |
+
+**Placement rules.** An error appears where the user is looking: in the Hub if the Hub is open, in `CaptureHUD`
+otherwise, and in an alert only when the user must decide something. No `runModal` from a background state; attach
+sheets to a window that has been brought forward.
+
+**Reconciliation.** The guide's "UI state map" gains the Loading, Empty-variant and Error branches; its Accessibility
+section gains "announce state changes" (`AccessibilityNotification.Announcement` for toasts and the HUD).
+
+**Closes:** E05, E16, E19, E22 (large-item half), E23, E26, E36, E37, E45 (feedback), E46, E59, E62, E65, E68, E69,
+E71, E72.
