@@ -67,6 +67,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 quit: {
                     NSApp.terminate(nil)
                 },
+                shortcuts: { [weak self] in
+                    self?.appState.shortcutStore.current ?? .default
+                },
                 checkForUpdates: checkForUpdatesAction
             )
         )

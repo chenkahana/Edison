@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Menu bar
+- The menu shows each action's shortcut, including ones you set in Settings, and uses Mac titles: Settings… and
+  Quit Edison.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
