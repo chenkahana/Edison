@@ -35,7 +35,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R2.12 Craft score table (0-3 per surface per check)
 
 ### R3 References (mechanics, not looks)
-- [ ] R3.1 Paste
+- [x] R3.1 Paste
 - [ ] R3.2 Raycast clipboard history
 - [ ] R3.3 Maccy
 - [ ] R3.4 CleanShot X
