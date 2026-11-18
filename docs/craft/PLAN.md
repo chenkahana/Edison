@@ -42,7 +42,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R3.5 macOS Shift-Cmd-5
 
 ### R4 Systems
-- [ ] R4.1 Motion tokens
+- [x] R4.1 Motion tokens
 - [ ] R4.2 Haptic map
 - [ ] R4.3 Layout tokens
 - [ ] R4.4 Type ramp
