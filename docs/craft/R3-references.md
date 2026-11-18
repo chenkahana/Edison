@@ -52,3 +52,18 @@ Raycast 2.12.1, `LSUIElement = 1` (**bundle**), running in Chen's session; not d
 | Paste | Writes the item, then posts ⌘V to the session tap with local keyboard events suppressed during the paste, and maps "V" through the current keyboard layout, including layouts that switch to QWERTY under ⌘ (`Clipboard.swift:123-149`) | Posts virtual key 9 (`kVK_ANSI_V`) to the target pid after a 120 ms wait (`PasteBackCoordinator.swift:139-149`) | Map the key through the layout (new finding E83) and suppress local keys during the paste. |
 | Ignored types | Concealed/transient/auto-generated plus user-defined types, apps and regexes (`Clipboard.swift:27,243-262`) | Concealed/transient/auto-generated only | Per-app exclusions are already 2.0 plan P1. |
 | Animation | Only a resize animation for height changes (`FloatingPanel.swift:111`) | Window-frame slide | Proof that "no window animation, instant key" reads as fast. |
+
+## R3.4 CleanShot X
+
+Not installed; all rows **known** from public behaviour and need a trial install to **measure** (needs Chen).
+
+| Mechanic | CleanShot X | Edison today | Take |
+|---|---|---|---|
+| Area cursor | Crosshair with a magnifier loupe (pixel grid) and live W×H next to the pointer; crosshair guide lines across the screen (optional) | Arrow cursor, no loupe, badge only once dragging (E41, E42) | Crosshair + loupe + live dimensions; drop the persistent instruction banner once the cursor teaches the mode. |
+| Adjusting a selection | Space while dragging moves it; after release, handles resize it, arrow keys nudge by 1 px (⇧ by 10), Return confirms | Captures on mouse-up; Space switches mode and drops the drag (E47) | Match macOS for Space/Shift/Option during the drag first; post-release handles are a later, larger slice. |
+| Freeze | Optional "freeze screen" while selecting, and the captured image is that frozen frame | Always shows a frozen snapshot, then captures a fresh frame (E48) | Capture from the frame the user saw, or don't freeze. |
+| After capture | Quick Access Overlay: a thumbnail in a screen corner with Copy, Save, Annotate, Drag, Pin and Close; it can be dragged straight into another app; swipe away to dismiss | Opens the full editor window by default, or nothing at all (E45) | A small post-capture thumbnail is the system idiom (⇧⌘5 does it too); the editor opens from it. Product change, needs Chen. |
+| Sound and feedback | Shutter sound following the system "Play sound effects" setting; optional | Silent (E45) | Play the system capture sound when sound effects are on. |
+| Window capture | Hover highlight in the system's translucent blue; adds a background/shadow option; Option toggles the shadow | Orange 3 pt stroke (E49); shadow behaviour **measure** | Use the system highlight; include the window shadow by default like macOS, ⌥ to omit. |
+| Editor | Zoom (pinch, ⌘+/⌘−), canvas pans, smart snapping guides, step counters, pixelate/blur, crop with aspect presets, "Done" copies and closes | Fit-only canvas, no guides (E57) | Zoom is the editor's largest missing mechanic. |
+| Speed | Overlay tracks the pointer at display refresh (**measure** on 120 Hz) | Per-move window-list query and full redraw (E43) | Cache the window list per session; redraw only the dirty rect. |

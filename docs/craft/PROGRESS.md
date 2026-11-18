@@ -1,4 +1,4 @@
-RESUME HERE: R3.4 CleanShot X mechanics (known; not installed): crosshair+loupe, Space-move, arrow nudge, Quick Access Overlay, freeze option, sound, editor zoom.
+RESUME HERE: R3.5 macOS Shift-Cmd-5/4 mechanics (known): crosshair coords, Space move, Shift/Option, camera cursor + blue window highlight, shadow, sound, floating thumbnail, options.
 
 # Progress log (append-only)
 
@@ -26,4 +26,5 @@ RESUME HERE: R3.4 CleanShot X mechanics (known; not installed): crosshair+loupe,
 | 2026-11-18 | R2.12 craft score table | Provisional 0-3 scores, 10 surfaces x 14 checks; app 143/306 (47%); Hub 39%, Collections 33% | 96411fa |
 | 2026-11-18 | R3.1 Paste reference | R3-references.md started: sources legend (src/bundle/known/measure), installed refs (Raycast only), Paste mechanics vs Edison + takeaways | 3511088 |
 | 2026-11-18 | R3.2 Raycast reference | Raycast clipboard history mechanics (focus return, real search field, Esc ladder, action panel, toast fallback) | 5314646 |
-| 2026-11-18 | R3.3 Maccy reference | Maccy mechanics from source (nonactivating panel, instant key, positions, reset on close, layout-mapped paste); new finding E83 added to R2 | (this commit) |
+| 2026-11-18 | R3.3 Maccy reference | Maccy mechanics from source (nonactivating panel, instant key, positions, reset on close, layout-mapped paste); new finding E83 added to R2 | 8ff449a |
+| 2026-11-18 | R3.4 CleanShot X reference | CleanShot X mechanics (loupe, selection adjust, freeze, Quick Access Overlay, sound, window highlight, editor zoom) | (this commit) |
