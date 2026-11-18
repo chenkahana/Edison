@@ -22,3 +22,19 @@ installed; their rows are **known** and need a trial install (needs Chen) to mea
 | Pinboards | Tabs in the header, assign by drag or menu, keyboard switch (**known**) | Picker + permanent name field + trash (E36–E39) | Pinboards as header tabs; "New Collection…" in a menu. |
 | Drag | Drag a card out (keeps formats) or onto a pinboard; multi-select drags (**known**) | Plain text first, no drop targets (E73, E38) | Drag offers the same representations as paste. |
 | Paste fallback | Without Accessibility, copies and tells you to press ⌘V (**known**) | Alert, retry required (E69) | Copy + one-line inline note. |
+
+## R3.2 Raycast clipboard history
+
+Raycast 2.12.1, `LSUIElement = 1` (**bundle**), running in Chen's session; not driven in this pass.
+
+| Mechanic | Raycast | Edison today | Take |
+|---|---|---|---|
+| Window | Centred floating window, appears at once with a short fade, no slide (**known**, **measure**) | Bottom shelf, frame slide | Edison's shelf is a different shape on purpose; borrow the instant key-ready appearance. |
+| Display | Setting: screen with the pointer or with the active window (**known**) | Last display (E09) | Default to the pointer's display. |
+| Focus | Takes focus while open; Esc or paste hides it and the previous app is frontmost again with its selection intact (**known**, **measure** with TextEdit selection) | Esc leaves Edison active (E07) | Every exit path returns focus: hide the app or re-activate the source. |
+| Search field | Always focused; typing, Space, ⌥-characters and input methods all work because it's a real text field (**known**) | Bridge view appends characters; Space opens Quick Look (E32, E33) | Keep the search field the first responder and route only navigation keys (arrows, Return, ⌘-keys) to the list. |
+| Esc ladder | Clears text, then leaves the sub-view, then closes (**known**) | Always closes (E15) | Same ladder. |
+| Actions | ↩ paste to the frontmost app (named in the button), ⌘↩ copy, ⌘K opens an action panel listing every action with its shortcut (**known**) | Context menu only, few shortcuts shown (E01) | One discoverable action list (context menu with every shortcut, or a ⌘K panel). |
+| Detail pane | Right-hand preview of the selected item with metadata (source app, size, date) (**known**) | Quick Look only (E27–E29) | A detail pane is optional; metadata belongs in the card's accessibility value at least. |
+| Paste fallback | Without Accessibility, copies and shows a toast saying it was copied (**known**) | Alert (E69) | Toast. |
+| Haptics | None in clipboard history (**known**) | None | No haptics in the Hub; keep them for the editor. |

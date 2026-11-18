@@ -1,4 +1,4 @@
-RESUME HERE: R3.2 Raycast clipboard history mechanics (installed 2.12.1, LSUIElement=1; do not launch/drive it - known + measure).
+RESUME HERE: R3.3 Maccy reference from source (~/tmp/codex/edison-craft/ref/maccy): nonactivating NSPanel, statusBar level, animationBehavior none, popup positions, paste event suppression + keyboard layout keycode; add E83 (kVK_ANSI_V hard-coded) to R2.
 
 # Progress log (append-only)
 
@@ -24,4 +24,5 @@ RESUME HERE: R3.2 Raycast clipboard history mechanics (installed 2.12.1, LSUIEle
 | 2026-11-18 | R2.10 share/export findings | E73-E76 share/export (drag-out types vs paste fidelity S1, share anchor/rich loss, export naming + main-thread file read, editor drag render) | bf1e339 |
 | 2026-11-18 | R2.11 accessibility findings | E77-E82 accessibility (VO selection/actions, FKA can't reach cards, swatch labels, Increase Contrast, RM/RT coverage, canvas) | 61c4dbd |
 | 2026-11-18 | R2.12 craft score table | Provisional 0-3 scores, 10 surfaces x 14 checks; app 143/306 (47%); Hub 39%, Collections 33% | 96411fa |
-| 2026-11-18 | R3.1 Paste reference | R3-references.md started: sources legend (src/bundle/known/measure), installed refs (Raycast only), Paste mechanics vs Edison + takeaways | (this commit) |
+| 2026-11-18 | R3.1 Paste reference | R3-references.md started: sources legend (src/bundle/known/measure), installed refs (Raycast only), Paste mechanics vs Edison + takeaways | 3511088 |
+| 2026-11-18 | R3.2 Raycast reference | Raycast clipboard history mechanics (focus return, real search field, Esc ladder, action panel, toast fallback) | (this commit) |
