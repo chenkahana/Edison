@@ -51,15 +51,15 @@ private struct EditorSessionView: View {
     @State private var textDraft: EditorTextDraft?
     @FocusState private var isTextFieldFocused: Bool
 
-    private static let palette: [CodableColor] = [
-        .systemRed,
-        .systemOrange,
-        CodableColor(nsColor: .systemYellow),
-        CodableColor(nsColor: .systemGreen),
-        CodableColor(nsColor: .systemBlue),
-        CodableColor(nsColor: .systemPurple),
-        CodableColor(red: 1, green: 1, blue: 1),
-        CodableColor(red: 0.08, green: 0.08, blue: 0.09)
+    private static let palette: [(name: String, color: CodableColor)] = [
+        ("Red", .systemRed),
+        ("Orange", .systemOrange),
+        ("Yellow", CodableColor(nsColor: .systemYellow)),
+        ("Green", CodableColor(nsColor: .systemGreen)),
+        ("Blue", CodableColor(nsColor: .systemBlue)),
+        ("Purple", CodableColor(nsColor: .systemPurple)),
+        ("White", CodableColor(red: 1, green: 1, blue: 1)),
+        ("Black", CodableColor(red: 0.08, green: 0.08, blue: 0.09))
     ]
 
     private var style: AnnotationStyleSettings { appState.settings.editor.defaultStyle }
@@ -213,7 +213,7 @@ private struct EditorSessionView: View {
     private var styleBar: some View {
         HStack(spacing: HubTheme.Space.x4) {
             HStack(spacing: HubTheme.Space.x2) {
-                ForEach(Self.palette, id: \.self) { color in
+                ForEach(Self.palette, id: \.name) { name, color in
                     Button {
                         apply(color: color)
                     } label: {
@@ -230,7 +230,9 @@ private struct EditorSessionView: View {
                             .padding(4)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Colour")
+                    .accessibilityLabel(name)
+                    .accessibilityAddTraits(activeColor == color ? .isSelected : [])
+                    .help(name)
                 }
             }
 
