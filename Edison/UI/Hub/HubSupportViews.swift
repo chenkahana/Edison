@@ -261,6 +261,7 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onConfirmSelection: () -> Void
     let onConfirmPlainTextSelection: () -> Void
     let onDismiss: () -> Void
+    let onCancel: () -> Void
     let onFocusSearch: () -> Void
     let onTypeSearch: (String) -> Void
     let onDeleteSearchCharacter: () -> Void
@@ -443,7 +444,7 @@ struct HubWindowAccessor: NSViewRepresentable {
                 parent.onMoveCommand(.up)
                 return true
             case 53:
-                parent.onDismiss()
+                parent.onCancel()
                 return true
             default:
                 return false
