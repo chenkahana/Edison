@@ -1,10 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- ⌘Z in the Hub undoes the last delete while its Undo toast is showing; with nothing to undo it beeps.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
