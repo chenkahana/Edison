@@ -1,4 +1,5 @@
 import AppKit
+import AudioToolbox
 import Combine
 import Foundation
 import OSLog
@@ -115,6 +116,7 @@ final class CaptureCoordinator: ObservableObject {
         let settings = currentSettings()
         switch result {
         case let .success(data, displayID, rect):
+            CaptureSound.play()
             captureError = nil
             lastCaptureFailureReason = nil
             let draft = ScreenshotDraft(
@@ -231,6 +233,22 @@ final class CaptureCoordinator: ObservableObject {
         alert.addButton(withTitle: "Not Now")
         if alert.runModal() == .alertFirstButtonReturn {
             requestScreenRecordingAccess()
+        }
+    }
+}
+
+/// The macOS screenshot sound. Played as a UI sound, so it follows "Play user interface sound effects".
+private enum CaptureSound {
+    private static let soundID: SystemSoundID? = {
+        let url = URL(fileURLWithPath: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif")
+        var soundID: SystemSoundID = 0
+        guard AudioServicesCreateSystemSoundID(url as CFURL, &soundID) == kAudioServicesNoError else { return nil }
+        return soundID
+    }()
+
+    static func play() {
+        if let soundID {
+            AudioServicesPlaySystemSound(soundID)
         }
     }
 }
