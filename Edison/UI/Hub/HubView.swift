@@ -467,7 +467,11 @@ struct HubView: View {
             appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
             return
         }
-        guard mode == .sourceFormatting else { return }
+        guard mode == .sourceFormatting else {
+            // Only text has a plain-text form; say so instead of doing nothing.
+            NSSound.beep()
+            return
+        }
         appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
     }
 
