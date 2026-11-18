@@ -1,4 +1,4 @@
-RESUME HERE: E07 PR #42 open, waiting for CI then merge; next E68 (P11).
+RESUME HERE: S1 PRs #42 #43 #44 #45 #46 open, CI queued (macOS runners); merge each when green (merge origin/main into the next to resolve CHANGELOG); next P02 (E08).
 
 # Implementation tracker
 
@@ -9,10 +9,10 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 ## S1s
 
 - [ ] E07 + E44 Esc, hotkey-close and capture-cancel give focus back (minimal `NSApp.hide` fix, not the panel redesign) — PR https://github.com/chenkahana/Edison/pull/42
-- [ ] E68 Screen Recording "Open System Settings" works after the first prompt
-- [ ] E73 Drag-out offers the same representations as paste
-- [ ] E59 Clear History confirms and states the scope
-- [ ] E83 Paste-back sends ⌘V through the current keyboard layout
+- [ ] E68 Screen Recording "Open System Settings" works after the first prompt — PR https://github.com/chenkahana/Edison/pull/43
+- [ ] E73 Drag-out offers the same representations as paste (lift not included) — PR https://github.com/chenkahana/Edison/pull/44
+- [ ] E59 Clear History confirms and states the scope (still deletes collections; keeping them is Chen's call) — PR https://github.com/chenkahana/Edison/pull/45
+- [ ] E83 Paste-back sends ⌘V through the current keyboard layout — PR https://github.com/chenkahana/Edison/pull/46
 
 ## Waiting: Chen
 
@@ -29,3 +29,7 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 ## Runtime checks owed
 
 - E07/E44: F1 (Esc, ⇧⌘V close → typing goes to the source app), F6 (Esc during capture).
+- E68: F9 with Screen Recording revoked: capture → alert → Open System Settings opens the pane.
+- E73: F5 drag rich text into TextEdit (keeps formatting), image into Notes/Finder, file into Finder.
+- E59: F8 Clear History… shows counts; Cancel keeps everything.
+- E83: paste-back with the Dvorak layout selected pastes (lookup verified offline: Dvorak → key 47).
