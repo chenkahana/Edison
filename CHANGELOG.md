@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
+  on white instead of 2.7:1.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
