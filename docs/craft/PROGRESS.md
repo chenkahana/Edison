@@ -1,4 +1,4 @@
-RESUME HERE: R4.2 haptic map (editor only: NSHapticFeedbackManager .alignment on 45-deg/square snap, crop square, guide snap; .levelChange on size step; none in Hub).
+RESUME HERE: R4.3 layout tokens (radius concentric rule, spacing scale, shelf height 278 vs guide 240, card sizes, selection ring).
 
 # Progress log (append-only)
 
@@ -29,4 +29,5 @@ RESUME HERE: R4.2 haptic map (editor only: NSHapticFeedbackManager .alignment on
 | 2026-11-18 | R3.3 Maccy reference | Maccy mechanics from source (nonactivating panel, instant key, positions, reset on close, layout-mapped paste); new finding E83 added to R2 | 8ff449a |
 | 2026-11-18 | R3.4 CleanShot X reference | CleanShot X mechanics (loupe, selection adjust, freeze, Quick Access Overlay, sound, window highlight, editor zoom) | 76bfb51 |
 | 2026-11-18 | R3.5 macOS screenshot reference | macOS Shift-Cmd-3/4/5 mechanics vs Edison overlay (cursor, drag modifiers, window mode, cancel focus, sound+thumbnail, multi-display) | 87e978e |
-| 2026-11-18 | R4.1 motion tokens | R4-systems.md started: 4 motion tokens (quick/standard/emphasized/gesture), content-not-window rule, Reduce Motion resolver, call-site map, style guide reconciliation | (this commit) |
+| 2026-11-18 | R4.1 motion tokens | R4-systems.md started: 4 motion tokens (quick/standard/emphasized/gesture), content-not-window rule, Reduce Motion resolver, call-site map, style guide reconciliation | ac7babf |
+| 2026-11-18 | R4.2 haptic map | Haptic map: editor snaps (.alignment), crop edge (.generic), collection drop target; none for keyboard/Hub list | (this commit) |

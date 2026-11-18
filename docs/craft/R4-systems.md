@@ -49,3 +49,27 @@ Rules:
 use" mapping (hover/focus → `quick`, open/close → `standard`, preview and drag lift → `emphasized`).
 
 **Closes:** E08, E11, E12, E81 (Reduce Motion half), drag-lift half of E73.
+
+## R4.2 Haptic map
+
+**Today.** None (`NSHapticFeedbackManager` unused). Mac haptics only fire on a Force Touch trackpad and only while
+the pointer is driving a drag, so they belong to direct manipulation, never to keyboard actions or the Hub list.
+
+**Proposal.** One helper, `Haptics.perform(_ pattern: NSHapticFeedbackManager.FeedbackPattern)`, called with
+`performanceTime: .now`, fired only on the transition into a snapped state (never repeatedly while it stays
+snapped).
+
+| Moment | Surface | Pattern |
+|---|---|---|
+| Line/arrow snaps to a 45° step while Shift is held | Editor | `.alignment` |
+| Rectangle/ellipse/crop becomes square/circle under Shift | Editor | `.alignment` |
+| Annotation edge or centre aligns with another annotation or the image centre (once snapping guides exist) | Editor | `.alignment` |
+| Crop handle reaches the image edge | Editor | `.generic` |
+| Size preset steps with ⌘[ / ⌘] | Editor | none (keyboard) |
+| Area selection snaps to a window edge (if magnetic edges are built) | Capture overlay | `.alignment` |
+| Card dragged over a collection drop target (once E38 lands) | Hub | `.generic` on enter |
+| Selection, paste, delete, search | Hub | none |
+
+**Reconciliation.** The style guide has no haptics section; add this table under "Interaction model".
+
+**Closes:** E54 (and gives E38 its feedback).
