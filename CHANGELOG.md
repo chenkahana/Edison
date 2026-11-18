@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Settings
-- Restore All Defaults… asks first, and says when going back to the default history limit (250) deletes your
-  oldest items.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
