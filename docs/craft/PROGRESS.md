@@ -1,4 +1,4 @@
-RESUME HERE: R2.2 Hub shelf findings (summon/focus/panel/motion/selection/cards/geometry/perf) appended to R2-findings.md as E07+.
+RESUME HERE: R2.3 detail pane / Quick Look findings (E27+): no in-Hub detail pane, QL for rich text shows .txt, QL vs resign-key dismiss.
 
 # Progress log (append-only)
 
@@ -12,4 +12,5 @@ RESUME HERE: R2.2 Hub shelf findings (summon/focus/panel/motion/selection/cards/
 | 2026-11-18 | R0.5 Instruments trace plan | xctrace commands T1-T5 + existing signposts + 8 code-traced hotspots; traces need Chen session | 24cb635 |
 | 2026-11-18 | R0.6 baseline summary | R0-baseline.md summary: what ran, what needs Chen, six strongest predictions | cf221d7 |
 | 2026-11-18 | R1.1 inventory | R1-inventory.md: 11 surfaces, states + missing states, entry/exit motion, keyboard maps (Hub, overlay, editor, global), naming conflicts | df1ee75 |
-| 2026-11-18 | R2.1 menu bar findings | R2-findings.md started: format + scoring (S1=4..S4=1, E/D/O/R=4..1, S/M/L=1/2/4); E01-E06 menu bar item | (this commit) |
+| 2026-11-18 | R2.1 menu bar findings | R2-findings.md started: format + scoring (S1=4..S4=1, E/D/O/R=4..1, S/M/L=1/2/4); E01-E06 menu bar item | be1c5f9 |
+| 2026-11-18 | R2.2 Hub shelf findings | E07-E26 Hub shelf (Esc focus return S1, type-ahead loss, wrong display, selection colour, contrast, motion, perf) | (this commit) |
