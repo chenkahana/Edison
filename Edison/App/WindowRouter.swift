@@ -241,14 +241,13 @@ final class WindowRouter {
         startFrame.origin.y = screen.visibleFrame.minY - finalFrame.height
 
         window.setFrame(startFrame, display: false)
-        window.orderFront(nil)
+        // Key from the first frame, so keys typed while the shelf slides in reach search.
+        window.makeKeyAndOrderFront(nil)
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.20
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(finalFrame, display: true)
-        } completionHandler: {
-            window.makeKeyAndOrderFront(nil)
         }
     }
 

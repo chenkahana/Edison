@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Keys typed right after ⇧⌘V reach search. The Hub only took keys once its 0.2 s slide-in finished, so the first
+  letters were lost.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
