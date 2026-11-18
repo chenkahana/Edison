@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- The selected card or row has the same blue ring whatever the item is. It used to take the item's type colour,
+  which changed from card to card and could vanish on white or grey items.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
