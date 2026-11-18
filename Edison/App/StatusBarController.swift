@@ -8,7 +8,9 @@ final class StatusBarController: NSObject {
         let captureWindow: () -> Void
         let captureFullScreen: () -> Void
         let capturePreviousArea: () -> Void
+        let canCapturePreviousArea: () -> Bool
         let editLastScreenshot: () -> Void
+        let canEditLastScreenshot: () -> Bool
         let toggleHistoryPause: () -> Void
         let openSettings: () -> Void
         let quit: () -> Void
@@ -114,5 +116,19 @@ final class StatusBarController: NSObject {
 
     @objc private func quit() {
         actions.quit()
+    }
+}
+
+extension StatusBarController: NSMenuItemValidation {
+    /// Items with nothing to act on are disabled instead of failing silently.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(capturePreviousArea):
+            actions.canCapturePreviousArea()
+        case #selector(editLastScreenshot):
+            actions.canEditLastScreenshot()
+        default:
+            true
+        }
     }
 }

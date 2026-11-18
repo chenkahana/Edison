@@ -23,8 +23,14 @@ final class CaptureEngine {
     private var selectionSession: RegionSelectionSession?
     private var lastAreaByDisplay: [CGDirectDisplayID: CGRect] = [:]
 
-    var hasPreviousArea: Bool {
-        !lastAreaByDisplay.isEmpty
+    /// The remembered area Capture Previous Area reuses: the one for the display under the pointer.
+    func previousArea(settings: AppSettings) -> (rect: CGRect, displayID: CGDirectDisplayID)? {
+        guard settings.capture.rememberLastArea,
+              let displayID = displayIDForCurrentPointer() ?? lastAreaByDisplay.keys.first,
+              let rect = lastAreaByDisplay[displayID] else {
+            return nil
+        }
+        return (rect, displayID)
     }
 
     func capture(_ request: CaptureRequest, settings: AppSettings) async -> CaptureResult {
@@ -48,12 +54,10 @@ final class CaptureEngine {
             }
             return await captureDisplay(displayID: displayID)
         case .previousArea:
-            guard settings.capture.rememberLastArea,
-                  let displayID = displayIDForCurrentPointer() ?? lastAreaByDisplay.keys.first,
-                  let rect = lastAreaByDisplay[displayID] else {
+            guard let previous = previousArea(settings: settings) else {
                 return .failure("No previous capture area is available yet.")
             }
-            return await captureArea(rect, displayID: displayID)
+            return await captureArea(previous.rect, displayID: previous.displayID)
         }
     }
 

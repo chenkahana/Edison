@@ -101,6 +101,10 @@ final class CaptureCoordinator: ObservableObject {
 
     // MARK: - Capture
 
+    var canCapturePreviousArea: Bool {
+        captureEngine.previousArea(settings: currentSettings()) != nil
+    }
+
     func startCapture(_ request: CaptureRequest) async {
         screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
         let result = await captureEngine.capture(request, settings: currentSettings())
