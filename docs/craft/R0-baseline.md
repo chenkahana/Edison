@@ -102,3 +102,39 @@ Script (Chen session), recording both displays:
 | D5 | Window mode on B, hover windows on A and B quickly. | Highlight follows via a global mouse monitor plus `Task` hop (`CaptureEngine.swift:357-362`); check lag on the non-key display. |
 | D6 | Unplug/replug B while the Hub is open, then ⇧⌘V. | Shelf frame is re-applied on each open (`WindowRouter.swift:73`), so it should recover; confirm no off-screen shelf. |
 | D7 | Retina (lid open): capture an area, paste into Preview, check pixel size. | `pointPixelScale(for:)` (`CaptureEngine.swift:196`) should give 2× pixels on Retina and 1× on the Dells. |
+
+## R0.5 Instruments traces
+
+Status: **traces pending a Chen session** (they need the Hub driven by hand). Edison already emits signposts on
+`com.chenkahana.Edison` / Points of Interest via `Log.performance` (`Core/Log.swift:12`): `Hub Toggle`
+(`AppState.swift:652`), `Search Filter` (`AppState.swift:59`), `Capture` (`CaptureEngine.swift:32`) and
+`History Load` (`HistoryStore.swift:36`). Add the Points of Interest instrument to every trace so these line up
+with hitches.
+
+```sh
+mkdir -p ~/tmp/codex/edison-craft/trace
+APP='Edison - Clipboard Manager'
+# T1 Hub summon: press ⇧⌘V / Esc ten times during the 20 s
+xcrun xctrace record --template 'Animation Hitches' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t1-hub-summon.trace
+# T2 Scroll: open Hub with ≥250 items, scroll the shelf end to end with the trackpad, then arrow-key through 50 cards
+xcrun xctrace record --template 'Animation Hitches' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t2-scroll.trace
+# T3 Search: ⌘F, type 20 characters at normal speed, delete them
+xcrun xctrace record --template 'Time Profiler' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t3-search.trace
+# T4 Capture: ⇧⌘S, move the pointer in circles 5 s, drag an area, wait for the editor
+xcrun xctrace record --template 'Time Profiler' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t4-capture.trace
+# T5 Memory: Allocations while opening the Hub and scrolling 250 items three times
+xcrun xctrace record --template 'Allocations' --attach "$APP" --time-limit 30s --output ~/tmp/codex/edison-craft/trace/t5-memory.trace
+```
+
+Hotspots to look for (from the code, so the trace confirms or clears each one):
+
+| Trace | Suspect | Why |
+|---|---|---|
+| T1 | Window becomes key only after the 200 ms slide | `WindowRouter.swift:250-252` |
+| T2 | Two blurred shadows per card (radius 10 and 28) over a behind-window material | `HubShelfView.swift:147-148` |
+| T2 | A file-system `resourceValues` stat for every visible thumbnail on every render | `HubShelfView.swift:391-401` |
+| T2/T3 | JSON and Markdown parsing of the full text in every card's initializer on every render | `HubSupportViews.swift:87-92`, `HubView.swift:525-539` |
+| T2/T3 | `text.count` and a full `split("\n")` per text card per render | `HubShelfView.swift:475-478` |
+| T3 | `filteredItems` is computed, read several times per `HubView` render (`items`, `selectedItem`, `onChange(of: items.map(\.id))`), each a full `localizedCaseInsensitiveContains` pass | `AppState.swift:58-72`, `HubView.swift:44-57,170`, `HistorySearchEngine.swift:100-107`. Count `Search Filter` intervals per keystroke. |
+| T4 | `CGWindowListCopyWindowInfo` plus a full-display snapshot redraw on every overlay for every mouse move | `CaptureEngine.swift:439-449,460-484,537-547` |
+| T4 | Synchronous main-thread file reads for export and image open | `AppState.swift:534,736-741` |
