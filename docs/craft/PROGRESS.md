@@ -1,4 +1,4 @@
-RESUME HERE: R2.8 settings findings (E59+): unconfirmed Clear History / Restore All Defaults, pane not remembered, oversized split view, main-thread storage walk, Blur Strength naming, version 2.0 vs 2.1, shortcut defaults ⇧⌘S.
+RESUME HERE: R2.9 onboarding/permissions findings (E68+): no first run, Screen Recording alert button, no relaunch handling, AX alert requires retry.
 
 # Progress log (append-only)
 
@@ -18,4 +18,5 @@ RESUME HERE: R2.8 settings findings (E59+): unconfirmed Clear History / Restore 
 | 2026-11-18 | R2.4 search findings | E31-E35 search (query never resets, space blocked, IME/option chars, repeated filtering, no highlights) | 9f1a62c |
 | 2026-11-18 | R2.5 collections findings | E36-E40 collections (unconfirmed delete, wrong empty state, no drop targets, mouse-only, menu check marks) | 7f235ce |
 | 2026-11-18 | R2.6 capture overlay findings | E41-E50 capture overlay (no crosshair, phantom magnifier setting, per-move window list + full redraw, focus after Esc, silent capture, hidden errors) | 9f301ce |
-| 2026-11-18 | R2.7 editor findings | E51-E58 editor (Done can discard, no menu bar, cursors, no haptics, app-modal save, main-thread render, no zoom, nudge undo) | (this commit) |
+| 2026-11-18 | R2.7 editor findings | E51-E58 editor (Done can discard, no menu bar, cursors, no haptics, app-modal save, main-thread render, no zoom, nudge undo) | 094f14b |
+| 2026-11-18 | R2.8 settings findings | E59-E67 settings (unconfirmed Clear History S1, hotkey collisions, dead toggle, stale permissions, main-thread storage walk, copy drift) | (this commit) |

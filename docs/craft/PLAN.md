@@ -28,7 +28,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R2.5 Collections
 - [x] R2.6 Capture overlay
 - [x] R2.7 Editor
-- [ ] R2.8 Settings
+- [x] R2.8 Settings
 - [ ] R2.9 Onboarding / permissions
 - [ ] R2.10 Share / export
 - [ ] R2.11 Accessibility passes (VoiceOver, Full Keyboard Access, Reduce Motion, Reduce Transparency, Increase Contrast)
