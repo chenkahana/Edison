@@ -1,4 +1,4 @@
-RESUME HERE: R4.4 type ramp: map 35 fixed .system(size:) to text styles; reconcile guide ramp (12/10) vs code (14/12/17); tabular digits list.
+RESUME HERE: R4.5 copy rules: English String Catalog (Localizable.xcstrings, en only), title/sentence case, ellipsis, one name per concept glossary (Hub, Area, Pixelate, Favorite), FormatStyle + plural rules, error/permission copy patterns.
 
 # Progress log (append-only)
 
@@ -31,4 +31,5 @@ RESUME HERE: R4.4 type ramp: map 35 fixed .system(size:) to text styles; reconci
 | 2026-11-18 | R3.5 macOS screenshot reference | macOS Shift-Cmd-3/4/5 mechanics vs Edison overlay (cursor, drag modifiers, window mode, cancel focus, sound+thumbnail, multi-display) | 87e978e |
 | 2026-11-18 | R4.1 motion tokens | R4-systems.md started: 4 motion tokens (quick/standard/emphasized/gesture), content-not-window rule, Reduce Motion resolver, call-site map, style guide reconciliation | ac7babf |
 | 2026-11-18 | R4.2 haptic map | Haptic map: editor snaps (.alignment), crop edge (.generic), collection drop target; none for keyboard/Hub list | 6eb6d4b |
-| 2026-11-18 | R4.3 layout tokens | Layout tokens: derived concentric radii (28/12/16/4), control radius 8, spacing lint rule, shelf 278 reconciled, single selection ring, hit.min 28, lighter card shadow | (this commit) |
+| 2026-11-18 | R4.3 layout tokens | Layout tokens: derived concentric radii (28/12/16/4), control radius 8, spacing lint rule, shelf 278 reconciled, single selection ring, hit.min 28, lighter card shadow | fec2673 |
+| 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | (this commit) |

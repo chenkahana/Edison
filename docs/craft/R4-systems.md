@@ -104,3 +104,38 @@ rule and `selection.ring` under "Radii", and replace the card shadow line with `
 
 **Closes:** E10, E21 (geometry half), E49 (highlight radius), part of E22 and E20 (header layout once the composer
 moves to a menu).
+
+## R4.4 Type ramp
+
+**Today.** 35 `.font(.system(size:))` calls (R0.2). Cards use 14 pt medium body, 17 pt bold link host, 12 pt semibold
+header and footer, 11.5 pt monospaced code; the empty state 18/13; the capture overlay draws 13/11 pt
+`NSFont.systemFont`. The guide's ramp is 13 shelf title / 12 card body / 10 meta / 10 key hint / 13 search. Neither
+uses text styles, so nothing follows the system's text-size settings.
+
+**Proposal.** Text styles only (macOS sizes in brackets), with `.monospacedDigit()` on anything that counts.
+
+| Role | Style | Replaces |
+|---|---|---|
+| Search text | `.body` (13) | `HubHeaderView.swift:77` |
+| Card body text | `.body` (13) | 14 medium `HubShelfView.swift:267`, list 13 |
+| Link host | `.title3.weight(.semibold)` (15) | 17 bold `HubShelfView.swift:274` |
+| Link path, file folder | `.callout` (12), secondary | 12 / 11 |
+| Code and JSON preview | `.callout.monospaced()` (12) | 11.5 and `fontSize − 1` |
+| Card header (type name) | `.subheadline.weight(.semibold)` (11) | 12 semibold `HubShelfView.swift:212` |
+| Card footer metadata | `.caption.monospacedDigit()` (10), `textSecondary` | 12 semibold / tertiary `HubShelfView.swift:450-458` (also fixes E17) |
+| Quick-paste badge | `.callout.weight(.bold).monospacedDigit()`, rounded | 12 rounded bold |
+| Empty-state title / body | `ContentUnavailableView` (system) | 18 / 13 `HubView.swift:249,257` |
+| Toast and banner | `.callout` (12) | 12 medium |
+| Editor dimensions, zoom | `.caption.monospacedDigit()` | 11 `EditorWindowView.swift:276,402` |
+| Capture overlay hint and W×H | `NSFont.preferredFont(forTextStyle: .subheadline)`, `monospacedDigitSystemFont` for numbers | 13/11 `CaptureEngine.swift:584-623` |
+
+**Truncation.** Text: tail. File names: middle (keeps the extension). Folder paths: head (already). Link hosts:
+middle, so `docs.github.com` keeps its registrable end. Collection names: tail.
+
+**Tabular digits.** Timestamps, character and line counts, image dimensions (card, overlay badge, editor), quick-paste
+numbers, storage size, history limit.
+
+**Reconciliation.** Replace the guide's size table with the role → text style table; keep SF Pro/SF Mono and the
+SF Symbols rule.
+
+**Closes:** E21 (type half), E17 (with `textSecondary` for metadata), E24 (digits), part of E49.
