@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Empty Favorites and empty collections say so and how to fill them. Before, empty Favorites said "No History
+  Yet" and a new collection said "No Matching Items".
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates

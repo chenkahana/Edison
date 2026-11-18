@@ -56,10 +56,23 @@ struct HubView: View {
         return items.first
     }
 
-    private var isFilteringActive: Bool {
-        !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// Title and message for the empty Hub, naming what is actually empty.
+    private var emptyStateCopy: (title: String, message: String) {
+        let isSearching = !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || appState.selectedTypeFilter != .all
-            || appState.selectedCollectionID != nil
+        if isSearching {
+            return ("No Matching Items", "Try a different search or type filter.")
+        }
+        if let collection = appState.collections.first(where: { $0.id == appState.selectedCollectionID }) {
+            return (
+                "“\(collection.name)” Is Empty",
+                "Right-click an item and choose Collections to add it here."
+            )
+        }
+        if filter == .favorites {
+            return ("No Favorites Yet", "Right-click an item and choose Add Favorite to keep it here.")
+        }
+        return ("No History Yet", "Copy text, images, or files — or capture a screenshot — to start building the shelf.")
     }
 
     private var gridColumnCount: Int {
@@ -242,18 +255,11 @@ struct HubView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
-            Label(
-                isFilteringActive ? "No Matching Items" : "No History Yet",
-                systemImage: "doc.on.clipboard"
-            )
+            Label(emptyStateCopy.title, systemImage: "doc.on.clipboard")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(HubTheme.textPrimary)
 
-            Text(
-                isFilteringActive
-                    ? "Try a different search query, collection, or type filter."
-                    : "Copy text, images, or files — or capture a screenshot — to start building the shelf."
-            )
+            Text(emptyStateCopy.message)
             .font(.system(size: 13))
             .foregroundStyle(HubTheme.textSecondary)
         }
