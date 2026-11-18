@@ -46,6 +46,7 @@ final class AppState: ObservableObject {
 
     var activeScreenshotSession: ScreenshotSession? { captureCoordinator.activeScreenshotSession }
     var lastScreenshotSession: ScreenshotSession? { captureCoordinator.lastScreenshotSession }
+    var canCapturePreviousArea: Bool { captureCoordinator.canCapturePreviousArea }
     var captureError: String? {
         get { captureCoordinator.captureError }
         set { captureCoordinator.captureError = newValue }
@@ -208,6 +209,9 @@ final class AppState: ObservableObject {
         }
         captureCoordinator.presentError = { [weak self] error, title in
             self?.present(error: error, title: title)
+        }
+        captureCoordinator.requestScreenRecordingAccess = { [weak self] in
+            self?.requestScreenRecordingAccess()
         }
 
         // Forward both coordinators' objectWillChange into AppState's objectWillChange
@@ -421,6 +425,10 @@ final class AppState: ObservableObject {
         clipboardCoordinator.undoDelete()
     }
 
+    func dragItemProvider(for item: ClipboardItem) -> NSItemProvider {
+        clipboardCoordinator.dragItemProvider(for: item)
+    }
+
     func copyToClipboard(itemID: UUID) {
         guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
         _ = clipboardCoordinator.writeItemToClipboard(item)
@@ -447,9 +455,11 @@ final class AppState: ObservableObject {
     }
 
     func clearHistory() {
+        // Collections are kept, emptied; only the items go.
+        for index in collections.indices {
+            collections[index].itemIDs.removeAll()
+        }
         clipboardCoordinator.clearHistory()
-        collections.removeAll()
-        selectedCollectionID = nil
     }
 
     func exportItem(itemID: UUID) {
@@ -591,9 +601,25 @@ final class AppState: ObservableObject {
                 panel.directoryURL = URL(fileURLWithPath: defaultSaveFolderPath, isDirectory: true)
             }
 
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            try png.write(to: url, options: .atomic)
-            captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+            let save: (URL) -> Void = { [weak self] url in
+                Task { [weak self] in
+                    do {
+                        // Writing can be slow on network or external volumes; keep it off the main thread.
+                        try await Task.detached { try png.write(to: url, options: .atomic) }.value
+                        self?.captureCoordinator.commitScreenshotSession(activeScreenshotSession, copyToClipboard: false)
+                    } catch {
+                        self?.present(error: error, title: "Save Failed")
+                    }
+                }
+            }
+            if let editorWindow = windowRouter?.editorWindow {
+                panel.beginSheetModal(for: editorWindow) { response in
+                    guard response == .OK, let url = panel.url else { return }
+                    save(url)
+                }
+            } else if panel.runModal() == .OK, let url = panel.url {
+                save(url)
+            }
         } catch {
             present(error: error, title: "Save Failed")
         }
@@ -726,32 +752,47 @@ final class AppState: ObservableObject {
         await captureCoordinator.startCapture(request)
     }
 
+    private enum ExportSource {
+        case data(Data)
+        case file(URL)
+    }
+
+    /// Text and images are named like captures, after the item's date; a file keeps its name and is copied as is.
     private func makeExportPayload(
         for item: ClipboardItem
-    ) throws -> (data: Data, defaultFileName: String, contentType: UTType) {
+    ) throws -> (source: ExportSource, defaultFileName: String, contentType: UTType) {
+        let baseName = settings.defaultFileName(at: item.createdAt)
         switch item.payload {
         case let .text(value):
             guard let data = value.data(using: .utf8) else {
                 throw CocoaError(.fileWriteInapplicableStringEncoding)
             }
-            return (data, "edison-export.txt", .plainText)
+            return (.data(data), "\(baseName).txt", .plainText)
         case let .image(image):
             let data = try ImageStore.load(relativePath: image.imagePath)
-            return (data, "edison-image.png", .png)
+            return (.data(data), "\(baseName).png", .png)
         case let .fileURL(url):
-            let data = try Data(contentsOf: url)
-            let filename = url.lastPathComponent.isEmpty ? "edison-file" : url.lastPathComponent
+            let filename = url.lastPathComponent.isEmpty ? baseName : url.lastPathComponent
             let contentType = UTType(filenameExtension: url.pathExtension) ?? .data
-            return (data, filename, contentType)
+            return (.file(url), filename, contentType)
         }
     }
 
     private func writeExportPayload(
-        _ payload: (data: Data, defaultFileName: String, contentType: UTType),
+        _ payload: (source: ExportSource, defaultFileName: String, contentType: UTType),
         to url: URL
     ) {
         do {
-            try payload.data.write(to: url, options: .atomic)
+            switch payload.source {
+            case let .data(data):
+                try data.write(to: url, options: .atomic)
+            case let .file(sourceURL):
+                // The save panel has already confirmed replacing an existing file.
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try FileManager.default.removeItem(at: url)
+                }
+                try FileManager.default.copyItem(at: sourceURL, to: url)
+            }
         } catch {
             present(error: error, title: "Export Failed")
         }

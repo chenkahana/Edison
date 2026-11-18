@@ -1,4 +1,5 @@
 import AppKit
+import AudioToolbox
 import Combine
 import Foundation
 import OSLog
@@ -59,6 +60,9 @@ final class CaptureCoordinator: ObservableObject {
     /// Called to present an NSAlert for errors.
     var presentError: (Error, String) -> Void
 
+    /// Called when the user asks for Screen Recording access: prompts and opens the System Settings pane.
+    var requestScreenRecordingAccess: () -> Void
+
     // MARK: - Init
 
     init(
@@ -72,7 +76,8 @@ final class CaptureCoordinator: ObservableObject {
         promoteItemToFront: @escaping (UUID) -> Void = { _ in },
         currentSettings: @escaping () -> AppSettings = { .default },
         closeEditor: @escaping () -> Void = {},
-        presentError: @escaping (Error, String) -> Void = { _, _ in }
+        presentError: @escaping (Error, String) -> Void = { _, _ in },
+        requestScreenRecordingAccess: @escaping () -> Void = {}
     ) {
         self.captureEngine = captureEngine
         self.imageStore = imageStore
@@ -85,6 +90,7 @@ final class CaptureCoordinator: ObservableObject {
         self.currentSettings = currentSettings
         self.closeEditor = closeEditor
         self.presentError = presentError
+        self.requestScreenRecordingAccess = requestScreenRecordingAccess
         self.screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
     }
 
@@ -96,6 +102,10 @@ final class CaptureCoordinator: ObservableObject {
 
     // MARK: - Capture
 
+    var canCapturePreviousArea: Bool {
+        captureEngine.previousArea(settings: currentSettings()) != nil
+    }
+
     func startCapture(_ request: CaptureRequest) async {
         screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
         let result = await captureEngine.capture(request, settings: currentSettings())
@@ -106,6 +116,7 @@ final class CaptureCoordinator: ObservableObject {
         let settings = currentSettings()
         switch result {
         case let .success(data, displayID, rect):
+            CaptureSound.play()
             captureError = nil
             lastCaptureFailureReason = nil
             let draft = ScreenshotDraft(
@@ -221,8 +232,23 @@ final class CaptureCoordinator: ObservableObject {
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Not Now")
         if alert.runModal() == .alertFirstButtonReturn {
-            _ = captureEngine.requestScreenRecordingPermission()
-            screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
+            requestScreenRecordingAccess()
+        }
+    }
+}
+
+/// The macOS screenshot sound. Played as a UI sound, so it follows "Play user interface sound effects".
+private enum CaptureSound {
+    private static let soundID: SystemSoundID? = {
+        let url = URL(fileURLWithPath: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif")
+        var soundID: SystemSoundID = 0
+        guard AudioServicesCreateSystemSoundID(url as CFURL, &soundID) == kAudioServicesNoError else { return nil }
+        return soundID
+    }()
+
+    static func play() {
+        if let soundID {
+            AudioServicesPlaySystemSound(soundID)
         }
     }
 }

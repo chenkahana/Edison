@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Foundation
 import OSLog
+import UniformTypeIdentifiers
 
 enum ClipboardWriteMode: Equatable {
     case sourceFormatting
@@ -165,8 +166,34 @@ final class ClipboardCoordinator: ObservableObject {
         value: String,
         to pasteboard: NSPasteboard
     ) -> Bool {
-        guard let textRepresentations = item.textRepresentations else {
+        guard item.textRepresentations != nil else {
             return pasteboard.setString(value, forType: .string)
+        }
+
+        let pasteboardItem = NSPasteboardItem()
+        var wroteString = false
+        for (type, data) in sourceFormattedRepresentations(of: item, value: value) {
+            if pasteboardItem.setData(data, forType: type) {
+                wroteString = wroteString || type == .string
+            } else {
+                Log.store.error(
+                    "ClipboardCoordinator: pasteboard rejected representation \(type.rawValue, privacy: .public)"
+                )
+            }
+        }
+        guard wroteString else { return false }
+        return pasteboard.writeObjects([pasteboardItem])
+    }
+
+    /// The types and bytes a normal paste writes for a text item, in pasteboard order: the stored plain text and
+    /// rich representations in the order the source app declared them, plain text last if its bytes don't match.
+    private func sourceFormattedRepresentations(
+        of item: ClipboardItem,
+        value: String
+    ) -> [(NSPasteboard.PasteboardType, Data)] {
+        let plainText = Data(value.utf8)
+        guard let textRepresentations = item.textRepresentations else {
+            return [(.string, plainText)]
         }
 
         let richTypeIdentifiers = Set([
@@ -178,15 +205,16 @@ final class ClipboardCoordinator: ObservableObject {
             textRepresentations.storedRepresentations.map { ($0.typeIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let pasteboardItem = NSPasteboardItem()
-        var wroteString = false
+        var representations: [(NSPasteboard.PasteboardType, Data)] = []
+        var hasString = false
 
         for typeIdentifier in textRepresentations.declaredTypeIdentifiers {
             if typeIdentifier == NSPasteboard.PasteboardType.string.rawValue {
                 if let descriptor = descriptorsByType[typeIdentifier],
                    let data = try? representationStore.load(descriptor),
-                   data == Data(value.utf8) {
-                    wroteString = pasteboardItem.setData(data, forType: .string)
+                   data == plainText {
+                    representations.append((.string, data))
+                    hasString = true
                 }
                 continue
             }
@@ -195,11 +223,7 @@ final class ClipboardCoordinator: ObservableObject {
                   let descriptor = descriptorsByType[typeIdentifier] else { continue }
             do {
                 let data = try representationStore.load(descriptor)
-                if !pasteboardItem.setData(data, forType: NSPasteboard.PasteboardType(typeIdentifier)) {
-                    Log.store.error(
-                        "ClipboardCoordinator: pasteboard rejected representation \(typeIdentifier, privacy: .public)"
-                    )
-                }
+                representations.append((NSPasteboard.PasteboardType(typeIdentifier), data))
             } catch {
                 Log.store.error(
                     "ClipboardCoordinator: skipped unavailable representation \(typeIdentifier, privacy: .public)"
@@ -207,11 +231,39 @@ final class ClipboardCoordinator: ObservableObject {
             }
         }
 
-        if !wroteString {
-            wroteString = pasteboardItem.setString(value, forType: .string)
+        if !hasString {
+            representations.append((.string, plainText))
         }
-        guard wroteString else { return false }
-        return pasteboard.writeObjects([pasteboardItem])
+        return representations
+    }
+
+    /// What a card offers when it is dragged out of the Hub: the same representations a normal paste writes.
+    func dragItemProvider(for item: ClipboardItem) -> NSItemProvider {
+        switch item.payload {
+        case let .text(value):
+            let provider = NSItemProvider()
+            for (type, data) in sourceFormattedRepresentations(of: item, value: value) {
+                provider.registerDataRepresentation(forTypeIdentifier: type.rawValue, visibility: .all) { completion in
+                    completion(data, nil)
+                    return nil
+                }
+            }
+            return provider
+        case let .image(image):
+            let provider = NSItemProvider()
+            let imagePath = image.imagePath
+            provider.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
+                do {
+                    completion(try ImageStore.load(relativePath: imagePath), nil)
+                } catch {
+                    completion(nil, error)
+                }
+                return nil
+            }
+            return provider
+        case let .fileURL(url):
+            return NSItemProvider(object: url as NSURL)
+        }
     }
 
     /// Suppresses a payload without writing to the pasteboard (used by

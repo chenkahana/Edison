@@ -37,6 +37,7 @@ struct HubView: View {
     @State private var contentWidth: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
     @State private var showQuickLook = false
+    @State private var quickLookFileURL: URL?
     @State private var hubOpenSequence = 0
     @State private var showAccessibilityAlert = false
     @State private var showsQuickPasteBadges = false
@@ -56,10 +57,23 @@ struct HubView: View {
         return items.first
     }
 
-    private var isFilteringActive: Bool {
-        !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// Title and message for the empty Hub, naming what is actually empty.
+    private var emptyStateCopy: (title: String, message: String) {
+        let isSearching = !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || appState.selectedTypeFilter != .all
-            || appState.selectedCollectionID != nil
+        if isSearching {
+            return ("No Matching Items", "Try a different search or type filter.")
+        }
+        if let collection = appState.collections.first(where: { $0.id == appState.selectedCollectionID }) {
+            return (
+                "“\(collection.name)” Is Empty",
+                "Right-click an item and choose Collections to add it here."
+            )
+        }
+        if filter == .favorites {
+            return ("No Favorites Yet", "Right-click an item and choose Add Favorite to keep it here.")
+        }
+        return ("No History Yet", "Copy text, images, or files — or capture a screenshot — to start building the shelf.")
     }
 
     private var gridColumnCount: Int {
@@ -79,7 +93,7 @@ struct HubView: View {
         }
         .background(
             Group {
-                if showQuickLook, let item = selectedItem, let url = quickLookURL(for: item) {
+                if showQuickLook, let url = quickLookFileURL {
                     QuickLookBridge(url: url, isPresented: $showQuickLook)
                         .frame(width: 0, height: 0)
                 }
@@ -104,6 +118,15 @@ struct HubView: View {
                     focusedField = nil
                     appState.dismissHub()
                 },
+                onCancel: {
+                    // Esc clears the search first, then closes.
+                    if appState.activeQuery.isEmpty {
+                        focusedField = nil
+                        appState.dismissHub()
+                    } else {
+                        appState.activeQuery = ""
+                    }
+                },
                 onFocusSearch: {
                     focusedField = .search
                 },
@@ -118,7 +141,9 @@ struct HubView: View {
                     appState.deleteItem(itemID: selectedItem.id)
                 },
                 onQuickLook: {
-                    showQuickLook = true
+                    // Write the preview copy once, not on every render while the panel is open.
+                    quickLookFileURL = selectedItem.flatMap(quickLookURL(for:))
+                    showQuickLook = quickLookFileURL != nil
                 },
                 onQuickPaste: { idx in
                     guard idx < items.count else { return }
@@ -132,6 +157,13 @@ struct HubView: View {
                 onOpenItem: {
                     guard let selectedItem else { return }
                     appState.openItem(itemID: selectedItem.id)
+                },
+                onUndo: {
+                    if appState.deletedItemForUndo != nil {
+                        appState.undoDelete()
+                    } else {
+                        NSSound.beep()
+                    }
                 },
                 onCommandHeldChanged: { isHeld in
                     guard showsQuickPasteBadges != isHeld else { return }
@@ -153,7 +185,15 @@ struct HubView: View {
         }
         .onChange(of: showQuickLook) { _, isShowing in
             // Preview copies hold clipboard content; don't keep them once the panel closes.
-            if !isShowing { TemporaryFiles.purge(.quickLook) }
+            if !isShowing {
+                quickLookFileURL = nil
+                TemporaryFiles.purge(.quickLook)
+            }
+        }
+        .onChange(of: selectedItemID) { _, _ in
+            // The preview follows the selection while it is open.
+            guard showQuickLook else { return }
+            quickLookFileURL = selectedItem.flatMap(quickLookURL(for:))
         }
         .onChange(of: filter) { _, _ in
             syncSelection()
@@ -175,13 +215,15 @@ struct HubView: View {
             showAccessibilityAlert = true
         }
         .onMoveCommand(perform: handleMoveCommand)
-        .alert("Allow Accessibility Access", isPresented: $showAccessibilityAlert) {
+        .alert("Copied — Press ⌘V to Paste", isPresented: $showAccessibilityAlert) {
+            Button("OK", role: .cancel) {
+                appState.dismissHub()
+            }
             Button("Open Accessibility Settings") {
                 appState.requestAccessibilityAccess()
             }
-            Button("Not Now", role: .cancel) {}
         } message: {
-            Text("Edison needs Accessibility access to paste into other apps. Approve Edison in the macOS Accessibility settings, then retry the paste.")
+            Text("The item is on the clipboard. To paste it for you, Edison needs Accessibility access: turn on Edison in Privacy & Security › Accessibility.")
         }
     }
 
@@ -242,18 +284,11 @@ struct HubView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
-            Label(
-                isFilteringActive ? "No Matching Items" : "No History Yet",
-                systemImage: "doc.on.clipboard"
-            )
+            Label(emptyStateCopy.title, systemImage: "doc.on.clipboard")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(HubTheme.textPrimary)
 
-            Text(
-                isFilteringActive
-                    ? "Try a different search query, collection, or type filter."
-                    : "Copy text, images, or files — or capture a screenshot — to start building the shelf."
-            )
+            Text(emptyStateCopy.message)
             .font(.system(size: 13))
             .foregroundStyle(HubTheme.textSecondary)
         }
@@ -291,6 +326,7 @@ struct HubView: View {
                         onDelete: { appState.deleteItem(itemID: $0) },
                         onEditImage: { appState.editImageItem(itemID: $0) },
                         onOpen: { appState.openItem(itemID: $0) },
+                        makeDragItemProvider: { appState.dragItemProvider(for: $0) },
                         scrollToSelection: { proxy, itemID, opening in
                             scrollSelection(with: proxy, to: itemID, in: .rail, opening: opening)
                         }
@@ -353,7 +389,8 @@ struct HubView: View {
                                         onShare: { appState.shareItem(itemID: item.id) },
                                         onDelete: { appState.deleteItem(itemID: item.id) },
                                         onEditImage: { appState.editImageItem(itemID: item.id) },
-                                        onOpen: { appState.openItem(itemID: item.id) }
+                                        onOpen: { appState.openItem(itemID: item.id) },
+                                        makeDragItemProvider: { appState.dragItemProvider(for: item) }
                                     )
                                     .id(item.id)
                                 }
@@ -456,7 +493,11 @@ struct HubView: View {
             appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
             return
         }
-        guard mode == .sourceFormatting else { return }
+        guard mode == .sourceFormatting else {
+            // Only text has a plain-text form; say so instead of doing nothing.
+            NSSound.beep()
+            return
+        }
         appState.pasteSelection(from: items, selectedItemID: resolvedItemID, mode: mode)
     }
 
@@ -599,6 +640,13 @@ enum HubRelativeTimeFormatter {
         let calendar = Calendar.autoupdatingCurrent
         let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: reference)
 
+        // After a week a count of days stops meaning much; show the date.
+        if let day = components.day, day >= 7 {
+            let format = calendar.isDate(date, equalTo: reference, toGranularity: .year)
+                ? Date.FormatStyle.dateTime.month(.abbreviated).day()
+                : Date.FormatStyle.dateTime.year().month(.abbreviated).day()
+            return date.formatted(format)
+        }
         if let day = components.day, day >= 1 {
             return "\(day)d"
         }

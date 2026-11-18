@@ -5,6 +5,56 @@
 ### Hub
 - Closing the Hub with Esc or its shortcut gives focus back to the app you were in, and so does cancelling a capture
   or a capture that only goes to history. Before, keys went nowhere until you clicked that app.
+- Dragging a card out offers exactly what a paste writes: formatted text keeps its RTF and HTML, an image drops as
+  its PNG, a file drops as the file. Before, every drag offered plain text first (empty for images, a path for files).
+- Paste-back presses ⌘V through your keyboard layout. On Dvorak it used to send ⌘. (the key where QWERTY has V).
+- Keys typed right after ⇧⌘V reach search. The Hub only took keys once its 0.2 s slide-in finished, so the first
+  letters were lost.
+- The Hub opens on the display with the pointer. It used to open on whichever display it was last on.
+- Esc clears the search first and closes the Hub on the next press, as in other Mac search fields.
+- Deleting a collection asks first and says its items stay in your history; the trash button is labelled for
+  VoiceOver and has a tooltip.
+- ⇧Return on an image or file beeps, since only text has a plain-text form. It used to do nothing.
+- Empty Favorites and empty collections say so and how to fill them. Before, empty Favorites said "No History
+  Yet" and a new collection said "No Matching Items".
+- ⌘Z in the Hub undoes the last delete while its Undo toast is showing; with nothing to undo it beeps.
+- Pasting without Accessibility access says the item is copied and ⌘V pastes it; OK closes the Hub so you can.
+  Before, the alert only said Edison "needs" access and to retry.
+- Items older than a week show their date ("Nov 3", or "Nov 3, 2025" from another year) instead of "16d".
+- Export… names text and images like screenshots, after the item's date, and copies a file item straight to the
+  new place instead of loading it into memory first. Export and Share have their ellipses.
+- Quick Look writes its preview copy once when it opens (and when the selection changes), not on every redraw.
+- The selected card or row has the same blue ring whatever the item is. It used to take the item's type colour,
+  which changed from card to card and could vanish on white or grey items.
+- Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
+  on white instead of 2.7:1.
+
+### Capture
+- After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
+  Privacy & Security › Screen Recording. Before, it did nothing after the first system prompt.
+- Area selection shows the crosshair cursor (window selection keeps the arrow); the arrow comes back when the
+  capture ends.
+- Captures play the macOS screenshot sound, unless "Play user interface sound effects" is off.
+
+### Settings
+- Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,
+  emptied. Before, one click deleted everything, collections too, with no warning.
+- Restore All Defaults… asks first, and says when going back to the default history limit (250) deletes your
+  oldest items.
+
+### Menu bar
+- Capture Previous Area and Edit Last Screenshot are dimmed when there's no area or screenshot yet, instead of
+  doing nothing.
+- The menu shows each action's shortcut, including ones you set in Settings, and uses Mac titles: Settings… and
+  Quit Edison.
+
+### Screenshot editor
+- The editor's buttons say what they do: Save…, Add to History, Copy (now the highlighted button) and Close. The
+  highlighted button used to be Done, which could lead to discarding changes.
+- Save… opens as a sheet on the editor and writes the file in the background, so the rest of Edison keeps
+  working while you choose a place.
+- The colour swatches have names (VoiceOver reads "Red, selected", and each has a tooltip) instead of all
+  reading "Colour".
 
 ## 2.1 — 2026-11-12
 

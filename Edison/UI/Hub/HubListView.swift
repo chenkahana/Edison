@@ -140,7 +140,10 @@ struct HubListRowView: View {
         )
         .overlay(
             rowShape
-                .strokeBorder(isSelected ? accent.opacity(0.45) : HubTheme.glassStroke.opacity(0.55), lineWidth: 1)
+                .strokeBorder(
+                    isSelected ? HubTheme.selectionStroke : HubTheme.glassStroke.opacity(0.55),
+                    lineWidth: isSelected ? 2 : 1
+                )
         )
         .clipShape(rowShape)
         .contentShape(rowShape)

@@ -49,11 +49,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         object: ShortcutAction.capturePreviousArea.rawValue
                     )
                 },
+                canCapturePreviousArea: { [weak self] in
+                    self?.appState.canCapturePreviousArea ?? false
+                },
                 editLastScreenshot: {
                     NotificationCenter.default.post(
                         name: .edisonShortcutActionRequested,
                         object: ShortcutAction.editLastScreenshot.rawValue
                     )
+                },
+                canEditLastScreenshot: { [weak self] in
+                    self?.appState.lastScreenshotSession != nil
                 },
                 toggleHistoryPause: {
                     NotificationCenter.default.post(
@@ -66,6 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 quit: {
                     NSApp.terminate(nil)
+                },
+                shortcuts: { [weak self] in
+                    self?.appState.shortcutStore.current ?? .default
                 },
                 checkForUpdates: checkForUpdatesAction
             )

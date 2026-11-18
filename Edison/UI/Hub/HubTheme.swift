@@ -84,6 +84,11 @@ enum HubTheme {
         light: NSColor(calibratedRed: 0, green: 122 / 255, blue: 1, alpha: 0.18),
         dark: NSColor(calibratedRed: 10 / 255, green: 132 / 255, blue: 1, alpha: 0.28)
     ))
+    /// The one selection ring every card and row uses, whatever the item's type colour.
+    static let selectionStroke = Color(nsColor: dynamicColor(
+        light: NSColor(calibratedRed: 0, green: 122 / 255, blue: 1, alpha: 1),
+        dark: NSColor(calibratedRed: 10 / 255, green: 132 / 255, blue: 1, alpha: 1)
+    ))
     static let cardFill = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 1, alpha: 0.18),
         dark: NSColor(calibratedWhite: 0.16, alpha: 0.22)
@@ -197,7 +202,10 @@ enum HubShelfWindowStyle {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
 
-        guard let screen = window.screen ?? NSScreen.main else { return }
+        // Open on the display with the pointer, not the one the shelf was last on.
+        let mouseLocation = NSEvent.mouseLocation
+        let pointerScreen = NSScreen.screens.first { NSMouseInRect(mouseLocation, $0.frame, false) }
+        guard let screen = pointerScreen ?? window.screen ?? NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
         let width = visibleFrame.width
         let height = min(HubTheme.shelfWindowSize.height, visibleFrame.height)

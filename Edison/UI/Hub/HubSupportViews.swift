@@ -244,8 +244,8 @@ struct HubItemActionMenu: View {
             }
         }
         Divider()
-        Button("Export", action: onExport)
-        Button("Share", action: onShare)
+        Button("Export…", action: onExport)
+        Button("Share…", action: onShare)
         Divider()
         Button(role: .destructive, action: onDelete) {
             Label("Delete", systemImage: "trash")
@@ -261,6 +261,7 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onConfirmSelection: () -> Void
     let onConfirmPlainTextSelection: () -> Void
     let onDismiss: () -> Void
+    let onCancel: () -> Void
     let onFocusSearch: () -> Void
     let onTypeSearch: (String) -> Void
     let onDeleteSearchCharacter: () -> Void
@@ -269,6 +270,7 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onQuickPaste: (Int) -> Void
     let onEditItem: () -> Void
     let onOpenItem: () -> Void
+    let onUndo: () -> Void
     let onCommandHeldChanged: (Bool) -> Void
 
     static func confirmMode(
@@ -380,6 +382,9 @@ struct HubWindowAccessor: NSViewRepresentable {
                 case "o":
                     parent.onOpenItem()
                     return true
+                case "z":
+                    parent.onUndo()
+                    return true
                 default:
                     break
                 }
@@ -443,7 +448,7 @@ struct HubWindowAccessor: NSViewRepresentable {
                 parent.onMoveCommand(.up)
                 return true
             case 53:
-                parent.onDismiss()
+                parent.onCancel()
                 return true
             default:
                 return false

@@ -51,15 +51,15 @@ private struct EditorSessionView: View {
     @State private var textDraft: EditorTextDraft?
     @FocusState private var isTextFieldFocused: Bool
 
-    private static let palette: [CodableColor] = [
-        .systemRed,
-        .systemOrange,
-        CodableColor(nsColor: .systemYellow),
-        CodableColor(nsColor: .systemGreen),
-        CodableColor(nsColor: .systemBlue),
-        CodableColor(nsColor: .systemPurple),
-        CodableColor(red: 1, green: 1, blue: 1),
-        CodableColor(red: 0.08, green: 0.08, blue: 0.09)
+    private static let palette: [(name: String, color: CodableColor)] = [
+        ("Red", .systemRed),
+        ("Orange", .systemOrange),
+        ("Yellow", CodableColor(nsColor: .systemYellow)),
+        ("Green", CodableColor(nsColor: .systemGreen)),
+        ("Blue", CodableColor(nsColor: .systemBlue)),
+        ("Purple", CodableColor(nsColor: .systemPurple)),
+        ("White", CodableColor(red: 1, green: 1, blue: 1)),
+        ("Black", CodableColor(red: 0.08, green: 0.08, blue: 0.09))
     ]
 
     private var style: AnnotationStyleSettings { appState.settings.editor.defaultStyle }
@@ -98,7 +98,7 @@ private struct EditorSessionView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This screenshot has changes that haven't been copied, saved, or kept yet.")
+            Text("This screenshot has changes that haven't been copied, saved, or added to history yet.")
         }
         .onChange(of: session.id) { _, _ in
             resetTransientState()
@@ -143,18 +143,18 @@ private struct EditorSessionView: View {
 
             dragOutChip
 
-            Button("Save") {
+            Button("Save…") {
                 commitPreviewIfNeeded()
                 appState.saveActiveScreenshot()
             }
             .keyboardShortcut("s", modifiers: .command)
             .help("Save as PNG (⌘S)")
 
-            Button("Keep") {
+            Button("Add to History") {
                 commitPreviewIfNeeded()
                 appState.keepActiveScreenshot()
             }
-            .help("Keep in Edison history without copying")
+            .help("Add to Edison history without copying")
 
             Button("Copy") {
                 commitPreviewIfNeeded()
@@ -162,14 +162,14 @@ private struct EditorSessionView: View {
             }
             .keyboardShortcut("c", modifiers: .command)
             .help("Copy to clipboard (⌘C) · Copy and close (⌘↩)")
+            .buttonStyle(.borderedProminent)
+            .tint(HubTheme.accentBrand)
 
-            Button("Done") {
+            Button("Close") {
                 commitPreviewIfNeeded()
                 appState.requestEditorClose()
             }
             .keyboardShortcut(.cancelAction)
-            .buttonStyle(.borderedProminent)
-            .tint(HubTheme.accentBrand)
         }
         .controlSize(.regular)
     }
@@ -213,7 +213,7 @@ private struct EditorSessionView: View {
     private var styleBar: some View {
         HStack(spacing: HubTheme.Space.x4) {
             HStack(spacing: HubTheme.Space.x2) {
-                ForEach(Self.palette, id: \.self) { color in
+                ForEach(Self.palette, id: \.name) { name, color in
                     Button {
                         apply(color: color)
                     } label: {
@@ -230,7 +230,9 @@ private struct EditorSessionView: View {
                             .padding(4)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Colour")
+                    .accessibilityLabel(name)
+                    .accessibilityAddTraits(activeColor == color ? .isSelected : [])
+                    .help(name)
                 }
             }
 

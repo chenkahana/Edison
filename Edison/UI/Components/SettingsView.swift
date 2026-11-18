@@ -58,6 +58,8 @@ struct SettingsView: View {
     @State private var editableShortcuts = ShortcutSet.default
     @State private var isBootstrapping = true
     @State private var storageUsageDescription = "Calculating..."
+    @State private var isConfirmingClearHistory = false
+    @State private var isConfirmingRestoreAllDefaults = false
 
     private var filteredPanes: [SettingsPane] {
         let normalized = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -84,14 +86,22 @@ struct SettingsView: View {
                 .listStyle(.sidebar)
 
                 HStack {
-                    Button("Restore All Defaults") {
-                        editableSettings = .default
-                        editableShortcuts = .default
-                        appState.restoreDefaultSettings()
-                        appState.save(shortcuts: .default)
+                    Button("Restore All Defaults…") {
+                        isConfirmingRestoreAllDefaults = true
                     }
                     Spacer()
                 }
+            }
+            .alert("Restore All Defaults?", isPresented: $isConfirmingRestoreAllDefaults) {
+                Button("Restore All Defaults", role: .destructive) {
+                    editableSettings = .default
+                    editableShortcuts = .default
+                    appState.restoreDefaultSettings()
+                    appState.save(shortcuts: .default)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(restoreAllDefaultsScope)
             }
             .padding(HubTheme.Space.x4)
             .frame(minWidth: 240)
@@ -122,6 +132,14 @@ struct SettingsView: View {
                 appState.save(shortcuts: newValue)
             }
         }
+    }
+
+    private var restoreAllDefaultsScope: String {
+        let scope = "Every setting and keyboard shortcut goes back to its default."
+        let limit = AppSettings.default.privacy.historyLimit
+        let excess = appState.historyItems.count - limit
+        guard excess > 0 else { return scope }
+        return scope + " The history limit goes back to \(limit), so your \(excess) oldest \(excess == 1 ? "item is" : "items are") deleted."
     }
 
     @ViewBuilder
@@ -299,10 +317,18 @@ struct SettingsView: View {
                 Button("Reveal Storage Folder") {
                     appState.revealStorageFolder()
                 }
+                Button("Clear History…", role: .destructive) {
+                    isConfirmingClearHistory = true
+                }
+            }
+            .alert("Clear History?", isPresented: $isConfirmingClearHistory) {
                 Button("Clear History", role: .destructive) {
                     appState.clearHistory()
                     refreshStorageUsage()
                 }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(clearHistoryScope)
             }
 
             Text("Edison stores clipboard history and screenshots locally on this Mac. No cloud sync or upload service is enabled in this release.")
@@ -310,6 +336,15 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
+    }
+
+    private var clearHistoryScope: String {
+        let items = appState.historyItems.count
+        var scope = "This deletes all \(items) \(items == 1 ? "item" : "items") in your history, including favorites and screenshots."
+        if !appState.collections.isEmpty {
+            scope += " Your collections stay, empty."
+        }
+        return scope + " You can't undo this."
     }
 
     private var permissionsPane: some View {
