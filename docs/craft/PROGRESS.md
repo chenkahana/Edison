@@ -1,4 +1,4 @@
-RESUME HERE: R2.6 capture overlay findings (E41+): cursor, magnifier setting w/o magnifier, per-move CGWindowList + full redraw, frozen snapshot vs live capture, focus after Esc, no sound/flash, cross-display rect.
+RESUME HERE: R2.7 editor findings (E51+): no zoom, cursors, haptics on snap, app-modal save, Keep/Done naming, undo granularity of nudges.
 
 # Progress log (append-only)
 
@@ -16,4 +16,5 @@ RESUME HERE: R2.6 capture overlay findings (E41+): cursor, magnifier setting w/o
 | 2026-11-18 | R2.2 Hub shelf findings | E07-E26 Hub shelf (Esc focus return S1, type-ahead loss, wrong display, selection colour, contrast, motion, perf) | ac0aa08 |
 | 2026-11-18 | R2.3 detail/preview findings | E27-E30 Quick Look (may dismiss Hub, single-item datasource, flattened rich previews, discoverability) | dd8d9c3 |
 | 2026-11-18 | R2.4 search findings | E31-E35 search (query never resets, space blocked, IME/option chars, repeated filtering, no highlights) | 9f1a62c |
-| 2026-11-18 | R2.5 collections findings | E36-E40 collections (unconfirmed delete, wrong empty state, no drop targets, mouse-only, menu check marks) | (this commit) |
+| 2026-11-18 | R2.5 collections findings | E36-E40 collections (unconfirmed delete, wrong empty state, no drop targets, mouse-only, menu check marks) | 7f235ce |
+| 2026-11-18 | R2.6 capture overlay findings | E41-E50 capture overlay (no crosshair, phantom magnifier setting, per-move window list + full redraw, focus after Esc, silent capture, hidden errors) | (this commit) |
