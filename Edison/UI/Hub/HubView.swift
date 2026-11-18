@@ -599,6 +599,13 @@ enum HubRelativeTimeFormatter {
         let calendar = Calendar.autoupdatingCurrent
         let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: reference)
 
+        // After a week a count of days stops meaning much; show the date.
+        if let day = components.day, day >= 7 {
+            let format = calendar.isDate(date, equalTo: reference, toGranularity: .year)
+                ? Date.FormatStyle.dateTime.month(.abbreviated).day()
+                : Date.FormatStyle.dateTime.year().month(.abbreviated).day()
+            return date.formatted(format)
+        }
         if let day = components.day, day >= 1 {
             return "\(day)d"
         }

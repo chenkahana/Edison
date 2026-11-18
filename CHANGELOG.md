@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Items older than a week show their date ("Nov 3", or "Nov 3, 2025" from another year) instead of "16d".
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
