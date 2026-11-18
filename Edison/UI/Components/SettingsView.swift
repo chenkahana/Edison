@@ -58,6 +58,7 @@ struct SettingsView: View {
     @State private var editableShortcuts = ShortcutSet.default
     @State private var isBootstrapping = true
     @State private var storageUsageDescription = "Calculating..."
+    @State private var isConfirmingClearHistory = false
 
     private var filteredPanes: [SettingsPane] {
         let normalized = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -299,10 +300,18 @@ struct SettingsView: View {
                 Button("Reveal Storage Folder") {
                     appState.revealStorageFolder()
                 }
+                Button("Clear History…", role: .destructive) {
+                    isConfirmingClearHistory = true
+                }
+            }
+            .alert("Clear History?", isPresented: $isConfirmingClearHistory) {
                 Button("Clear History", role: .destructive) {
                     appState.clearHistory()
                     refreshStorageUsage()
                 }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(clearHistoryScope)
             }
 
             Text("Edison stores clipboard history and screenshots locally on this Mac. No cloud sync or upload service is enabled in this release.")
@@ -310,6 +319,16 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
+    }
+
+    private var clearHistoryScope: String {
+        let items = appState.historyItems.count
+        let collections = appState.collections.count
+        var scope = "This deletes all \(items) \(items == 1 ? "item" : "items") in your history, including favorites and screenshots"
+        if collections > 0 {
+            scope += ", and \(collections == 1 ? "your collection" : "all \(collections) of your collections")"
+        }
+        return scope + ". You can't undo this."
     }
 
     private var permissionsPane: some View {
