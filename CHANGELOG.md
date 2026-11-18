@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Export… names text and images like screenshots, after the item's date, and copies a file item straight to the
+  new place instead of loading it into memory first. Export and Share have their ellipses.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
