@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 
@@ -139,13 +140,50 @@ struct PasteBackCoordinator {
     nonisolated private static func dispatchPaste(to pid: pid_t) {
         guard let source = CGEventSource(stateID: .hidSystemState) else { return }
 
-        let pasteKeyCode: CGKeyCode = 9 // kVK_ANSI_V
+        let pasteKeyCode = commandVKeyCode()
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: pasteKeyCode, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: pasteKeyCode, keyDown: false)
         keyDown?.flags = .maskCommand
         keyUp?.flags = .maskCommand
         keyDown?.postToPid(pid)
         keyUp?.postToPid(pid)
+    }
+
+    /// The key that types "v" with ⌘ held in the current keyboard layout, so paste is ⌘V on Dvorak, Colemak and
+    /// "Dvorak - QWERTY ⌘" alike. Falls back to the ANSI V key when the layout has no Unicode key map or no V.
+    nonisolated private static func commandVKeyCode() -> CGKeyCode {
+        let ansiV = CGKeyCode(kVK_ANSI_V)
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let layoutData = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return ansiV
+        }
+        let data = Unmanaged<CFData>.fromOpaque(layoutData).takeUnretainedValue()
+        guard let bytes = CFDataGetBytePtr(data) else { return ansiV }
+
+        let layout = UnsafeRawPointer(bytes).assumingMemoryBound(to: UCKeyboardLayout.self)
+        let commandModifier = UInt32((cmdKey >> 8) & 0xFF)
+        let v = UniChar(("v" as Unicode.Scalar).value)
+        for keyCode in [ansiV] + (0..<128).map(CGKeyCode.init) {
+            var deadKeyState: UInt32 = 0
+            var length = 0
+            var characters = [UniChar](repeating: 0, count: 4)
+            let status = UCKeyTranslate(
+                layout,
+                keyCode,
+                UInt16(kUCKeyActionDown),
+                commandModifier,
+                UInt32(LMGetKbdType()),
+                OptionBits(1 << kUCKeyTranslateNoDeadKeysBit),
+                &deadKeyState,
+                characters.count,
+                &length,
+                &characters
+            )
+            if status == noErr, length == 1, characters[0] == v {
+                return keyCode
+            }
+        }
+        return ansiV
     }
 
     private func waitForTargetAppToBecomeReady(
