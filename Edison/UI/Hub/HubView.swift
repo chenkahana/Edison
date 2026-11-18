@@ -37,6 +37,7 @@ struct HubView: View {
     @State private var contentWidth: CGFloat = 0
     @State private var contentHeight: CGFloat = 0
     @State private var showQuickLook = false
+    @State private var quickLookFileURL: URL?
     @State private var hubOpenSequence = 0
     @State private var showAccessibilityAlert = false
     @State private var showsQuickPasteBadges = false
@@ -79,7 +80,7 @@ struct HubView: View {
         }
         .background(
             Group {
-                if showQuickLook, let item = selectedItem, let url = quickLookURL(for: item) {
+                if showQuickLook, let url = quickLookFileURL {
                     QuickLookBridge(url: url, isPresented: $showQuickLook)
                         .frame(width: 0, height: 0)
                 }
@@ -118,7 +119,9 @@ struct HubView: View {
                     appState.deleteItem(itemID: selectedItem.id)
                 },
                 onQuickLook: {
-                    showQuickLook = true
+                    // Write the preview copy once, not on every render while the panel is open.
+                    quickLookFileURL = selectedItem.flatMap(quickLookURL(for:))
+                    showQuickLook = quickLookFileURL != nil
                 },
                 onQuickPaste: { idx in
                     guard idx < items.count else { return }
@@ -153,7 +156,15 @@ struct HubView: View {
         }
         .onChange(of: showQuickLook) { _, isShowing in
             // Preview copies hold clipboard content; don't keep them once the panel closes.
-            if !isShowing { TemporaryFiles.purge(.quickLook) }
+            if !isShowing {
+                quickLookFileURL = nil
+                TemporaryFiles.purge(.quickLook)
+            }
+        }
+        .onChange(of: selectedItemID) { _, _ in
+            // The preview follows the selection while it is open.
+            guard showQuickLook else { return }
+            quickLookFileURL = selectedItem.flatMap(quickLookURL(for:))
         }
         .onChange(of: filter) { _, _ in
             syncSelection()
