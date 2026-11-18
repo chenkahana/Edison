@@ -204,13 +204,15 @@ struct HubView: View {
             showAccessibilityAlert = true
         }
         .onMoveCommand(perform: handleMoveCommand)
-        .alert("Allow Accessibility Access", isPresented: $showAccessibilityAlert) {
+        .alert("Copied — Press ⌘V to Paste", isPresented: $showAccessibilityAlert) {
+            Button("OK", role: .cancel) {
+                appState.dismissHub()
+            }
             Button("Open Accessibility Settings") {
                 appState.requestAccessibilityAccess()
             }
-            Button("Not Now", role: .cancel) {}
         } message: {
-            Text("Edison needs Accessibility access to paste into other apps. Approve Edison in the macOS Accessibility settings, then retry the paste.")
+            Text("The item is on the clipboard. To paste it for you, Edison needs Accessibility access: turn on Edison in Privacy & Security › Accessibility.")
         }
     }
 
