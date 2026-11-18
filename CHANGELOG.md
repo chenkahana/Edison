@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Dragging a card out offers exactly what a paste writes: formatted text keeps its RTF and HTML, an image drops as
+  its PNG, a file drops as the file. Before, every drag offered plain text first (empty for images, a path for files).
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates

@@ -1,7 +1,5 @@
 import Foundation
 import OSLog
-import SwiftUI
-import UniformTypeIdentifiers
 
 struct ClipboardImageData: Hashable {
     let imagePath: String
@@ -175,43 +173,4 @@ extension ClipboardItem {
 private struct ClipboardRichRepresentationIdentity: Hashable {
     let typeIdentifier: String
     let sha256: String
-}
-
-extension ClipboardItem: Transferable {
-    public static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(contentType: .utf8PlainText) { item in
-            switch item.payload {
-            case let .text(text):
-                return text.data(using: .utf8) ?? Data()
-            case let .fileURL(url):
-                return url.path.data(using: .utf8) ?? Data()
-            case .image:
-                return Data()
-            }
-        } importing: { data in
-            let text = String(data: data, encoding: .utf8) ?? ""
-            return ClipboardItem(payload: .text(text))
-        }
-
-        DataRepresentation(contentType: .png) { item in
-            guard case let .image(imageData) = item.payload else { return Data() }
-            return (try? ImageStore.load(relativePath: imageData.imagePath)) ?? Data()
-        } importing: { data in
-            let id = UUID()
-            let imgData = ClipboardImageData(
-                imagePath: try ImageStore.save(imageData: data, id: id),
-                thumbnailPath: try ImageStore.saveThumbnail(data: data, id: id)
-            )
-            return ClipboardItem(payload: .image(imgData))
-        }
-
-        FileRepresentation(contentType: .fileURL) { item in
-            guard case let .fileURL(url) = item.payload else {
-                throw CocoaError(.fileNoSuchFile)
-            }
-            return SentTransferredFile(url)
-        } importing: { received in
-            ClipboardItem(payload: .fileURL(received.file))
-        }
-    }
 }

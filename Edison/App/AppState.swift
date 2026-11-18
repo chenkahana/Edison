@@ -421,6 +421,10 @@ final class AppState: ObservableObject {
         clipboardCoordinator.undoDelete()
     }
 
+    func dragItemProvider(for item: ClipboardItem) -> NSItemProvider {
+        clipboardCoordinator.dragItemProvider(for: item)
+    }
+
     func copyToClipboard(itemID: UUID) {
         guard let item = clipboardCoordinator.historyItems.first(where: { $0.id == itemID }) else { return }
         _ = clipboardCoordinator.writeItemToClipboard(item)

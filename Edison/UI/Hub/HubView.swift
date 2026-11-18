@@ -291,6 +291,7 @@ struct HubView: View {
                         onDelete: { appState.deleteItem(itemID: $0) },
                         onEditImage: { appState.editImageItem(itemID: $0) },
                         onOpen: { appState.openItem(itemID: $0) },
+                        makeDragItemProvider: { appState.dragItemProvider(for: $0) },
                         scrollToSelection: { proxy, itemID, opening in
                             scrollSelection(with: proxy, to: itemID, in: .rail, opening: opening)
                         }
@@ -353,7 +354,8 @@ struct HubView: View {
                                         onShare: { appState.shareItem(itemID: item.id) },
                                         onDelete: { appState.deleteItem(itemID: item.id) },
                                         onEditImage: { appState.editImageItem(itemID: item.id) },
-                                        onOpen: { appState.openItem(itemID: item.id) }
+                                        onOpen: { appState.openItem(itemID: item.id) },
+                                        makeDragItemProvider: { appState.dragItemProvider(for: item) }
                                     )
                                     .id(item.id)
                                 }
