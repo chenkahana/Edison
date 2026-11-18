@@ -47,6 +47,52 @@ struct Shortcut: Codable, Hashable {
     }
 }
 
+extension Shortcut {
+    /// The modifier flags a menu item shows for this shortcut.
+    var menuModifierFlags: NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if modifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
+        if modifiers & UInt32(optionKey) != 0 { flags.insert(.option) }
+        if modifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
+        if modifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        return flags
+    }
+
+    /// The character a menu item shows for this shortcut's key in the current keyboard layout, or nil when the
+    /// layout gives none.
+    var menuKeyEquivalent: String? {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let layoutData = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
+            return nil
+        }
+        let data = Unmanaged<CFData>.fromOpaque(layoutData).takeUnretainedValue()
+        guard let bytes = CFDataGetBytePtr(data) else { return nil }
+
+        let layout = UnsafeRawPointer(bytes).assumingMemoryBound(to: UCKeyboardLayout.self)
+        var deadKeyState: UInt32 = 0
+        var length = 0
+        var characters = [UniChar](repeating: 0, count: 4)
+        let status = UCKeyTranslate(
+            layout,
+            UInt16(keyCode),
+            UInt16(kUCKeyActionDisplay),
+            0,
+            UInt32(LMGetKbdType()),
+            OptionBits(1 << kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState,
+            characters.count,
+            &length,
+            &characters
+        )
+        let key = String(utf16CodeUnits: characters, count: length).lowercased()
+        guard status == noErr, !key.isEmpty,
+              key.rangeOfCharacter(from: .controlCharacters.union(.whitespaces)) == nil else {
+            return nil
+        }
+        return key
+    }
+}
+
 struct ShortcutSet: Codable, Hashable {
     var map: [ShortcutAction: Shortcut]
 

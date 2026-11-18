@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSMenuDelegate {
     struct Actions {
         let openHub: () -> Void
         let captureScreenshot: () -> Void
@@ -14,6 +14,7 @@ final class StatusBarController: NSObject {
         let toggleHistoryPause: () -> Void
         let openSettings: () -> Void
         let quit: () -> Void
+        let shortcuts: () -> ShortcutSet
         /// Nil in builds without Sparkle (`swift build`), which have no updater.
         var checkForUpdates: (() -> Void)?
     }
@@ -22,6 +23,7 @@ final class StatusBarController: NSObject {
     private let actions: Actions
     private let pauseItem = NSMenuItem(title: "Pause Clipboard History", action: nil, keyEquivalent: "")
     private var pauseObserver: NSObjectProtocol?
+    private var shortcutItems: [ShortcutAction: NSMenuItem] = [:]
 
     init(actions: Actions) {
         self.actions = actions
@@ -57,25 +59,43 @@ final class StatusBarController: NSObject {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Open Hub", action: #selector(openHub), keyEquivalent: ""))
+        menu.addItem(shortcutItem("Open Hub", #selector(openHub), .openHub))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Capture Screenshot", action: #selector(captureScreenshot), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Capture Window", action: #selector(captureWindow), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Capture Full Screen", action: #selector(captureFullScreen), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Capture Previous Area", action: #selector(capturePreviousArea), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Edit Last Screenshot", action: #selector(editLastScreenshot), keyEquivalent: ""))
+        menu.addItem(shortcutItem("Capture Screenshot", #selector(captureScreenshot), .captureScreenshot))
+        menu.addItem(shortcutItem("Capture Window", #selector(captureWindow), .captureWindow))
+        menu.addItem(shortcutItem("Capture Full Screen", #selector(captureFullScreen), .captureFullScreen))
+        menu.addItem(shortcutItem("Capture Previous Area", #selector(capturePreviousArea), .capturePreviousArea))
+        menu.addItem(shortcutItem("Edit Last Screenshot", #selector(editLastScreenshot), .editLastScreenshot))
         menu.addItem(.separator())
         pauseItem.action = #selector(toggleHistoryPause)
+        shortcutItems[.toggleHistoryPause] = pauseItem
         menu.addItem(pauseItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
         if actions.checkForUpdates != nil {
             menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: ""))
         }
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Edison", action: #selector(quit), keyEquivalent: "q"))
 
         menu.items.forEach { $0.target = self }
+        menu.delegate = self
         statusItem.menu = menu
+    }
+
+    private func shortcutItem(_ title: String, _ action: Selector, _ shortcutAction: ShortcutAction) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        shortcutItems[shortcutAction] = item
+        return item
+    }
+
+    /// Shows each action's global shortcut next to it, so the menu teaches the keys.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let shortcuts = actions.shortcuts()
+        for (action, item) in shortcutItems {
+            let shortcut = shortcuts[action]
+            item.keyEquivalent = shortcut?.menuKeyEquivalent ?? ""
+            item.keyEquivalentModifierMask = shortcut?.menuModifierFlags ?? []
+        }
     }
 
     @objc private func openHub() {
