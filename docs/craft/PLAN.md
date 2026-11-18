@@ -15,7 +15,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R0.3 Recordings per flow: hotkey summon/dismiss, focus return + paste, search, collections, drag out, capture area/window/full, editor tools, settings, permissions onboarding (script + predictions done; recordings need Chen session)
 - [x] R0.4 External display pass
 - [x] R0.5 Instruments traces (Hub summon, scroll, search, capture)
-- [ ] R0.6 `R0-baseline.md`
+- [x] R0.6 `R0-baseline.md`
 
 ### R1 Inventory
 - [ ] R1.1 Surfaces x states x entry/exit transitions x keyboard paths -> `R1-inventory.md`

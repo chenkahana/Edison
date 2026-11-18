@@ -1,5 +1,15 @@
 # R0 Baseline
 
+**Summary.** `swift build` and `swift test` (44 tests) pass on `origin/main` `f59abfe`. The installed copy (build 4)
+matches the `v2.1` UI code and is running in Chen's session, so this pass did not launch a second Edison or drive the
+UI: recordings (R0.3), the display pass (R0.4) and Instruments traces (R0.5) are written as exact scripts with a
+code-traced prediction per take, ready for one Chen session of about 45 minutes. The code sweep (R0.2) confirms the
+stale handoff numbers and adds new leads. Strongest predictions to confirm first: Esc leaves focus on Edison instead
+of the source app (F1); the shelf reopens on the last display rather than the pointer's (D1); drag-out offers plain
+text first for every item, images included (F5); Space can't be typed into search (F3); Clear History and collection
+delete have no confirmation or undo (F4, F8); the Screen Recording alert button doesn't open Settings after the first
+prompt (F9).
+
 Base: `origin/main` `f59abfe` (7 commits after tag `v2.1`, none touching app UI code: README, CI, Sparkle exclusion
 for the App Store build, agent-file ignores). Raw logs live outside git in `~/tmp/codex/edison-craft/`.
 
