@@ -104,6 +104,15 @@ struct HubView: View {
                     focusedField = nil
                     appState.dismissHub()
                 },
+                onCancel: {
+                    // Esc clears the search first, then closes.
+                    if appState.activeQuery.isEmpty {
+                        focusedField = nil
+                        appState.dismissHub()
+                    } else {
+                        appState.activeQuery = ""
+                    }
+                },
                 onFocusSearch: {
                     focusedField = .search
                 },
