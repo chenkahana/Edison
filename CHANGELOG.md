@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- Pasting without Accessibility access says the item is copied and ⌘V pastes it; OK closes the Hub so you can.
-  Before, the alert only said Edison "needs" access and to retry.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
