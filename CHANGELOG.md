@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Settings
-- Clear History… asks first and says what goes: how many items (favorites and screenshots included) and how many
-  collections. Before, one click deleted everything with no warning.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
