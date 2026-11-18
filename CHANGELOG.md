@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Screenshot editor
-- Save… opens as a sheet on the editor and writes the file in the background, so the rest of Edison keeps
-  working while you choose a place.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
