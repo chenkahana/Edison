@@ -100,7 +100,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Every setting and keyboard shortcut goes back to its default. Your history and collections stay.")
+                Text(restoreAllDefaultsScope)
             }
             .padding(HubTheme.Space.x4)
             .frame(minWidth: 240)
@@ -131,6 +131,14 @@ struct SettingsView: View {
                 appState.save(shortcuts: newValue)
             }
         }
+    }
+
+    private var restoreAllDefaultsScope: String {
+        let scope = "Every setting and keyboard shortcut goes back to its default."
+        let limit = AppSettings.default.privacy.historyLimit
+        let excess = appState.historyItems.count - limit
+        guard excess > 0 else { return scope }
+        return scope + " The history limit goes back to \(limit), so your \(excess) oldest \(excess == 1 ? "item is" : "items are") deleted."
     }
 
     @ViewBuilder
