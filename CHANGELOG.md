@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- Deleting a collection asks first and says its items stay in your history; the trash button is labelled for
+  VoiceOver and has a tooltip.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
