@@ -39,7 +39,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R3.2 Raycast clipboard history
 - [x] R3.3 Maccy
 - [x] R3.4 CleanShot X
-- [ ] R3.5 macOS Shift-Cmd-5
+- [x] R3.5 macOS Shift-Cmd-5
 
 ### R4 Systems
 - [ ] R4.1 Motion tokens

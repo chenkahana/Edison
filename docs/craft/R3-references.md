@@ -67,3 +67,19 @@ Not installed; all rows **known** from public behaviour and need a trial install
 | Window capture | Hover highlight in the system's translucent blue; adds a background/shadow option; Option toggles the shadow | Orange 3 pt stroke (E49); shadow behaviour **measure** | Use the system highlight; include the window shadow by default like macOS, ⌥ to omit. |
 | Editor | Zoom (pinch, ⌘+/⌘−), canvas pans, smart snapping guides, step counters, pixelate/blur, crop with aspect presets, "Done" copies and closes | Fit-only canvas, no guides (E57) | Zoom is the editor's largest missing mechanic. |
 | Speed | Overlay tracks the pointer at display refresh (**measure** on 120 Hz) | Per-move window-list query and full redraw (E43) | Cache the window list per session; redraw only the dirty rect. |
+
+## R3.5 macOS screenshot tool (⇧⌘3, ⇧⌘4, ⇧⌘5)
+
+The baseline Edison's overlay is compared against; all **known** system behaviour. Take timings with the same 120 Hz
+recording as F6 so the two can be overlaid frame by frame.
+
+| Mechanic | macOS | Edison today | Take |
+|---|---|---|---|
+| Area cursor | Crosshair showing the pointer's coordinates; W×H replaces them while dragging | Arrow (E41) | Same. |
+| During the drag | Space moves the selection, Shift locks one axis, Option resizes from the centre; releasing captures | Space switches to window mode and drops the drag (E47) | Same modifiers; move the area/window toggle off Space mid-drag (keep Space before the drag starts, as macOS does). |
+| Window mode | Space before dragging: camera cursor, translucent blue fill over the hovered window; capture includes the window shadow, ⌥-click omits it | Orange stroke, arrow cursor (E49) | Camera cursor, system highlight, shadow default. |
+| Cancel | Esc cancels at any point and focus stays with the app you were in (the tool never activates) | Edison activates itself; focus isn't returned (E44) | Don't activate for capture, or hand focus back on every exit. |
+| Feedback | Shutter sound (honours "Play user interface sound effects"); floating thumbnail bottom-right for about 5 s (click to Markup, drag to place, swipe to dismiss) | Silent; editor or nothing (E45) | Sound plus a thumbnail is what Mac users expect; the editor can be one click away. |
+| ⇧⌘5 panel | Toolbar with capture modes, Options (save to, timer, show thumbnail, remember last selection, show pointer); remembers the last area | Settings toggles; "Capture Previous Area" exists (good) | A small capture toolbar is optional; "remember last selection" maps to Edison's existing setting. |
+| Multiple displays | Selection is per display; the crosshair moves freely across displays; full-screen capture on ⇧⌘3 writes one image per display | One overlay per display; area clipped to the midpoint's display (E50) | Clamp the drag to its start display so the result matches what the user drew. |
+| Retina | Pixel-accurate output at the display's scale | Uses the display's pixel scale (`CaptureEngine.swift:196-201`) | Confirm on the built-in panel (D7). |

@@ -1,4 +1,4 @@
-RESUME HERE: R3.5 macOS Shift-Cmd-5/4 mechanics (known): crosshair coords, Space move, Shift/Option, camera cursor + blue window highlight, shadow, sound, floating thumbnail, options.
+RESUME HERE: R4.1 motion tokens -> docs/craft/R4-systems.md (reconcile HubTheme.Anim + style guide animation table; Reduce Motion mapping; call-site map).
 
 # Progress log (append-only)
 
@@ -27,4 +27,5 @@ RESUME HERE: R3.5 macOS Shift-Cmd-5/4 mechanics (known): crosshair coords, Space
 | 2026-11-18 | R3.1 Paste reference | R3-references.md started: sources legend (src/bundle/known/measure), installed refs (Raycast only), Paste mechanics vs Edison + takeaways | 3511088 |
 | 2026-11-18 | R3.2 Raycast reference | Raycast clipboard history mechanics (focus return, real search field, Esc ladder, action panel, toast fallback) | 5314646 |
 | 2026-11-18 | R3.3 Maccy reference | Maccy mechanics from source (nonactivating panel, instant key, positions, reset on close, layout-mapped paste); new finding E83 added to R2 | 8ff449a |
-| 2026-11-18 | R3.4 CleanShot X reference | CleanShot X mechanics (loupe, selection adjust, freeze, Quick Access Overlay, sound, window highlight, editor zoom) | (this commit) |
+| 2026-11-18 | R3.4 CleanShot X reference | CleanShot X mechanics (loupe, selection adjust, freeze, Quick Access Overlay, sound, window highlight, editor zoom) | 76bfb51 |
+| 2026-11-18 | R3.5 macOS screenshot reference | macOS Shift-Cmd-3/4/5 mechanics vs Edison overlay (cursor, drag modifiers, window mode, cancel focus, sound+thumbnail, multi-display) | (this commit) |
