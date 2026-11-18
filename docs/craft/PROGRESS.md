@@ -1,4 +1,4 @@
-RESUME HERE: R5.3 PR slices: one-visible-change PRs per workstream, each with findings, proof recording, constraint check, needs-Chen marks; then Chen questions list. Then final report to team-lead.
+RESUME HERE: DONE through R5. Waiting for Chen: (1) run the R0 session (R0-baseline.md F1-F10, D1-D7, T1-T5, ~45 min, lid open), (2) answer the 10 questions at the end of R5-backlog.md, (3) approve PRs. Next agent: after the session, update each verify-live finding's status in R2 and re-score R2.12; do not implement until Chen approves.
 
 # Progress log (append-only)
 
@@ -36,4 +36,5 @@ RESUME HERE: R5.3 PR slices: one-visible-change PRs per workstream, each with fi
 | 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | f7368f9 |
 | 2026-11-18 | R4.6 state kit | State kit: HubEmptyState variants, InlineBanner per error kind, UndoToast with ⌘Z, CaptureHUD, ConfirmDestructive, PermissionFlow states, LargeItemPreview, menu validation; placement rules | 1b711ee |
 | 2026-11-18 | R5.1 ranked findings | R5-backlog.md: 83 findings ranked S1-first then score; 34 verify-live; R0 session gate stated | 39ad838 |
-| 2026-11-18 | R5.2 workstreams | W0-W9 workstreams, every finding assigned once (83), S1s and score sums per WS, order W0>W4>W5(drag)>W3>W1>W6>W8>W9>W2>W7 | (this commit) |
+| 2026-11-18 | R5.2 workstreams | W0-W9 workstreams, every finding assigned once (83), S1s and score sums per WS, order W0>W4>W5(drag)>W3>W1>W6>W8>W9>W2>W7 | cc28072 |
+| 2026-11-18 | R5.3 PR slices and Chen questions | 59 one-visible-change PRs (P01-P59) covering all 83 findings, proof take + constraint + size + Chen marks; top 10; systems in 5 lines; 10 Chen questions. Research complete (stop point). | (this commit) |

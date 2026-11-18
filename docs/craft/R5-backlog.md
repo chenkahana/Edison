@@ -6,6 +6,29 @@ L=4). Ship order: S1 first, then score. Nothing here is implemented; this is the
 **Before any PR:** run the R0 Chen session (≈45 min: F1–F10, D1–D7, T1–T5). 34 of 83 findings are `verify live`;
 a PR for one of those starts with its recording, and a finding the recording refutes is dropped.
 
+## Summary
+
+**Top 10** (S1 first, then score):
+
+1. E07 Esc doesn't give focus back to the app you were in (S1, every session) → P01
+2. E68 Capture-time "Open System Settings" button does nothing after the first prompt (S1) → P11
+3. E73 Drag-out offers plain text first for everything, so it doesn't match paste (S1, paste fidelity) → P22
+4. E59 Clear History deletes everything, collections included, with no confirmation (S1) → P10
+5. E83 Paste-back sends ⌘K instead of ⌘V on Dvorak/Colemak (S1) → P06
+6. E08 Keys typed in the first 200 ms after ⇧⌘V are lost → P02
+7. E10 Selection colour changes per item and can vanish → P34
+8. E17 Card metadata text is about 2.7:1 in Light → P35
+9. E31 The last search sticks across opens → P04
+10. E09 The Hub opens on the last display, not the pointer's → P03
+
+**Systems in five lines** (R4):
+
+1. Motion: four tokens (`quick`, `standard`, `emphasized`, `gesture`); the window never animates, its content does; Reduce Motion turns movement into fades.
+2. Haptics: editor snaps only (`.alignment`), never the keyboard or the Hub list.
+3. Layout: derived concentric radii (shelf 28 → card 16 → inner 4), the 4-pt scale with no literals, one accent selection ring, lighter card shadows.
+4. Type and copy: text styles only with tabular digits; one English String Catalog, HIG capitalisation, real ellipses, one name per concept.
+5. States: one kit (empty variants, inline banner, ⌘Z toast, capture HUD, destructive confirm, live permission flow) and a rule that errors appear where the user is looking.
+
 ## R5.1 Ranked findings
 
 | # | ID | Finding | Checks | Sev | Reach | Effort | Score | Constraint | Status |
@@ -114,3 +137,91 @@ Each finding belongs to exactly one workstream. Score sum adds member scores (E8
 **Order.** W0 first: it holds the top-ranked S1 (E07) and the structural choice (E13) that W1 builds on. Then W4
 (three S1s, mostly small), the W5 drag-fidelity slice (E73, S1), W3, W1, W6, W8, W9, W2, W7. W8 can run alongside
 once the R0 traces exist.
+
+## R5.3 PR slices
+
+One visible change per PR, in ship order. Each PR: before/after recording of its flow (the R0 take named in
+"Proof"), the constraint it touches checked in the running app, `swift build` + `swift test` green. Size: S under a
+day, M a few days, L a week or more. **Chen** = needs Chen's yes before work starts.
+
+| PR | Title | Findings | Proof | Constraint | Size | Chen |
+|---|---|---|---|---|---|---|
+| P01 | Esc, hotkey-close and capture-cancel give focus back to the app you were in | E07, E44 | F1, F6 | KB | S | |
+| P02 | The Hub takes keys from its first frame (content fades in; the window no longer slides) | E08 | F1, T1 | KB | S | |
+| P03 | The Hub opens on the display with the pointer | E09 | D1 | none | S | |
+| P04 | The Hub opens fresh: query, type filter and collection cleared, newest item selected | E31 | F3 | KB | S | Chen (behaviour) |
+| P05 | Esc clears the search before it closes the Hub; ⌃U clears search | E15 | F3 | KB | S | |
+| P06 | Paste-back sends ⌘V through the current keyboard layout | E83 | Dvorak take | PF | S | |
+| P07 | Double-click pastes reliably (only if F2 reproduces) | E14 | F2 | none | S | |
+| P08 | Quick Look keeps the Hub open and arrows move through history | E27, E28 | F3 | KB | M | |
+| P09 | Spike: the Hub as a non-activating panel | E13 | F1, F2, T1 | PF, KB | L | **Chen** |
+| P10 | Clear History, Delete Collection and Restore Defaults ask first and state the scope | E59, E36, E62 | F4, F8 | LO | S | |
+| P11 | Screen Recording: the alert opens the right pane, offers Quit & Reopen, and status updates live | E68, E71, E65, E72 | F9 | none | S | |
+| P12 | Capture results and errors appear even when the Hub is closed (capture HUD, per-error actions); unavailable menu items are disabled | E46, E05, E45 (feedback), E23 | F6, F10 | none | M | |
+| P13 | Empty states for favorites, collections, no results (with Clear Search) and loading | E19, E37, E26 | F4, F1 | none | S | |
+| P14 | ⌘Z undoes a delete in the Hub; the undo toast lasts while hovered | E16 | F4 | KB | S | |
+| P15 | Without Accessibility: "Copied, press ⌘V" toast, and paste works on its own once access is granted | E69 | F2 | PF, KB | S | |
+| P16 | English String Catalog and copy pass (capitalisation, ellipses, glossary, dead "Start Hidden" toggle removed or wired, small feedback gaps) | E64, E61, E40, E42 (rename) | F8, F10 | none | M | Chen (glossary) |
+| P17 | Editor verbs: Copy, Save…, Add to History, Close | E51 | F7 | none | S | |
+| P18 | Timestamps and counts through `FormatStyle` | E24 | F1 | none | S | |
+| P19 | Paused status icon gets its own glyph | E06 | F10 | none | S | |
+| P20 | History retention by age, and a menu instead of a 25-step stepper | E67 | F8 | LO | S | |
+| P21 | Status menu shows every shortcut, with Mac titles (Settings…, Quit Edison, Capture Area) | E01, E04 | F10 | KB | S | |
+| P22 | Drag out offers the same representations as paste (rich text, PNG, file) with a lift | E73 | F5 + fidelity fixtures | PF | M | |
+| P23 | Search is a real text field: Space, ⌥-characters and input methods work | E32, E33 | F3 | KB | M | |
+| P24 | Search highlights matches and shows a count | E35 | F3 | none | M | |
+| P25 | Collections: drag a card onto one, assign by keyboard, "New Collection…" in a menu (frees the header) | E38, E39, E20 | F4 | KB | M | |
+| P26 | Share opens at the card with the full item; Export uses real names and copies files without loading them | E74, E75 | F4 | PF | S | |
+| P27 | Editor Save is a sheet and writes off the main thread | E55 | F7 | none | S | |
+| P28 | Settings sized to content, remembers its pane; layout and filter remembered across launches | E63, E25 | F8 | none | M | |
+| P29 | Quick Look in the context menu (⌘Y) with rich previews | E30, E29 | F3 | none | M | |
+| P30 | Editor: nudges coalesce into one undo; drag-out renders lazily | E58, E76 | F7 | none | S | |
+| P31 | Status item click opens the Hub; menu on right-click | E03 | F10 | MB | S | **Chen** |
+| P32 | New default capture shortcut that doesn't take ⇧⌘S from other apps | E60 | F6 | KB | S | **Chen** |
+| P33 | Menu bar (File/Edit/Window) while the editor or Settings is open | E52 | F7 | MB | M | **Chen** |
+| P34 | One selection ring on every card | E10 | F1 | none | S | |
+| P35 | Card metadata meets 4.5:1 | E17 | F1 Light/Dark | none | S | |
+| P36 | Vector menu-bar icon | E02 | F10 at 1× and 2× | none | S | **Chen** (artwork) |
+| P37 | Layout tokens and concentric radii | E21 (geometry) | F1 | none | M | |
+| P38 | Text-style type ramp | E21 (type) | F1, F7 | none | M | |
+| P39 | Motion tokens and Reduce Motion | E11, E12, E81 | F1, F3 with Reduce Motion on/off | none | M | |
+| P40 | Crosshair cursor with live coordinates | E41 | F6 | none | S | |
+| P41 | Capture plays the system shutter sound | E45 (sound) | F6 | none | S | |
+| P42 | Area drag uses macOS modifiers (Space moves, Shift locks, Option centres) | E47 | F6 | none | M | |
+| P43 | Overlay: system window highlight, no permanent instruction banner | E49 | F6 | none | S | |
+| P44 | Magnifier loupe | E42 (feature) | F6 | none | M | |
+| P45 | The capture is the frame you selected from | E48 | F6 | none | M | |
+| P46 | Area selection stays on its starting display | E50 | D4 | none | S | |
+| P47 | Editor zoom (pinch, ⌘+, ⌘−, ⌘0) | E57 | F7 | none | L | |
+| P48 | Card previews parse only what they show (cap, cache) and show text as it will paste | E22, E18 | T2 | PF (display) | M | |
+| P49 | Search computed once per keystroke | E34 | T3 | none | S | |
+| P50 | Overlay pointer tracking at display refresh | E43 | T4, D5 | none | M | |
+| P51 | Copy from the editor renders off the main thread; storage size computed in the background | E56, E66 | T4, F8 | none | S | |
+| P52 | VoiceOver: one element per card with selected state, source app and actions | E77 | VoiceOver take | KB | M | |
+| P53 | Full Keyboard Access reaches the cards | E78 | FKA take | KB | M | |
+| P54 | Editor swatches say their colour and selected state | E79 | VoiceOver take | none | S | |
+| P55 | Increase Contrast variants | E80 | F1 with Increase Contrast | none | M | |
+| P56 | Editor cursors follow the tool and handle | E53 | F7 | none | S | |
+| P57 | Trackpad haptics on editor snaps | E54 | F7 (Force Touch trackpad) | none | S | |
+| P58 | First run: one small window teaching ⇧⌘V, capture and permissions | E70 | F9 | MB | M | **Chen** |
+| P59 | Accessible canvas (annotations as elements) | E82 | VoiceOver take | none | L | later |
+
+Every finding E01–E83 appears in exactly one row above (E21, E42 and E45 are split across two PRs by part).
+
+## Questions only Chen can answer
+
+1. **Non-activating Hub (P09).** Approve a spike to make the Hub an `NSPanel` that never activates Edison? It fixes
+   focus, type-ahead and paste latency at the root, but it touches the paste-back path.
+2. **Default shortcuts (P32).** Keep ⇧⌘S for capture (it takes Save As/Duplicate from every app) and ⇧⌘V for the Hub
+   (takes Paste and Match Style)? If not, which defaults?
+3. **Status item click (P31).** Should a click open the Hub, with the menu on right-click?
+4. **Menu bar while editing (P33).** OK to show a Dock icon and menu bar while the editor or Settings is open, or keep
+   strictly menu-bar-only and live without ⌘W/Edit menus?
+5. **After a capture.** Keep "straight to the editor", or move to a macOS-style floating thumbnail with the editor one
+   click away (CleanShot/⇧⌘5 idiom)?
+6. **Names.** "Hub" everywhere (vs "Edison"/"shelf"), and "Favorite" vs the style guide's "Pin"?
+7. **Fresh Hub on open (P04).** Clear the last search every time the Hub opens?
+8. **First run (P58).** Is one small welcome window acceptable for a menu-bar-only app?
+9. **Menu-bar icon (P36).** Who draws the vector version?
+10. **R0 session.** About 45 minutes with the laptop lid open (120 Hz, Retina) to record F1–F10, D1–D7 and T1–T5;
+    34 findings wait on it.
