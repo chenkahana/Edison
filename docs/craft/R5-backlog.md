@@ -93,3 +93,24 @@ a PR for one of those starts with its recording, and a finding the recording ref
 | 81 | E50 | A selection that crosses displays is cut at the edge | 6 | S3 | R | M | 1 | none | verify live (D4) |
 | 82 | E67 | History limit is a 25-step stepper from 25 to 1000 | 8, 12 | S4 | R | S | 1 | LO | code |
 | 83 | E82 | Annotations and the canvas are invisible to VoiceOver | 14 | S3 | R | L | 0.5 | none | code |
+
+## R5.2 Workstreams
+
+Each finding belongs to exactly one workstream. Score sum adds member scores (E81 counts 0: it duplicates E12).
+
+| WS | Name | Scope | Findings | S1s | Count | Score sum | Depends on |
+|---|---|---|---|---|---|---|---|
+| W0 | Summon, focus and paste-back | Every exit returns focus; key on frame one; pointer display; fresh state on open; layout-safe ⌘V; Quick Look keeps the Hub | E07, E08, E09, E14, E15, E27, E31, E44, E83, E13 | E07, E83 | 10 | 83 | R0 F1–F3, D1. E13 (non-activating panel) needs Chen |
+| W1 | Motion system | R4.1 tokens, content-not-window entrance, selection ring motion, insert/delete, Reduce Motion | E11, E12, E81 | – | 3 | 12 | R4.1; after W0 (shares the open path) |
+| W2 | Pointer and haptics | Editor cursors and haptic map | E53, E54 | – | 2 | 12 | R4.2 |
+| W3 | Geometry, type and colour | Layout tokens, single selection ring, text-style ramp, contrast, header layout, vector status icon | E02, E10, E17, E20, E21 | – | 5 | 40 | R4.3, R4.4 |
+| W4 | States and copy | State kit, confirmations, error placement, String Catalog, glossary, FormatStyle, retention control | E04, E05, E06, E16, E19, E23, E24, E26, E36, E37, E40, E42, E46, E51, E59, E61, E62, E64, E65, E67, E68, E69, E71, E72 | E59, E68 | 24 | 107 | R4.5, R4.6 |
+| W5 | Mac nativeness | Menus with shortcuts, real search field, drag in/out with paste fidelity, collections by keyboard, sheets, Settings shape | E01, E03, E25, E28, E29, E30, E32, E33, E35, E38, E39, E52, E55, E58, E60, E63, E73, E74, E75, E76 | E73 | 20 | 79.5 | R2; E03, E52, E60 need Chen |
+| W6 | Capture and editor | Crosshair, loupe, macOS drag modifiers, feedback HUD + sound, frozen-frame consistency, cross-display clamp, zoom | E41, E45, E47, E48, E49, E50, E57 | – | 7 | 26.25 | R3.4, R3.5 |
+| W7 | System integration | First run; later App Intents ("Copy Last Screenshot", "Paste Item N"), Services | E70 | – | 1 | 1.5 | After W4; App Intents are new scope, need Chen |
+| W8 | Speed | Per-render parsing, search memoisation, overlay tracking, off-main rendering and I/O | E18, E22, E34, E43, E56, E66 | – | 6 | 24.5 | R0 T1–T5 numbers first |
+| W9 | Accessibility | VoiceOver labels/actions/selected, Full Keyboard Access, Increase Contrast, canvas | E77, E78, E79, E80, E82 | – | 5 | 17.5 | W3 (contrast tokens), W1 (Reduce Motion) |
+
+**Order.** W0 first: it holds the top-ranked S1 (E07) and the structural choice (E13) that W1 builds on. Then W4
+(three S1s, mostly small), the W5 drag-fidelity slice (E73, S1), W3, W1, W6, W8, W9, W2, W7. W8 can run alongside
+once the R0 traces exist.

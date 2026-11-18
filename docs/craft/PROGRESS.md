@@ -1,4 +1,4 @@
-RESUME HERE: R5.2 workstreams: group findings into W1-W9 (Boaz-compatible names), with dependency on R4 systems; then R5.3 PR slices.
+RESUME HERE: R5.3 PR slices: one-visible-change PRs per workstream, each with findings, proof recording, constraint check, needs-Chen marks; then Chen questions list. Then final report to team-lead.
 
 # Progress log (append-only)
 
@@ -35,4 +35,5 @@ RESUME HERE: R5.2 workstreams: group findings into W1-W9 (Boaz-compatible names)
 | 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | 89e8ff9 |
 | 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | f7368f9 |
 | 2026-11-18 | R4.6 state kit | State kit: HubEmptyState variants, InlineBanner per error kind, UndoToast with ⌘Z, CaptureHUD, ConfirmDestructive, PermissionFlow states, LargeItemPreview, menu validation; placement rules | 1b711ee |
-| 2026-11-18 | R5.1 ranked findings | R5-backlog.md: 83 findings ranked S1-first then score; 34 verify-live; R0 session gate stated | (this commit) |
+| 2026-11-18 | R5.1 ranked findings | R5-backlog.md: 83 findings ranked S1-first then score; 34 verify-live; R0 session gate stated | 39ad838 |
+| 2026-11-18 | R5.2 workstreams | W0-W9 workstreams, every finding assigned once (83), S1s and score sums per WS, order W0>W4>W5(drag)>W3>W1>W6>W8>W9>W2>W7 | (this commit) |

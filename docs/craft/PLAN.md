@@ -51,7 +51,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 
 ### R5 Backlog
 - [x] R5.1 Scoring
-- [ ] R5.2 Workstreams
+- [x] R5.2 Workstreams
 - [ ] R5.3 PR slices, "needs Chen" marks -> `R5-backlog.md`
 
 ---
