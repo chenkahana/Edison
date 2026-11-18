@@ -279,7 +279,9 @@ final class WindowRouter {
         } completionHandler: {
             window.orderOut(nil)
             window.setFrame(startFrame, display: false)
-            self.yieldFocusIfIdle()
+            MainActor.assumeIsolated {
+                self.yieldFocusIfIdle()
+            }
         }
     }
 
