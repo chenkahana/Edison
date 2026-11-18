@@ -58,6 +58,7 @@ struct SettingsView: View {
     @State private var editableShortcuts = ShortcutSet.default
     @State private var isBootstrapping = true
     @State private var storageUsageDescription = "Calculating..."
+    @State private var isConfirmingRestoreAllDefaults = false
 
     private var filteredPanes: [SettingsPane] {
         let normalized = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -84,14 +85,22 @@ struct SettingsView: View {
                 .listStyle(.sidebar)
 
                 HStack {
-                    Button("Restore All Defaults") {
-                        editableSettings = .default
-                        editableShortcuts = .default
-                        appState.restoreDefaultSettings()
-                        appState.save(shortcuts: .default)
+                    Button("Restore All Defaults…") {
+                        isConfirmingRestoreAllDefaults = true
                     }
                     Spacer()
                 }
+            }
+            .alert("Restore All Defaults?", isPresented: $isConfirmingRestoreAllDefaults) {
+                Button("Restore All Defaults", role: .destructive) {
+                    editableSettings = .default
+                    editableShortcuts = .default
+                    appState.restoreDefaultSettings()
+                    appState.save(shortcuts: .default)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Every setting and keyboard shortcut goes back to its default. Your history and collections stay.")
             }
             .padding(HubTheme.Space.x4)
             .frame(minWidth: 240)

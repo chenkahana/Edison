@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Settings
+- Restore All Defaults… asks first and says that history and collections stay.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
