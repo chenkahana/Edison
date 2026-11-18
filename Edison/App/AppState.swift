@@ -46,6 +46,7 @@ final class AppState: ObservableObject {
 
     var activeScreenshotSession: ScreenshotSession? { captureCoordinator.activeScreenshotSession }
     var lastScreenshotSession: ScreenshotSession? { captureCoordinator.lastScreenshotSession }
+    var canCapturePreviousArea: Bool { captureCoordinator.canCapturePreviousArea }
     var captureError: String? {
         get { captureCoordinator.captureError }
         set { captureCoordinator.captureError = newValue }
