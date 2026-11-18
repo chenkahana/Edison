@@ -1,4 +1,4 @@
-RESUME HERE: R2.10 share/export findings (E73+): drag-out types (paste-fidelity), share anchor, export names, sync file reads, share drops rich types.
+RESUME HERE: R2.11 accessibility passes (E77+): VoiceOver labels/actions/selected trait, Full Keyboard Access/Tab, Reduce Motion, Reduce Transparency coverage, Increase Contrast.
 
 # Progress log (append-only)
 
@@ -20,4 +20,5 @@ RESUME HERE: R2.10 share/export findings (E73+): drag-out types (paste-fidelity)
 | 2026-11-18 | R2.6 capture overlay findings | E41-E50 capture overlay (no crosshair, phantom magnifier setting, per-move window list + full redraw, focus after Esc, silent capture, hidden errors) | 9f301ce |
 | 2026-11-18 | R2.7 editor findings | E51-E58 editor (Done can discard, no menu bar, cursors, no haptics, app-modal save, main-thread render, no zoom, nudge undo) | 094f14b |
 | 2026-11-18 | R2.8 settings findings | E59-E67 settings (unconfirmed Clear History S1, hotkey collisions, dead toggle, stale permissions, main-thread storage walk, copy drift) | d56a0fb |
-| 2026-11-18 | R2.9 onboarding/permissions findings | E68-E72 permissions (capture alert button is a no-op after first prompt S1, AX fallback copy, no first run, no relaunch recovery, app-modal alerts) | (this commit) |
+| 2026-11-18 | R2.9 onboarding/permissions findings | E68-E72 permissions (capture alert button is a no-op after first prompt S1, AX fallback copy, no first run, no relaunch recovery, app-modal alerts) | 82e8700 |
+| 2026-11-18 | R2.10 share/export findings | E73-E76 share/export (drag-out types vs paste fidelity S1, share anchor/rich loss, export naming + main-thread file read, editor drag render) | (this commit) |
