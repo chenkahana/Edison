@@ -10,7 +10,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] Worktree, PLAN.md, PROGRESS.md, draft PR
 
 ### R0 Baseline
-- [ ] R0.1 Build and run (`swift build`, `swift test`, app launch feasibility)
+- [x] R0.1 Build and run (`swift build`, `swift test`, app launch feasibility)
 - [ ] R0.2 Code-sweep signals re-run on `origin/main`
 - [ ] R0.3 Recordings per flow: hotkey summon/dismiss, focus return + paste, search, collections, drag out, capture area/window/full, editor tools, settings, permissions onboarding
 - [ ] R0.4 External display pass
