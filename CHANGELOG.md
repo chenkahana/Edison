@@ -1,11 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- Paste-back presses ⌘V through your keyboard layout, so it pastes on Dvorak instead of sending ⌘. (the key where
-  V sits on QWERTY).
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
