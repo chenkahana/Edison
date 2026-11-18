@@ -25,7 +25,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R2.2 Hub shelf
 - [x] R2.3 Detail pane / preview
 - [x] R2.4 Search
-- [ ] R2.5 Collections
+- [x] R2.5 Collections
 - [ ] R2.6 Capture overlay
 - [ ] R2.7 Editor
 - [ ] R2.8 Settings
