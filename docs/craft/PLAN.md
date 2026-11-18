@@ -44,7 +44,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 ### R4 Systems
 - [x] R4.1 Motion tokens
 - [x] R4.2 Haptic map
-- [ ] R4.3 Layout tokens
+- [x] R4.3 Layout tokens
 - [ ] R4.4 Type ramp
 - [ ] R4.5 Copy rules (English String Catalog)
 - [ ] R4.6 State kit

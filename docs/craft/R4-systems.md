@@ -73,3 +73,34 @@ snapped).
 **Reconciliation.** The style guide has no haptics section; add this table under "Interaction model".
 
 **Closes:** E54 (and gives E38 its feedback).
+
+## R4.3 Layout tokens
+
+**Today.** `HubTheme.Radius` (window 28, card 18, menu 12, pill 999) and `HubTheme.Space` (4–24) exist and are mostly
+used in the Hub; the editor uses literals (radius 4, 6, 7, 10; padding 4, 7). Shelf is 278 pt tall
+(`HubTheme.swift:21`) against the guide's 156 compact / 240 regular. Content padding is 20 pt, so 18 pt cards inside
+a 28 pt window aren't concentric (E21). Selection is a per-type coloured stroke (E10).
+
+**Proposal.**
+
+| Token | Value | Rule |
+|---|---|---|
+| `radius.shelf` | 28 | Window corners, continuous |
+| `inset.shelf` | 12 (`space.3`) | Padding between shelf edge and the card row |
+| `radius.card` | `radius.shelf − inset.shelf` = 16 | Derived, never typed |
+| `inset.card` | 12 | Card content padding |
+| `radius.inner` | `max(4, radius.card − inset.card)` = 4 | Image previews, swatches, code blocks inside a card; or let images go full-bleed and inherit `radius.card` |
+| `radius.control` | 8 | Editor tool buttons, chips, style bar (replaces 4/6/7/10 literals) |
+| `radius.pill` | capsule | Search pill, toasts |
+| `space.1…6` | 4, 8, 12, 16, 20, 24 | Unchanged; literals in `.padding()`/`spacing:` are lint errors outside `HubTheme` |
+| `shelf.height` | 278 | Code wins; the guide's 240 predates the header row. A compact density (≈200) is a later setting. |
+| `card.side` | 148–220, derived from shelf height | Unchanged (`HubTheme.swift:34-37`) |
+| `selection.ring` | 2 pt `Color.accentColor` stroke + `selectionFill`, same on every card | Replaces the per-type stroke; type colour stays in the header strip |
+| `hit.min` | 28×28 pt | Header icon buttons (collection trash, toast close, editor icons) |
+| `shadow.card` | ambient `0 1 6 rgba(0,0,0,.08)` + key `0 6 16 rgba(0,0,0,.12)`; dark ×2 opacity | The guide's "≈40 % lighter for nested cards"; also halves blur cost per card (E22) |
+
+**Reconciliation.** Update the guide's "Recommended default sizes" (shelf 278; card side derived), add the concentric
+rule and `selection.ring` under "Radii", and replace the card shadow line with `shadow.card`.
+
+**Closes:** E10, E21 (geometry half), E49 (highlight radius), part of E22 and E20 (header layout once the composer
+moves to a menu).
