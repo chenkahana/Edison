@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Capture
+- After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
+  Privacy & Security › Screen Recording. Before, it did nothing after the first system prompt.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
