@@ -123,3 +123,13 @@ There is no in-Hub detail pane; Space opens the system Quick Look panel on a tem
 | E65 | **Permission status goes stale.** Screen Recording status refreshes only on appear or "Refresh Status"; after granting in System Settings the card keeps saying "Needs Attention". | 10 | `SettingsView.swift:107-111,316-338` | S3 | O | S | 4 | none | verify live (F9) |
 | E66 | **Storage size is recomputed on the main thread after every settings change** by walking the whole storage folder. | 13 | `SettingsView.swift:114-120,429-447` | S3 | O | S | 4 | none | verify live (F8) |
 | E67 | **History limit is a 25-step stepper from 25 to 1000** (39 clicks end to end) and there is no age-based retention (2.0 plan P1). | 8, 12 | `SettingsView.swift:286-294` | S4 | R | S | 1 | LO | code |
+
+## R2.9 Onboarding and permissions (S9)
+
+| ID | Finding | Chk | Evidence | Sev | R | Eff | Score | Constraint | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| E68 | **The capture-time "Open System Settings" button doesn't open Settings.** After a denied capture, the alert's button only calls `CGRequestScreenCaptureAccess()`, which shows the system prompt the first time and does nothing after that. (The Settings pane's "Fix Access" does open the pane, `AppState.swift:303-307`.) | 10 | `CaptureCoordinator.swift:212-224`, `CaptureEngine.swift:60-62` | S1 | O | S | 8 | none | verify live (F9) |
+| E69 | **Paste without Accessibility explains the wrong thing.** The item is already on the clipboard, but the alert says Edison "needs" access and asks the user to retry, without saying ⌘V works now; once access is granted nothing retries automatically. The style guide asks for a calm copy fallback. | 10, 11 | `PasteBackCoordinator.swift:118-127`, `HubView.swift:173-185`; guide "Direct paste" | S2 | O | S | 6 | PF, KB | code |
+| E70 | **No first run.** No welcome, no mention of ⇧⌘V or ⇧⌘S, no priming before the system permission prompts; the only clue a new user gets is the status icon. | 10, 12 | No onboarding code (`rg -i onboard\|welcome` empty) | S2 | R | M | 1.5 | MB | code |
+| E71 | **No recovery after granting Screen Recording.** macOS applies the grant only after relaunch; Edison neither detects the grant nor offers "Quit & Reopen". | 10 | `CaptureCoordinator.swift:88-95` (preflight only) | S2 | R | S | 3 | none | verify live (F9) |
+| E72 | **App-modal alerts from a background menu-bar app.** Permission, capture-failure, export and save errors use `NSAlert.runModal()`; triggered from a hotkey while another app is active, they can open behind it and block the run loop (hotkeys and clipboard polling) until answered. | 3, 10 | `CaptureCoordinator.swift:212-224`, `AppState.swift:768-774,594,614` | S3 | O | M | 2 | none | verify live (F9) |
