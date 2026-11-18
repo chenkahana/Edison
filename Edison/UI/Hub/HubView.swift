@@ -155,6 +155,13 @@ struct HubView: View {
                     guard let selectedItem else { return }
                     appState.openItem(itemID: selectedItem.id)
                 },
+                onUndo: {
+                    if appState.deletedItemForUndo != nil {
+                        appState.undoDelete()
+                    } else {
+                        NSSound.beep()
+                    }
+                },
                 onCommandHeldChanged: { isHeld in
                     guard showsQuickPasteBadges != isHeld else { return }
                     showsQuickPasteBadges = isHeld

@@ -270,6 +270,7 @@ struct HubWindowAccessor: NSViewRepresentable {
     let onQuickPaste: (Int) -> Void
     let onEditItem: () -> Void
     let onOpenItem: () -> Void
+    let onUndo: () -> Void
     let onCommandHeldChanged: (Bool) -> Void
 
     static func confirmMode(
@@ -380,6 +381,9 @@ struct HubWindowAccessor: NSViewRepresentable {
                     return true
                 case "o":
                     parent.onOpenItem()
+                    return true
+                case "z":
+                    parent.onUndo()
                     return true
                 default:
                     break
