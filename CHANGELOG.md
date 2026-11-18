@@ -1,10 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- ⇧Return on an image or file beeps, since only text has a plain-text form. It used to do nothing.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
