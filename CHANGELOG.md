@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Screenshot editor
+- The editor's buttons say what they do: Save…, Add to History, Copy (now the highlighted button) and Close. The
+  highlighted button used to be Done, which could lead to discarding changes.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
