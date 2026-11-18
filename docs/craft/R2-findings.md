@@ -50,3 +50,14 @@ default Chen chose.
 | E24 | **Timestamps never become dates.** "now", "5m", "2h", "45d" hand-rolled; old items should read as a date, and `FormatStyle` should do it. | 11 | `HubView.swift:597-613` | S4 | E | S | 4 | none | code |
 | E25 | **Layout and filter reset on relaunch.** Shelf/List/Grid and All/Favorites are `@State`, not stored. | 12 | `HubView.swift:33-34` | S4 | D | S | 3 | none | code |
 | E26 | **Possible empty-state flash on the first open after launch.** History loads asynchronously and the empty state has no loading variant. | 10 | `AppState.swift:216-224`, `HubView.swift:197-199` | S3 | R | S | 2 | none | verify live (F1 first-after-login) |
+
+## R2.3 Detail pane and preview (S3)
+
+There is no in-Hub detail pane; Space opens the system Quick Look panel on a temporary file.
+
+| ID | Finding | Chk | Evidence | Sev | R | Eff | Score | Constraint | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| E27 | **Quick Look may close the Hub.** The `QLPreviewPanel` becomes key; the Hub's `windowDidResignKey` dismisses it unless a sheet or child window is attached, and the QL panel is neither. If so, Space → preview → Esc lands back in no Hub at all. The standard pattern is `acceptsPreviewPanelControl` on the Hub's responder chain. | 3, 4 | `HubSupportViews.swift:337-347,529-535` | S2 | O | M | 3 | KB | verify live (F3) |
+| E28 | **Arrow keys don't move through history while previewing.** The data source has exactly one item, so ←/→ in Quick Look don't advance the selection as they do in Finder. | 4 | `HubSupportViews.swift:537-541` | S3 | O | M | 2 | KB | code |
+| E29 | **Previews flatten rich content.** Text is written to a `.txt` file, so RTF/HTML items preview as plain text and links preview as a text file, not the page or a link card. | 10 | `HubView.swift:501-519` | S3 | O | M | 2 | PF (display only) | code |
+| E30 | **Quick Look is undiscoverable and rewrites its file every render.** It isn't in the context menu (guide's tertiary group) and has no ⌘Y; `quickLookURL(for:)` runs inside `body`, rewriting the temp file on each re-render while the panel is open. | 4, 13 | `HubView.swift:80-87`, `HubSupportViews.swift:210-253`; guide "Context menus" | S4 | O | S | 2 | none | code |

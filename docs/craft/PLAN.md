@@ -23,7 +23,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 ### R2 Audit (14 checks per surface)
 - [x] R2.1 Menu bar item
 - [x] R2.2 Hub shelf
-- [ ] R2.3 Detail pane / preview
+- [x] R2.3 Detail pane / preview
 - [ ] R2.4 Search
 - [ ] R2.5 Collections
 - [ ] R2.6 Capture overlay
