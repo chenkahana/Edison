@@ -59,6 +59,7 @@ struct SettingsView: View {
     @State private var isBootstrapping = true
     @State private var storageUsageDescription = "Calculating..."
     @State private var isConfirmingClearHistory = false
+    @State private var isConfirmingRestoreAllDefaults = false
 
     private var filteredPanes: [SettingsPane] {
         let normalized = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -85,14 +86,22 @@ struct SettingsView: View {
                 .listStyle(.sidebar)
 
                 HStack {
-                    Button("Restore All Defaults") {
-                        editableSettings = .default
-                        editableShortcuts = .default
-                        appState.restoreDefaultSettings()
-                        appState.save(shortcuts: .default)
+                    Button("Restore All Defaults…") {
+                        isConfirmingRestoreAllDefaults = true
                     }
                     Spacer()
                 }
+            }
+            .alert("Restore All Defaults?", isPresented: $isConfirmingRestoreAllDefaults) {
+                Button("Restore All Defaults", role: .destructive) {
+                    editableSettings = .default
+                    editableShortcuts = .default
+                    appState.restoreDefaultSettings()
+                    appState.save(shortcuts: .default)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(restoreAllDefaultsScope)
             }
             .padding(HubTheme.Space.x4)
             .frame(minWidth: 240)
@@ -123,6 +132,14 @@ struct SettingsView: View {
                 appState.save(shortcuts: newValue)
             }
         }
+    }
+
+    private var restoreAllDefaultsScope: String {
+        let scope = "Every setting and keyboard shortcut goes back to its default."
+        let limit = AppSettings.default.privacy.historyLimit
+        let excess = appState.historyItems.count - limit
+        guard excess > 0 else { return scope }
+        return scope + " The history limit goes back to \(limit), so your \(excess) oldest \(excess == 1 ? "item is" : "items are") deleted."
     }
 
     @ViewBuilder
