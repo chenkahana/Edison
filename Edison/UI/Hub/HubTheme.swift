@@ -197,7 +197,10 @@ enum HubShelfWindowStyle {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true
 
-        guard let screen = window.screen ?? NSScreen.main else { return }
+        // Open on the display with the pointer, not the one the shelf was last on.
+        let mouseLocation = NSEvent.mouseLocation
+        let pointerScreen = NSScreen.screens.first { NSMouseInRect(mouseLocation, $0.frame, false) }
+        guard let screen = pointerScreen ?? window.screen ?? NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
         let width = visibleFrame.width
         let height = min(HubTheme.shelfWindowSize.height, visibleFrame.height)

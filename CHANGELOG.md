@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Hub
+- The Hub opens on the display with the pointer. It used to open on whichever display it was last on.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates
