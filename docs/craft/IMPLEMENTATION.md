@@ -1,4 +1,4 @@
-RESUME HERE: #42 (E07) re-running CI after a main-actor fix (Xcode 26 Release made a warning an error). Merge order #42→#51 then open PRs for pushed branches e05 e23 e19 e16 e69 e51 e24 e01 e10 (bodies in ~/tmp/codex/edison-impl/pr-*.md). Per merge: run ~/tmp/codex/edison-impl/sync.py in the next worktree (resolves CHANGELOG), push, wait CI, merge. ChenK14 has no admin: approve in Chrome. Run ~/tmp/codex/edison-impl/xb.sh <worktree> (local Release build) before pushing.
+RESUME HERE: 26 PRs open (#42-#67), CI queued on GitHub-hosted macos-15 (slow). Only #42 (E07) touches CHANGELOG; the rest had their entry moved out (bullets saved in ~/tmp/codex/edison-impl/bullets.json) so they merge without conflicting. As each goes green: approve in Chrome (ChenK14 has no admin) and squash-merge. After all merge: one PR adding the bullets under 2.2 — unreleased.
 
 # Implementation tracker
 
@@ -14,22 +14,30 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 - [ ] E59 Clear History confirms and states the scope (still deletes collections; keeping them is Chen's call) — PR https://github.com/chenkahana/Edison/pull/45
 - [ ] E83 Paste-back sends ⌘V through the current keyboard layout — PR https://github.com/chenkahana/Edison/pull/46
 
-## Next items (branches pushed, PR opens when its turn comes)
+## Backlog order, not gated
 
-- [ ] E05 Unavailable status-menu items disabled — branch craft/e05-disable-unavailable-menu-items
-- [ ] E23 ⇧Return on non-text beeps — branch craft/e23-plain-paste-beep
-- [ ] E19 + E37 Empty states name what is empty — branch craft/e19-empty-states
-- [ ] E16 ⌘Z undoes a Hub delete — branch craft/e16-command-z-undo-delete
-- [ ] E69 No-Accessibility paste says "Copied — Press ⌘V" — branch craft/e69-copied-press-command-v
-- [ ] E51 Editor verbs Save…, Add to History, Copy (primary), Close — branch craft/e51-editor-verbs
-- [ ] E24 Dates for items older than a week — branch craft/e24-dates-for-old-items
-- [ ] E01 + E04 (titles) Status menu shows shortcuts, Settings…, Quit Edison — branch craft/e01-status-menu-shortcuts
-- [ ] E10 One selection ring — branch craft/e10-one-selection-ring
-- [ ] E15 Esc clears search first — PR https://github.com/chenkahana/Edison/pull/49
-- [ ] E08 Hub key from first frame — PR https://github.com/chenkahana/Edison/pull/47
-- [ ] E09 Hub on pointer display — PR https://github.com/chenkahana/Edison/pull/48
-- [ ] E36 Delete Collection confirms — PR https://github.com/chenkahana/Edison/pull/50
-- [ ] E62 Restore All Defaults confirms (and says when it trims history) — PR https://github.com/chenkahana/Edison/pull/51
+- [ ] E08 Hub key from first frame (P02) — PR https://github.com/chenkahana/Edison/pull/47
+- [ ] E09 Hub on pointer display (P03) — PR https://github.com/chenkahana/Edison/pull/48
+- [ ] E15 Esc clears search first (P05; ⌃U not included) — PR https://github.com/chenkahana/Edison/pull/49
+- [ ] E36 Delete Collection confirms (P10) — PR https://github.com/chenkahana/Edison/pull/50
+- [ ] E62 Restore All Defaults confirms, says when it trims history (P10) — PR https://github.com/chenkahana/Edison/pull/51
+- [ ] E05 Unavailable status-menu items disabled (P12) — PR https://github.com/chenkahana/Edison/pull/52
+- [ ] E23 ⇧Return on non-text beeps (P12) — PR https://github.com/chenkahana/Edison/pull/53
+- [ ] E19 + E37 Empty states name what is empty (P13) — PR https://github.com/chenkahana/Edison/pull/54
+- [ ] E16 ⌘Z undoes a Hub delete (P14) — PR https://github.com/chenkahana/Edison/pull/55
+- [ ] E69 No-Accessibility paste: "Copied — Press ⌘V" (P15) — PR https://github.com/chenkahana/Edison/pull/56
+- [ ] E51 Editor verbs (P17) — PR https://github.com/chenkahana/Edison/pull/57
+- [ ] E24 Dates for items older than a week (P18) — PR https://github.com/chenkahana/Edison/pull/58
+- [ ] E01 + E04 titles: status menu shows shortcuts, Settings…, Quit Edison (P21) — PR https://github.com/chenkahana/Edison/pull/59
+- [ ] E75 Export names and file copy (P26) — PR https://github.com/chenkahana/Edison/pull/61
+- [ ] E55 Editor Save as sheet, off-main write (P27) — PR https://github.com/chenkahana/Edison/pull/62
+- [ ] E30 Quick Look file written once (P29) — PR https://github.com/chenkahana/Edison/pull/67
+- [ ] E10 One selection ring (P34) — PR https://github.com/chenkahana/Edison/pull/60
+- [ ] E17 Card metadata contrast (P35) — PR https://github.com/chenkahana/Edison/pull/63
+- [ ] E41 Crosshair cursor (P40) — PR https://github.com/chenkahana/Edison/pull/65
+- [ ] E45 Capture sound (P41) — PR https://github.com/chenkahana/Edison/pull/64
+- [ ] E79 Editor swatch names (P54) — PR https://github.com/chenkahana/Edison/pull/66
+- [ ] 2.2 changelog PR (all entries except E07's)
 
 ## Skipped (not gated, but not done)
 
@@ -37,6 +45,9 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 - E06 / P19 paused glyph: menu-bar icon artwork is Chen's.
 - E67 / P20 retention menu: a one-click picker can trim hundreds of items via `trimHistoryToSettingsLimit`; needs a confirm design first. Age retention is new scope.
 - P16 copy pass (E64, E61, E40, E42 rename): marked Chen (glossary).
+- W8 speed (E18, E22, E34, E43, E56, E66): backlog says R0 T1–T5 trace numbers first.
+- P08 (E27/E28), P23–P25, P28, P37–P39, P42, P44, P45, P47, P52, P53, P55, P59: M/L size; not started this session.
+- E74 share anchor, E54 haptics, E53 editor cursors, E58 nudge undo, E76, E49, E50, E46 HUD, E65/E71/E72: not started this session.
 
 ## Waiting: Chen
 
