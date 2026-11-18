@@ -21,7 +21,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 - [x] R1.1 Surfaces x states x entry/exit transitions x keyboard paths -> `R1-inventory.md`
 
 ### R2 Audit (14 checks per surface)
-- [ ] R2.1 Menu bar item
+- [x] R2.1 Menu bar item
 - [ ] R2.2 Hub shelf
 - [ ] R2.3 Detail pane / preview
 - [ ] R2.4 Search

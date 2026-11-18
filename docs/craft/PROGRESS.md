@@ -1,4 +1,4 @@
-RESUME HERE: R2.1 audit menu bar item: start docs/craft/R2-findings.md with finding format (ID, surface, check, evidence, severity, reach, effort, score, constraint, verify-live) and menu bar findings.
+RESUME HERE: R2.2 Hub shelf findings (summon/focus/panel/motion/selection/cards/geometry/perf) appended to R2-findings.md as E07+.
 
 # Progress log (append-only)
 
@@ -11,4 +11,5 @@ RESUME HERE: R2.1 audit menu bar item: start docs/craft/R2-findings.md with find
 | 2026-11-18 | R0.4 external display pass | Display inventory (2x Dell 1080p 1x 60Hz, built-in off); D1-D7 multi-display script + predictions; takes need Chen session | 5ee3fff |
 | 2026-11-18 | R0.5 Instruments trace plan | xctrace commands T1-T5 + existing signposts + 8 code-traced hotspots; traces need Chen session | 24cb635 |
 | 2026-11-18 | R0.6 baseline summary | R0-baseline.md summary: what ran, what needs Chen, six strongest predictions | cf221d7 |
-| 2026-11-18 | R1.1 inventory | R1-inventory.md: 11 surfaces, states + missing states, entry/exit motion, keyboard maps (Hub, overlay, editor, global), naming conflicts | (this commit) |
+| 2026-11-18 | R1.1 inventory | R1-inventory.md: 11 surfaces, states + missing states, entry/exit motion, keyboard maps (Hub, overlay, editor, global), naming conflicts | df1ee75 |
+| 2026-11-18 | R2.1 menu bar findings | R2-findings.md started: format + scoring (S1=4..S4=1, E/D/O/R=4..1, S/M/L=1/2/4); E01-E06 menu bar item | (this commit) |
