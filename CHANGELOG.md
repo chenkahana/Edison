@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2 — unreleased
+
+### Capture
+- Area selection shows the crosshair cursor (window selection keeps the arrow); the arrow comes back when the
+  capture ends.
+
 ## 2.1 — 2026-11-12
 
 ### Install and updates

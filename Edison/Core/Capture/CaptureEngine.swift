@@ -446,6 +446,8 @@ private final class RegionSelectionSession: NSObject {
             $0.highlightedDisplayRect = displayRect
             $0.mode = mode
         }
+        // Set on every move: macOS resets the cursor as it crosses windows and displays.
+        (mode == .area ? NSCursor.crosshair : NSCursor.arrow).set()
     }
 
     private func currentWindowSelection() -> SelectionResult? {
@@ -512,6 +514,7 @@ private final class RegionSelectionSession: NSObject {
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         overlays.removeAll()
+        NSCursor.arrow.set()
 
         completion?(result)
         completion = nil
