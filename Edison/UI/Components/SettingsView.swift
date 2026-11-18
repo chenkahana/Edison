@@ -340,12 +340,11 @@ struct SettingsView: View {
 
     private var clearHistoryScope: String {
         let items = appState.historyItems.count
-        let collections = appState.collections.count
-        var scope = "This deletes all \(items) \(items == 1 ? "item" : "items") in your history, including favorites and screenshots"
-        if collections > 0 {
-            scope += ", and \(collections == 1 ? "your collection" : "all \(collections) of your collections")"
+        var scope = "This deletes all \(items) \(items == 1 ? "item" : "items") in your history, including favorites and screenshots."
+        if !appState.collections.isEmpty {
+            scope += " Your collections stay, empty."
         }
-        return scope + ". You can't undo this."
+        return scope + " You can't undo this."
     }
 
     private var permissionsPane: some View {

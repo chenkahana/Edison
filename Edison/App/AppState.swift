@@ -455,9 +455,11 @@ final class AppState: ObservableObject {
     }
 
     func clearHistory() {
+        // Collections are kept, emptied; only the items go.
+        for index in collections.indices {
+            collections[index].itemIDs.removeAll()
+        }
         clipboardCoordinator.clearHistory()
-        collections.removeAll()
-        selectedCollectionID = nil
     }
 
     func exportItem(itemID: UUID) {
