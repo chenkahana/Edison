@@ -1,10 +1,5 @@
 # Changelog
 
-## 2.2 — unreleased
-
-### Hub
-- Esc clears the search first and closes the Hub on the next press, as in other Mac search fields.
-
 ## 2.1 — 2026-11-12
 
 ### Install and updates
