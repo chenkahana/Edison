@@ -8,6 +8,7 @@ struct HubHeaderView: View {
     @Binding var layoutMode: HubLayoutMode
     @Binding var newCollectionName: String
     @FocusState.Binding var focusedField: HubFocusTarget?
+    @State private var collectionPendingDeletion: ItemCollection?
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -35,6 +36,21 @@ struct HubHeaderView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .alert(
+            "Delete “\(collectionPendingDeletion?.name ?? "")”?",
+            isPresented: Binding(
+                get: { collectionPendingDeletion != nil },
+                set: { if !$0 { collectionPendingDeletion = nil } }
+            ),
+            presenting: collectionPendingDeletion
+        ) { collection in
+            Button("Delete Collection", role: .destructive) {
+                appState.deleteCollection(id: collection.id)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Its items stay in your history. You can't undo this.")
+        }
     }
 
     private var filterControls: some View {
@@ -175,11 +191,13 @@ struct HubHeaderView: View {
             if let selectedCollectionID = appState.selectedCollectionID,
                let selected = appState.collections.first(where: { $0.id == selectedCollectionID }) {
                 Button(role: .destructive) {
-                    appState.deleteCollection(id: selected.id)
+                    collectionPendingDeletion = selected
                 } label: {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.borderless)
+                .help("Delete Collection…")
+                .accessibilityLabel("Delete Collection")
             }
         }
         .padding(.horizontal, HubTheme.Space.x3)
