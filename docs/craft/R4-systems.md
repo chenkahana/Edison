@@ -139,3 +139,42 @@ numbers, storage size, history limit.
 SF Symbols rule.
 
 **Closes:** E21 (type half), E17 (with `textSecondary` for metadata), E24 (digits), part of E49.
+
+## R4.5 Copy rules (English only, String Catalog)
+
+**Today.** All copy is literal (0 `String(localized:)`, no `.xcstrings`); five names for the shelf, three for area
+capture, two for pixelate (R1 "Names in use"); missing ellipses; hand-rolled plurals ("1 char") and timestamps
+("45d"); one British spelling ("Colour").
+
+**Rules.**
+
+1. **One catalog, English only.** `Edison/Resources/Localizable.xcstrings` with `defaultLocalization: "en"` in
+   `Package.swift` and the Xcode project. Every user-facing string goes through `String(localized:)` /
+   `LocalizedStringKey` with a comment saying where it appears. It exists for copy review, plurals and grammar
+   agreement, not translation (Chen, 2026-11-18).
+2. **Capitalisation (Apple HIG).** Title Case for menu items, buttons, window and pane titles, segmented labels.
+   Sentence case for toggle/checkbox labels, descriptions, hints, placeholders, toasts and alert body text. Today's
+   Settings toggles ("Open Editor After Capture") become "Open editor after capture".
+3. **Ellipsis.** A real "…" on any item that opens a further step: Settings…, Export…, Share…, Save…, New
+   Collection…, Choose…, Check for Updates… (already), and on progress text ("Calculating…").
+4. **State titles, not slashes.** "Pause Clipboard History" / "Resume Clipboard History", never "Pause / Resume".
+5. **Errors and permissions.** First sentence says what happened, second what to do; the button names the
+   destination: "Open Screen Recording Settings", "Quit & Reopen". No "Fix Access".
+6. **Numbers and dates through `FormatStyle`.** Counts with automatic grammar agreement
+   (`^[\(n) line](inflect: true)`), sizes with `.byteCount(style: .file)`, recent times with
+   `Date.RelativeFormatStyle(presentation: .numeric, unitsStyle: .narrow)` up to 6 days, then `.dateTime.month().day()`.
+7. **American spelling** throughout ("Color").
+
+**Glossary (one name per concept).** Proposed; the first two need Chen's pick.
+
+| Concept | Use | Retire |
+|---|---|---|
+| The shelf | **Hub** (menu "Open Hub", shortcut "Open Hub", VoiceOver "Edison Hub") | "Open Edison", "shelf" in copy (keep "Shelf" only as the layout name) |
+| Area capture | **Capture Area** | "Capture Screenshot" for the area action |
+| Favorites | **Favorite** (style guide says "Pin") | "Pin" unless Chen prefers Paste's word |
+| Pixelate | **Pixelate** | "Blur Strength" → "Pixelation Size" |
+| Image items | **Image**; **Screenshot** only for Edison captures | "Image / Screenshot", "Clipboard image" |
+| Editor | **Screenshot Editor**; action **Annotate…** | "Edit Last Screenshot" → "Annotate Last Screenshot…" |
+| Editor exits | **Copy**, **Save…**, **Add to History** (was Keep), **Close** (was Done; discards with a prompt) | "Keep", "Done" |
+
+**Closes:** E04, E24, E42 (rename), E51, E64, E69 (copy), E75 (ellipsis), E79 (spelling), and the naming rows in R1.

@@ -1,4 +1,4 @@
-RESUME HERE: R4.5 copy rules: English String Catalog (Localizable.xcstrings, en only), title/sentence case, ellipsis, one name per concept glossary (Hub, Area, Pixelate, Favorite), FormatStyle + plural rules, error/permission copy patterns.
+RESUME HERE: R4.6 state kit: empty/no-results/empty-collection/favorites-empty/loading/permission/error/huge/unsupported; components (ContentUnavailableView, inline banner w/ action, toast w/ ⌘Z), placement rules for errors when Hub closed.
 
 # Progress log (append-only)
 
@@ -32,4 +32,5 @@ RESUME HERE: R4.5 copy rules: English String Catalog (Localizable.xcstrings, en 
 | 2026-11-18 | R4.1 motion tokens | R4-systems.md started: 4 motion tokens (quick/standard/emphasized/gesture), content-not-window rule, Reduce Motion resolver, call-site map, style guide reconciliation | ac7babf |
 | 2026-11-18 | R4.2 haptic map | Haptic map: editor snaps (.alignment), crop edge (.generic), collection drop target; none for keyboard/Hub list | 6eb6d4b |
 | 2026-11-18 | R4.3 layout tokens | Layout tokens: derived concentric radii (28/12/16/4), control radius 8, spacing lint rule, shelf 278 reconciled, single selection ring, hit.min 28, lighter card shadow | fec2673 |
-| 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | (this commit) |
+| 2026-11-18 | R4.4 type ramp | Type ramp: 12 roles mapped to macOS text styles, truncation rules, tabular-digit list, guide reconciliation | 89e8ff9 |
+| 2026-11-18 | R4.5 copy rules | Copy rules: English String Catalog, HIG capitalisation (sentence-case toggles), ellipsis, state titles, error pattern, FormatStyle/inflect, glossary (Hub, Capture Area, Favorite, Pixelate, editor verbs) | (this commit) |
