@@ -38,3 +38,17 @@ Raycast 2.12.1, `LSUIElement = 1` (**bundle**), running in Chen's session; not d
 | Detail pane | Right-hand preview of the selected item with metadata (source app, size, date) (**known**) | Quick Look only (E27–E29) | A detail pane is optional; metadata belongs in the card's accessibility value at least. |
 | Paste fallback | Without Accessibility, copies and shows a toast saying it was copied (**known**) | Alert (E69) | Toast. |
 | Haptics | None in clipboard history (**known**) | None | No haptics in the Hub; keep them for the editor. |
+
+## R3.3 Maccy (source read)
+
+| Mechanic | Maccy (**src**) | Edison today | Take |
+|---|---|---|---|
+| Panel type | `NSPanel` with `.nonactivatingPanel`, `isFloatingPanel`, level `.statusBar`, `collectionBehavior [.auxiliary, .stationary, .moveToActiveSpace, .fullScreenAuxiliary]`, `hidesOnDeactivate = false` (`FloatingPanel.swift:27-46`) | Titled `NSWindow`, `.floating`, activates Edison (E13) | The source app stays active, so paste needs no re-activation and Esc needs no focus return. This is the structural fix for E07, E08 and E13 together. |
+| Open | `orderFrontRegardless()` then `makeKey()` in the same turn; `animationBehavior = .none` (`FloatingPanel.swift:38,85-93`) | Key only after a 200 ms slide (E08) | Key on frame one; animate content opacity/offset inside the panel instead of the window frame. |
+| Position | User choice: cursor (default), status item, active window, centre, last position; screen chooser falls back to `NSScreen.main` (`PopupPosition.swift`, `NSScreen+ForPopup.swift`) | Last display only (E09) | For a bottom shelf: the pointer's screen, with a setting for "screen with the active window". |
+| Close | `resignKey()` closes unless an alert is up; `close()` resets search and selection (`FloatingPanel.swift:209-226`, `Popup.swift:89-91`) | Closes on resign key; never resets query (E31) | Reset state on close. |
+| Esc | Closes, whatever the query (`KeyChord.swift:124-125`); ⌃U clears search, ⌃W deletes a word, ⌃H deletes a char (`KeyChord.swift:73-84`) | Closes (E15) | Maccy and Edison share the one-step Esc; Paste and Raycast use the ladder. Take the ladder, plus ⌃U. |
+| Hold-to-cycle | Opened with a held modifier, releasing it pastes the selection, like ⌘Tab (`Popup.swift:11`) | No | Worth evaluating for ⇧⌘V-hold-V-release; needs Chen. |
+| Paste | Writes the item, then posts ⌘V to the session tap with local keyboard events suppressed during the paste, and maps "V" through the current keyboard layout, including layouts that switch to QWERTY under ⌘ (`Clipboard.swift:123-149`) | Posts virtual key 9 (`kVK_ANSI_V`) to the target pid after a 120 ms wait (`PasteBackCoordinator.swift:139-149`) | Map the key through the layout (new finding E83) and suppress local keys during the paste. |
+| Ignored types | Concealed/transient/auto-generated plus user-defined types, apps and regexes (`Clipboard.swift:27,243-262`) | Concealed/transient/auto-generated only | Per-app exclusions are already 2.0 plan P1. |
+| Animation | Only a resize animation for height changes (`FloatingPanel.swift:111`) | Window-frame slide | Proof that "no window animation, instant key" reads as fast. |

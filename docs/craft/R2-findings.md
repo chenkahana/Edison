@@ -184,3 +184,9 @@ Boaz and Jimmy passes.
 **App total: 143/306 (47%).** Lowest: Collections (33%), Capture overlay (38%), Hub shelf (39%) and
 Share/export (41%), mostly on states, keyboard and accessibility; highest: Settings (61%) and Menu bar (60%), which
 lean on system controls. The Hub is the surface used every session and scores third from the bottom.
+
+## Addendum from R3
+
+| ID | Finding | Chk | Evidence | Sev | R | Eff | Score | Constraint | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| E83 | **Paste-back types ⌘K on Dvorak.** Edison posts virtual key 9 (`kVK_ANSI_V`, the QWERTY V position) with ⌘; on layouts where that key isn't V and ⌘ doesn't switch to QWERTY (Dvorak, Colemak), the target app receives a different shortcut. Maccy maps "V" through the current layout. | 1, 12 | `PasteBackCoordinator.swift:139-149`; Maccy `Clipboard.swift:128-135` | S1 | R | S | 4 | PF | code; verify live with the Dvorak layout |

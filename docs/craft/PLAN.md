@@ -37,7 +37,7 @@ Base: `origin/main` at `f59abfe`. Worktree `~/.worktrees/Edison/craft-research`,
 ### R3 References (mechanics, not looks)
 - [x] R3.1 Paste
 - [x] R3.2 Raycast clipboard history
-- [ ] R3.3 Maccy
+- [x] R3.3 Maccy
 - [ ] R3.4 CleanShot X
 - [ ] R3.5 macOS Shift-Cmd-5
 
