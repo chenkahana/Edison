@@ -1,4 +1,4 @@
-RESUME HERE: R2.7 editor findings (E51+): no zoom, cursors, haptics on snap, app-modal save, Keep/Done naming, undo granularity of nudges.
+RESUME HERE: R2.8 settings findings (E59+): unconfirmed Clear History / Restore All Defaults, pane not remembered, oversized split view, main-thread storage walk, Blur Strength naming, version 2.0 vs 2.1, shortcut defaults ⇧⌘S.
 
 # Progress log (append-only)
 
@@ -17,4 +17,5 @@ RESUME HERE: R2.7 editor findings (E51+): no zoom, cursors, haptics on snap, app
 | 2026-11-18 | R2.3 detail/preview findings | E27-E30 Quick Look (may dismiss Hub, single-item datasource, flattened rich previews, discoverability) | dd8d9c3 |
 | 2026-11-18 | R2.4 search findings | E31-E35 search (query never resets, space blocked, IME/option chars, repeated filtering, no highlights) | 9f1a62c |
 | 2026-11-18 | R2.5 collections findings | E36-E40 collections (unconfirmed delete, wrong empty state, no drop targets, mouse-only, menu check marks) | 7f235ce |
-| 2026-11-18 | R2.6 capture overlay findings | E41-E50 capture overlay (no crosshair, phantom magnifier setting, per-move window list + full redraw, focus after Esc, silent capture, hidden errors) | (this commit) |
+| 2026-11-18 | R2.6 capture overlay findings | E41-E50 capture overlay (no crosshair, phantom magnifier setting, per-move window list + full redraw, focus after Esc, silent capture, hidden errors) | 9f301ce |
+| 2026-11-18 | R2.7 editor findings | E51-E58 editor (Done can discard, no menu bar, cursors, no haptics, app-modal save, main-thread render, no zoom, nudge undo) | (this commit) |
