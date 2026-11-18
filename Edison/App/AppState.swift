@@ -734,32 +734,47 @@ final class AppState: ObservableObject {
         await captureCoordinator.startCapture(request)
     }
 
+    private enum ExportSource {
+        case data(Data)
+        case file(URL)
+    }
+
+    /// Text and images are named like captures, after the item's date; a file keeps its name and is copied as is.
     private func makeExportPayload(
         for item: ClipboardItem
-    ) throws -> (data: Data, defaultFileName: String, contentType: UTType) {
+    ) throws -> (source: ExportSource, defaultFileName: String, contentType: UTType) {
+        let baseName = settings.defaultFileName(at: item.createdAt)
         switch item.payload {
         case let .text(value):
             guard let data = value.data(using: .utf8) else {
                 throw CocoaError(.fileWriteInapplicableStringEncoding)
             }
-            return (data, "edison-export.txt", .plainText)
+            return (.data(data), "\(baseName).txt", .plainText)
         case let .image(image):
             let data = try ImageStore.load(relativePath: image.imagePath)
-            return (data, "edison-image.png", .png)
+            return (.data(data), "\(baseName).png", .png)
         case let .fileURL(url):
-            let data = try Data(contentsOf: url)
-            let filename = url.lastPathComponent.isEmpty ? "edison-file" : url.lastPathComponent
+            let filename = url.lastPathComponent.isEmpty ? baseName : url.lastPathComponent
             let contentType = UTType(filenameExtension: url.pathExtension) ?? .data
-            return (data, filename, contentType)
+            return (.file(url), filename, contentType)
         }
     }
 
     private func writeExportPayload(
-        _ payload: (data: Data, defaultFileName: String, contentType: UTType),
+        _ payload: (source: ExportSource, defaultFileName: String, contentType: UTType),
         to url: URL
     ) {
         do {
-            try payload.data.write(to: url, options: .atomic)
+            switch payload.source {
+            case let .data(data):
+                try data.write(to: url, options: .atomic)
+            case let .file(sourceURL):
+                // The save panel has already confirmed replacing an existing file.
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try FileManager.default.removeItem(at: url)
+                }
+                try FileManager.default.copyItem(at: sourceURL, to: url)
+            }
         } catch {
             present(error: error, title: "Export Failed")
         }

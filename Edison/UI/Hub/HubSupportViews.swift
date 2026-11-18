@@ -244,8 +244,8 @@ struct HubItemActionMenu: View {
             }
         }
         Divider()
-        Button("Export", action: onExport)
-        Button("Share", action: onShare)
+        Button("Export…", action: onExport)
+        Button("Share…", action: onShare)
         Divider()
         Button(role: .destructive, action: onDelete) {
             Label("Delete", systemImage: "trash")
