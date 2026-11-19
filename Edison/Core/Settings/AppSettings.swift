@@ -11,13 +11,9 @@ enum CaptureDefaultResult: String, Codable, CaseIterable, Hashable, Identifiable
     var title: String {
         switch self {
         case .copyAndOpenEditor:
-            return "Copy + Open Editor"
-        case .openEditorOnly:
-            return "Open Editor Only"
-        case .saveAndOpenEditor:
-            return "Save + Open Editor"
-        case .keepInHistory:
-            return "Keep In History"
+            return "Copy to Clipboard"
+        case .openEditorOnly, .saveAndOpenEditor, .keepInHistory:
+            return "Don't Copy"
         }
     }
 }
@@ -42,7 +38,7 @@ struct GeneralSettings: Codable, Hashable {
 }
 
 struct CaptureSettings: Codable, Hashable {
-    var openEditorAfterCapture = true
+    var openEditorAfterCapture = false
     var rememberLastArea = true
     var showMagnifierAndDimensions = true
     var defaultResult: CaptureDefaultResult = .copyAndOpenEditor

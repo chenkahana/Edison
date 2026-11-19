@@ -60,6 +60,9 @@ final class CaptureCoordinator: ObservableObject {
     /// Called to present an NSAlert for errors.
     var presentError: (Error, String) -> Void
 
+    /// Shows the floating thumbnail for a capture that went to history instead of the editor.
+    var showThumbnail: (ScreenshotSession, Data, CGDirectDisplayID?) -> Void = { _, _, _ in }
+
     /// Called when the user asks for Screen Recording access: prompts and opens the System Settings pane.
     var requestScreenRecordingAccess: () -> Void
 
@@ -127,15 +130,19 @@ final class CaptureCoordinator: ObservableObject {
             )
             let session = ScreenshotSession(draft: draft)
 
-            if settings.capture.openEditorAfterCapture || settings.capture.defaultResult != .keepInHistory {
-                if settings.capture.defaultResult == .copyAndOpenEditor {
+            let copies = settings.capture.defaultResult == .copyAndOpenEditor
+            if settings.capture.openEditorAfterCapture {
+                if copies {
                     persistAndCopy(session, copyToClipboard: true)
                 }
                 openEditor(for: session)
             } else {
+                // Like ⇧⌘5: the capture goes to history (and the clipboard) and a thumbnail offers the editor.
                 activeScreenshotSession = session
-                commitScreenshotSession(session, copyToClipboard: false)
+                commitScreenshotSession(session, copyToClipboard: copies)
+                lastScreenshotSession = session.duplicateForEditing()
                 windowRouter?.yieldFocusIfIdle()
+                showThumbnail(session, data, displayID)
             }
 
         case .cancelled:

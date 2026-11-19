@@ -100,6 +100,7 @@ final class AppState: ObservableObject {
     private let accessibilityPromptRequester: () -> Void
     private let accessibilitySettingsOpener: () -> Void
     private let screenRecordingSettingsOpener: () -> Void
+    private let captureThumbnail = CaptureThumbnail()
     private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
     weak var windowRouter: WindowRouter? {
@@ -209,6 +210,15 @@ final class AppState: ObservableObject {
         }
         captureCoordinator.presentError = { [weak self] error, title in
             self?.present(error: error, title: title)
+        }
+        captureCoordinator.showThumbnail = { [weak self] session, pngData, displayID in
+            guard let self else { return }
+            let screen = NSScreen.screens.first {
+                ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
+            }
+            self.captureThumbnail.show(pngData: pngData, fileName: session.draft.fileNameHint, on: screen) { [weak self] in
+                self?.captureCoordinator.openEditor(for: session.duplicateForEditing())
+            }
         }
         captureCoordinator.requestScreenRecordingAccess = { [weak self] in
             self?.requestScreenRecordingAccess()

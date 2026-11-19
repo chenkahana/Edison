@@ -225,10 +225,13 @@ struct SettingsView: View {
 
     private var capturePane: some View {
         Form {
-            Toggle("Open Editor After Capture", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { editableSettings.capture.openEditorAfterCapture },
                 set: { editableSettings.capture.openEditorAfterCapture = $0 }
-            ))
+            )) {
+                Text("Go Straight to the Editor")
+                Text("Off: a thumbnail appears in the corner for 5 seconds. Click it to annotate, drag it into any app, or swipe it away.")
+            }
             Toggle("Remember Last Area", isOn: Binding(
                 get: { editableSettings.capture.rememberLastArea },
                 set: { editableSettings.capture.rememberLastArea = $0 }
@@ -238,11 +241,11 @@ struct SettingsView: View {
                 set: { editableSettings.capture.showMagnifierAndDimensions = $0 }
             ))
 
-            Picker("Default Result", selection: Binding(
-                get: { editableSettings.capture.defaultResult },
+            Picker("After Capture", selection: Binding(
+                get: { editableSettings.capture.defaultResult == .copyAndOpenEditor ? .copyAndOpenEditor : .keepInHistory },
                 set: { editableSettings.capture.defaultResult = $0 }
             )) {
-                ForEach(CaptureDefaultResult.allCases) { option in
+                ForEach([CaptureDefaultResult.copyAndOpenEditor, .keepInHistory]) { option in
                     Text(option.title).tag(option)
                 }
             }
