@@ -702,7 +702,7 @@ private struct EditorSessionView: View {
             case 125: delta = CGSize(width: 0, height: -step)
             default: delta = CGSize(width: 0, height: step)
             }
-            session.updateSelectedAnnotation { $0 = $0.moved(by: delta) }
+            session.nudgeSelectedAnnotation(by: delta)
             return true
         default:
             break
