@@ -28,6 +28,9 @@
   which changed from card to card and could vanish on white or grey items.
 - Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
   on white instead of 2.7:1.
+- The Hub no longer takes focus from the app you're in: it's a panel that takes your typing while that app stays
+  active, so its selection stays lit and paste lands there without a re-activation.
+- The Hub opens fresh each time: no leftover search, type filter or collection, newest item selected.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
@@ -35,6 +38,9 @@
 - Area selection shows the crosshair cursor (window selection keeps the arrow); the arrow comes back when the
   capture ends.
 - Captures play the macOS screenshot sound, unless "Play user interface sound effects" is off.
+- After a capture a thumbnail appears in the corner for 5 seconds, as with ⇧⌘5: click it to annotate, drag it
+  into any app, or swipe it away; the capture is already in history. Settings › Capture › Go Straight to the Editor
+  brings back the old behaviour.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,
@@ -47,6 +53,8 @@
   doing nothing.
 - The menu shows each action's shortcut, including ones you set in Settings, and uses Mac titles: Settings… and
   Quit Edison.
+- Clicking the menu-bar icon opens the Hub; right-click or Option-click shows the menu.
+- A vector menu-bar icon, sharp at every scale.
 
 ### Screenshot editor
 - The editor's buttons say what they do: Save…, Add to History, Copy (now the highlighted button) and Close. The
@@ -55,6 +63,20 @@
   working while you choose a place.
 - The colour swatches have names (VoiceOver reads "Red, selected", and each has a tooltip) instead of all
   reading "Colour".
+- While the editor is open Edison has a Dock icon, ⌘-Tab and a menu bar (⌘W closes the editor); it goes back to
+  the menu bar when the editor closes.
+
+### Shortcuts
+- New installs use ⌃⌥⌘V (Hub) and ⌃⌥⌘S (Capture Area), which no macOS or app command uses. ⇧⌘V and ⇧⌘S took
+  Paste and Match Style and Save As from every app. If you used Edison before, your shortcuts don't change.
+
+### Copy
+- One name per thing: Hub, Capture Area, Annotate Last Screenshot…, Image, Pixelation Size; Mac ellipses
+  (Calculating…, Type Shortcut…) and one permission button, Open System Settings….
+
+### First run
+- New installs get one welcome window: the two shortcuts, and Screen Recording and Accessibility with live
+  status. It never comes back once you click Done.
 
 ## 2.1 — 2026-11-12
 
