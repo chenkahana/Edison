@@ -332,8 +332,8 @@ private struct EditorSessionView: View {
                     .gesture(dragGesture(displayRect: displayRect))
                     .onContinuousHover { phase in
                         switch phase {
-                        case .active:
-                            (tool == .select ? NSCursor.arrow : NSCursor.crosshair).set()
+                        case let .active(location):
+                            cursor(at: toImagePoint(location, displayRect: displayRect)).set()
                         case .ended:
                             NSCursor.arrow.set()
                         }
@@ -847,6 +847,24 @@ private struct EditorSessionView: View {
         return provider
     }
 
+    /// Resize over a handle, a hand over what can be moved, an I-beam for Text, a crosshair for drawing.
+    private func cursor(at point: CGPoint) -> NSCursor {
+        if textDraft == nil, let handle = handle(at: point) {
+            if #available(macOS 15, *), let position = handle.handle.frameResizePosition {
+                return .frameResize(position: position, directions: .all)
+            }
+            return .crosshair
+        }
+        if tool != .text, let selected = currentSelection, selected.contains(point) {
+            return .openHand
+        }
+        switch tool {
+        case .select: return annotation(at: point) == nil ? .arrow : .openHand
+        case .text: return .iBeam
+        default: return .crosshair
+        }
+    }
+
     // MARK: - Geometry helpers
 
     private func annotation(at point: CGPoint) -> ScreenshotAnnotation? {
@@ -1060,5 +1078,18 @@ private struct EditorWindowAccessor: NSViewRepresentable {
 private extension CGFloat {
     func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
         Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+private extension ScreenshotResizeHandle {
+    @available(macOS 15, *)
+    var frameResizePosition: NSCursor.FrameResizePosition? {
+        switch self {
+        case .topLeading: return .topLeft
+        case .topTrailing: return .topRight
+        case .bottomLeading: return .bottomLeft
+        case .bottomTrailing: return .bottomRight
+        case .arrowStart, .arrowEnd: return nil
+        }
     }
 }
