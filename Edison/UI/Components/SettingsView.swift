@@ -57,7 +57,7 @@ struct SettingsView: View {
     @State private var editableSettings = AppSettings.default
     @State private var editableShortcuts = ShortcutSet.default
     @State private var isBootstrapping = true
-    @State private var storageUsageDescription = "Calculating..."
+    @State private var storageUsageDescription = "Calculating…"
     @State private var isConfirmingClearHistory = false
     @State private var isConfirmingRestoreAllDefaults = false
 
@@ -225,10 +225,13 @@ struct SettingsView: View {
 
     private var capturePane: some View {
         Form {
-            Toggle("Open Editor After Capture", isOn: Binding(
+            Toggle(isOn: Binding(
                 get: { editableSettings.capture.openEditorAfterCapture },
                 set: { editableSettings.capture.openEditorAfterCapture = $0 }
-            ))
+            )) {
+                Text("Go Straight to the Editor")
+                Text("Off: a thumbnail appears in the corner for 5 seconds. Click it to annotate, drag it into any app, or swipe it away.")
+            }
             Toggle("Remember Last Area", isOn: Binding(
                 get: { editableSettings.capture.rememberLastArea },
                 set: { editableSettings.capture.rememberLastArea = $0 }
@@ -238,11 +241,11 @@ struct SettingsView: View {
                 set: { editableSettings.capture.showMagnifierAndDimensions = $0 }
             ))
 
-            Picker("Default Result", selection: Binding(
-                get: { editableSettings.capture.defaultResult },
+            Picker("After Capture", selection: Binding(
+                get: { editableSettings.capture.defaultResult == .copyAndOpenEditor ? .copyAndOpenEditor : .keepInHistory },
                 set: { editableSettings.capture.defaultResult = $0 }
             )) {
-                ForEach(CaptureDefaultResult.allCases) { option in
+                ForEach([CaptureDefaultResult.copyAndOpenEditor, .keepInHistory]) { option in
                     Text(option.title).tag(option)
                 }
             }
@@ -291,7 +294,7 @@ struct SettingsView: View {
                 editorStyleStepper("Font Size", value: editableSettings.editor.defaultStyle.fontSize, range: 14...96) {
                     editableSettings.editor.defaultStyle.fontSize = $0
                 }
-                editorStyleStepper("Blur Strength", value: editableSettings.editor.defaultStyle.blurRadius, range: 4...40) {
+                editorStyleStepper("Pixelation Size", value: editableSettings.editor.defaultStyle.blurRadius, range: 4...40) {
                     editableSettings.editor.defaultStyle.blurRadius = $0
                 }
             }
@@ -455,7 +458,7 @@ struct SettingsView: View {
             Text(description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button(isGranted ? "Open Settings" : "Fix Access", action: action)
+            Button("Open System Settings…", action: action)
         }
         .padding(HubTheme.Space.x4)
         .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))

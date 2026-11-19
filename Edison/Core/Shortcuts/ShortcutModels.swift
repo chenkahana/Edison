@@ -16,13 +16,13 @@ enum ShortcutAction: String, CaseIterable, Codable, Hashable, Identifiable {
 
     var title: String {
         switch self {
-        case .openHub: return "Open Edison"
-        case .captureScreenshot: return "Capture Screenshot"
+        case .openHub: return "Open Hub"
+        case .captureScreenshot: return "Capture Area"
         case .captureWindow: return "Capture Window"
         case .captureFullScreen: return "Capture Full Screen"
         case .capturePreviousArea: return "Capture Previous Area"
-        case .editLastScreenshot: return "Edit Last Screenshot"
-        case .toggleHistoryPause: return "Pause / Resume History"
+        case .editLastScreenshot: return "Annotate Last Screenshot"
+        case .toggleHistoryPause: return "Pause or Resume Clipboard History"
         case .openSettings: return "Open Settings"
         }
     }
@@ -32,12 +32,25 @@ struct Shortcut: Codable, Hashable {
     var keyCode: UInt32
     var modifiers: UInt32
 
+    // ⌃⌥⌘ combinations aren't used by macOS or by the standard app menus, so registering them globally doesn't
+    // take a command away from other apps. ⇧⌘V (Paste and Match Style) and ⇧⌘S (Save As/Duplicate) did.
     static let defaultOpenHub = Shortcut(
+        keyCode: UInt32(kVK_ANSI_V),
+        modifiers: UInt32(cmdKey | optionKey | controlKey)
+    )
+
+    static let defaultCaptureScreenshot = Shortcut(
+        keyCode: UInt32(kVK_ANSI_S),
+        modifiers: UInt32(cmdKey | optionKey | controlKey)
+    )
+
+    /// The defaults before 2.2, kept for people who already use Edison.
+    static let previousDefaultOpenHub = Shortcut(
         keyCode: UInt32(kVK_ANSI_V),
         modifiers: UInt32(cmdKey | shiftKey)
     )
 
-    static let defaultCaptureScreenshot = Shortcut(
+    static let previousDefaultCaptureScreenshot = Shortcut(
         keyCode: UInt32(kVK_ANSI_S),
         modifiers: UInt32(cmdKey | shiftKey)
     )
@@ -56,6 +69,16 @@ extension Shortcut {
         if modifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
         if modifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
         return flags
+    }
+
+    /// The shortcut as Mac menus write it, for example ⌃⌥⌘V.
+    var displayString: String {
+        var text = ""
+        if modifiers & UInt32(controlKey) != 0 { text += "⌃" }
+        if modifiers & UInt32(optionKey) != 0 { text += "⌥" }
+        if modifiers & UInt32(shiftKey) != 0 { text += "⇧" }
+        if modifiers & UInt32(cmdKey) != 0 { text += "⌘" }
+        return text + (menuKeyEquivalent?.uppercased() ?? "?")
     }
 
     /// The character a menu item shows for this shortcut's key in the current keyboard layout, or nil when the
@@ -99,6 +122,11 @@ struct ShortcutSet: Codable, Hashable {
     static let `default` = ShortcutSet(map: [
         .openHub: .defaultOpenHub,
         .captureScreenshot: .defaultCaptureScreenshot
+    ])
+
+    static let previousDefault = ShortcutSet(map: [
+        .openHub: .previousDefaultOpenHub,
+        .captureScreenshot: .previousDefaultCaptureScreenshot
     ])
 
     static func defaultShortcut(for action: ShortcutAction) -> Shortcut? {

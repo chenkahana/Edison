@@ -65,8 +65,10 @@ final class WindowRouter {
 
     func openHub() {
         hubRequestedVisible = true
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.unhide(nil)
+        // The Hub is a non-activating panel: Edison stays in the background and the app you were in keeps focus.
+        if NSApp.isHidden {
+            NSApp.unhideWithoutActivation()
+        }
         NotificationCenter.default.post(name: .edisonHubWillOpen, object: nil)
 
         if let targetWindow = resolveHubWindow(preferVisible: false) {
@@ -111,6 +113,8 @@ final class WindowRouter {
     }
 
     func openEditor() {
+        // While the editor is open Edison is a regular app: Dock icon, ⌘-Tab, and a menu bar with ⌘W and Edit.
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         NSApp.unhide(nil)
 
@@ -133,6 +137,8 @@ final class WindowRouter {
 
     func dismissEditor() {
         resolveEditorWindow()?.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
+        yieldFocusIfIdle()
     }
 
     func dismissHub() {
@@ -163,7 +169,8 @@ final class WindowRouter {
 
     func dismissHubForPasteBack() {
         dismissHubImmediately()
-        NSApp.hide(nil)
+        // Only when Edison itself was active (the Hub opened over its editor or Settings) does focus need handing back.
+        yieldFocusIfIdle()
     }
 
     /// Hands focus back to the app the user was in once no Edison window is left on screen.

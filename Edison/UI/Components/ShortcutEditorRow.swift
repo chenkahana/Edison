@@ -101,7 +101,7 @@ final class KeyRecorderField: NSView {
 
         let label: String
         if isRecording {
-            label = "Type shortcut..."
+            label = "Type Shortcut…"
         } else if let displayShortcut {
             label = shortcutDescription(displayShortcut)
         } else {

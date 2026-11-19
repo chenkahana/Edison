@@ -46,7 +46,7 @@ signing key before they're installed.
 
 | | |
 |---|---|
-| **A shelf for everything you copy** | Press **⇧⌘V** and a glass shelf rises from the bottom of the screen with your history as cards: text, links, colours, code, images, screenshots and files. Switch between shelf, list and grid layouts. |
+| **A shelf for everything you copy** | Press **⌃⌥⌘V** and a glass shelf rises from the bottom of the screen with your history as cards: text, links, colours, code, images, screenshots and files. Switch between shelf, list and grid layouts. |
 | **Cards that show what an item is** | Links show their site and path, colours show a live swatch, code keeps its indentation, images show their pixel size, and files show their Finder icon and folder. Each card names the app it came from. |
 | **Keyboard first** | Arrow keys move, **Return** pastes into the app you were using, **⇧Return** pastes as plain text, and holding **⌘** reveals **⌘1–⌘9** to paste one of the first nine items instantly. Start typing anywhere to search. |
 | **Paste exactly what you copied** | Edison keeps the original rich-text, RTF, RTFD and HTML representations byte for byte, so formatted text pastes back formatted. Plain-text paste writes exactly the plain string, never trimmed or re-wrapped. |
@@ -70,8 +70,8 @@ Global shortcuts can be changed or added in **Settings › Keyboard Shortcuts**.
 
 | Global | |
 |---|---|
-| **⇧⌘V** | Open or close the Hub |
-| **⇧⌘S** | Capture an area |
+| **⌃⌥⌘V** | Open or close the Hub (⇧⌘V if you used Edison before 2.2) |
+| **⌃⌥⌘S** | Capture an area (⇧⌘S if you used Edison before 2.2) |
 | *(assignable)* | Capture window, capture full screen, capture previous area, edit last screenshot, pause/resume history, open Settings |
 
 | In the Hub | |

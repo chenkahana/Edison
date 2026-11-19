@@ -24,6 +24,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let pauseItem = NSMenuItem(title: "Pause Clipboard History", action: nil, keyEquivalent: "")
     private var pauseObserver: NSObjectProtocol?
     private var shortcutItems: [ShortcutAction: NSMenuItem] = [:]
+    private let menu = NSMenu()
 
     init(actions: Actions) {
         self.actions = actions
@@ -56,16 +57,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             image?.size = NSSize(width: 18, height: 18)
             button.image = image
             button.imagePosition = .imageOnly
+            // Click opens the Hub; right-click or Option-click shows the menu.
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        let menu = NSMenu()
         menu.addItem(shortcutItem("Open Hub", #selector(openHub), .openHub))
         menu.addItem(.separator())
-        menu.addItem(shortcutItem("Capture Screenshot", #selector(captureScreenshot), .captureScreenshot))
+        menu.addItem(shortcutItem("Capture Area", #selector(captureScreenshot), .captureScreenshot))
         menu.addItem(shortcutItem("Capture Window", #selector(captureWindow), .captureWindow))
         menu.addItem(shortcutItem("Capture Full Screen", #selector(captureFullScreen), .captureFullScreen))
         menu.addItem(shortcutItem("Capture Previous Area", #selector(capturePreviousArea), .capturePreviousArea))
-        menu.addItem(shortcutItem("Edit Last Screenshot", #selector(editLastScreenshot), .editLastScreenshot))
+        menu.addItem(shortcutItem("Annotate Last Screenshot…", #selector(editLastScreenshot), .editLastScreenshot))
         menu.addItem(.separator())
         pauseItem.action = #selector(toggleHistoryPause)
         shortcutItems[.toggleHistoryPause] = pauseItem
@@ -79,7 +83,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.items.forEach { $0.target = self }
         menu.delegate = self
-        statusItem.menu = menu
+    }
+
+    @objc private func statusItemClicked() {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.option) == true {
+            // Attaching the menu only for this click keeps a plain click free for the Hub.
+            statusItem.menu = menu
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        } else {
+            actions.openHub()
+        }
     }
 
     private func shortcutItem(_ title: String, _ action: Selector, _ shortcutAction: ShortcutAction) -> NSMenuItem {
