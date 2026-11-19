@@ -8,8 +8,18 @@ final class ShortcutStore {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
-    init(defaults: UserDefaults = .standard) {
+    private let hasPriorUse: () -> Bool
+
+    init(
+        defaults: UserDefaults = .standard,
+        hasPriorUse: @escaping () -> Bool = {
+            FileManager.default.fileExists(
+                atPath: HistoryStore.storageDirectory.appendingPathComponent("history.json").path
+            )
+        }
+    ) {
         self.defaults = defaults
+        self.hasPriorUse = hasPriorUse
     }
 
     var current: ShortcutSet {
@@ -28,6 +38,14 @@ final class ShortcutStore {
             return migrated
         }
 
+        // Someone who used Edison before 2.2 never saved shortcuts but learned ⇧⌘V and ⇧⌘S; keep those for them.
+        if hasPriorUse() {
+            save(.previousDefault)
+            return .previousDefault
+        }
+
+        // Pin the new defaults, so a history created later doesn't turn this install into a "prior use" one.
+        save(.default)
         return .default
     }
 

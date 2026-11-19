@@ -32,12 +32,25 @@ struct Shortcut: Codable, Hashable {
     var keyCode: UInt32
     var modifiers: UInt32
 
+    // ⌃⌥⌘ combinations aren't used by macOS or by the standard app menus, so registering them globally doesn't
+    // take a command away from other apps. ⇧⌘V (Paste and Match Style) and ⇧⌘S (Save As/Duplicate) did.
     static let defaultOpenHub = Shortcut(
+        keyCode: UInt32(kVK_ANSI_V),
+        modifiers: UInt32(cmdKey | optionKey | controlKey)
+    )
+
+    static let defaultCaptureScreenshot = Shortcut(
+        keyCode: UInt32(kVK_ANSI_S),
+        modifiers: UInt32(cmdKey | optionKey | controlKey)
+    )
+
+    /// The defaults before 2.2, kept for people who already use Edison.
+    static let previousDefaultOpenHub = Shortcut(
         keyCode: UInt32(kVK_ANSI_V),
         modifiers: UInt32(cmdKey | shiftKey)
     )
 
-    static let defaultCaptureScreenshot = Shortcut(
+    static let previousDefaultCaptureScreenshot = Shortcut(
         keyCode: UInt32(kVK_ANSI_S),
         modifiers: UInt32(cmdKey | shiftKey)
     )
@@ -99,6 +112,11 @@ struct ShortcutSet: Codable, Hashable {
     static let `default` = ShortcutSet(map: [
         .openHub: .defaultOpenHub,
         .captureScreenshot: .defaultCaptureScreenshot
+    ])
+
+    static let previousDefault = ShortcutSet(map: [
+        .openHub: .previousDefaultOpenHub,
+        .captureScreenshot: .previousDefaultCaptureScreenshot
     ])
 
     static func defaultShortcut(for action: ShortcutAction) -> Shortcut? {
