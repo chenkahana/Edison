@@ -22,8 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowRouter.setOpenEditorAction { [weak self] in self?.makeEditorWindow() }
         statusController = StatusBarController(
             actions: .init(
-                openHub: { [weak self] in
-                    self?.windowRouter.openHub()
+                openHub: {
+                    // Same path as the shortcut: toggles, and remembers the app to paste back into.
+                    NotificationCenter.default.post(
+                        name: .edisonShortcutActionRequested,
+                        object: ShortcutAction.openHub.rawValue
+                    )
                 },
                 captureScreenshot: {
                     NotificationCenter.default.post(
