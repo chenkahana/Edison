@@ -47,6 +47,7 @@ private struct EditorSessionView: View {
     @State private var tool: ScreenshotTool = .arrow
     @State private var draftSnapshot: ScreenshotDocumentSnapshot?
     @State private var dragContext: EditorDragContext?
+    @State private var isSnapped = false
     @State private var cropDraft: CGRect?
     @State private var textDraft: EditorTextDraft?
     @FocusState private var isTextFieldFocused: Bool
@@ -550,6 +551,7 @@ private struct EditorSessionView: View {
                     target = AnnotationConstraint.snappedSegmentEnd(start: anchor, end: point)
                 }
             }
+            updateSnapFeedback(constrained && snapshot.annotations[index].kind.isSegment)
             snapshot.annotations[index] = snapshot.annotations[index].resized(handle: handle.handle, to: target)
             draftSnapshot = snapshot
 
@@ -559,6 +561,7 @@ private struct EditorSessionView: View {
                 snapshot.annotations.append(annotation)
             }
             draftSnapshot = snapshot
+            updateSnapFeedback(constrained)
 
         case let .freehand(annotationID, _):
             guard var snapshot = draftSnapshot,
@@ -571,6 +574,7 @@ private struct EditorSessionView: View {
             draftSnapshot = snapshot
 
         case let .crop(start):
+            updateSnapFeedback(constrained)
             cropDraft = constrained
                 ? AnnotationConstraint.squareRect(start: start, end: point).intersection(visibleImageRect)
                 : CGRect(segmentFrom: start, to: point)
@@ -580,8 +584,19 @@ private struct EditorSessionView: View {
         }
     }
 
+    /// A trackpad tap on the way into a Shift snap (45°, square, circle), never while it stays snapped.
+    private func updateSnapFeedback(_ snapped: Bool) {
+        if snapped, !isSnapped {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        }
+        isSnapped = snapped
+    }
+
     private func finishDrag() {
-        defer { dragContext = nil }
+        defer {
+            dragContext = nil
+            isSnapped = false
+        }
         guard let dragContext else { return }
 
         switch dragContext {
