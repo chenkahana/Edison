@@ -91,11 +91,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func makeHubWindow() {
         guard hubWindow == nil else { return }
-        let window = makeWindow(
-            rootView: HubView(),
-            styleMask: [.titled, .fullSizeContentView],
-            size: HubTheme.shelfWindowSize
+        // A non-activating panel takes keys without activating Edison, so the app you were in stays
+        // active: its selection stays lit and paste-back needs no re-activation.
+        let window = HubPanel(
+            contentRect: NSRect(origin: .zero, size: HubTheme.shelfWindowSize),
+            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
         )
+        window.contentViewController = makeHostingController(rootView: HubView())
+        window.setContentSize(HubTheme.shelfWindowSize)
+        window.isReleasedWhenClosed = false
+        window.isFloatingPanel = true
+        window.hidesOnDeactivate = false
+        window.becomesKeyOnlyIfNeeded = false
         window.title = "Edison"
         HubShelfWindowStyle.apply(to: window)
         hubWindow = window
@@ -116,10 +125,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editorWindow = window
     }
 
-    private func makeWindow<Content: View>(rootView: Content, styleMask: NSWindow.StyleMask, size: NSSize) -> NSWindow {
+    private func makeHostingController<Content: View>(rootView: Content) -> NSViewController {
         let controller = NSHostingController(rootView: rootView.environmentObject(appState))
         controller.sizingOptions = []
-        let window = NSWindow(contentViewController: controller)
+        return controller
+    }
+
+    private func makeWindow<Content: View>(rootView: Content, styleMask: NSWindow.StyleMask, size: NSSize) -> NSWindow {
+        let window = NSWindow(contentViewController: makeHostingController(rootView: rootView))
         window.styleMask = styleMask
         window.setContentSize(size)
         window.isReleasedWhenClosed = false
@@ -135,4 +148,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowRouter.openHub()
         return true
     }
+}
+
+/// The Hub's window. A non-activating panel still becomes key so search and the arrow keys work.
+final class HubPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 }
