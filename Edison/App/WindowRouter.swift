@@ -113,6 +113,8 @@ final class WindowRouter {
     }
 
     func openEditor() {
+        // While the editor is open Edison is a regular app: Dock icon, ⌘-Tab, and a menu bar with ⌘W and Edit.
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         NSApp.unhide(nil)
 
@@ -135,6 +137,8 @@ final class WindowRouter {
 
     func dismissEditor() {
         resolveEditorWindow()?.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
+        yieldFocusIfIdle()
     }
 
     func dismissHub() {
