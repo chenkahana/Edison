@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // scene windows when it chooses to, which left the app with no window to show.
     private var hubWindow: NSWindow?
     private var editorWindow: NSWindow?
+    private var firstRunWindow: NSWindow?
+    private let firstRunDoneKey = "edison.firstRun.done"
     #if SPARKLE
     private let updater = Updater()
     #endif
@@ -20,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appState.windowRouter = windowRouter
         windowRouter.setOpenHubAction { [weak self] in self?.makeHubWindow() }
         windowRouter.setOpenEditorAction { [weak self] in self?.makeEditorWindow() }
+        showFirstRunIfNeeded()
         statusController = StatusBarController(
             actions: .init(
                 openHub: {
@@ -127,6 +130,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.setFrameAutosaveName("EdisonScreenshotEditor")
         editorWindow = window
+    }
+
+    /// New installs get one welcome window. Anyone with history already knows Edison, so they never see it.
+    private func showFirstRunIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: firstRunDoneKey) else { return }
+        let historyFile = HistoryStore.storageDirectory.appendingPathComponent("history.json")
+        guard !FileManager.default.fileExists(atPath: historyFile.path) else {
+            defaults.set(true, forKey: firstRunDoneKey)
+            return
+        }
+
+        let window = makeWindow(
+            rootView: FirstRunView { [weak self] in
+                guard let self else { return }
+                UserDefaults.standard.set(true, forKey: self.firstRunDoneKey)
+                self.firstRunWindow?.close()
+                self.firstRunWindow = nil
+            },
+            // No close button: Done is the one way out, so finishing is never mistaken for skipping.
+            styleMask: [.titled],
+            size: NSSize(width: 460, height: 400)
+        )
+        window.title = "Welcome to Edison"
+        sizeToFitContent(window)
+        window.center()
+        firstRunWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func sizeToFitContent(_ window: NSWindow) {
+        if let size = window.contentViewController?.view.fittingSize, size.height > 0 {
+            window.setContentSize(size)
+        }
     }
 
     private func makeHostingController<Content: View>(rootView: Content) -> NSViewController {

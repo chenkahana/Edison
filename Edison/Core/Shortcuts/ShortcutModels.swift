@@ -71,6 +71,16 @@ extension Shortcut {
         return flags
     }
 
+    /// The shortcut as Mac menus write it, for example ⌃⌥⌘V.
+    var displayString: String {
+        var text = ""
+        if modifiers & UInt32(controlKey) != 0 { text += "⌃" }
+        if modifiers & UInt32(optionKey) != 0 { text += "⌥" }
+        if modifiers & UInt32(shiftKey) != 0 { text += "⇧" }
+        if modifiers & UInt32(cmdKey) != 0 { text += "⌘" }
+        return text + (menuKeyEquivalent?.uppercased() ?? "?")
+    }
+
     /// The character a menu item shows for this shortcut's key in the current keyboard layout, or nil when the
     /// layout gives none.
     var menuKeyEquivalent: String? {
