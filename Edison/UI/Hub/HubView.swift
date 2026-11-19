@@ -177,6 +177,10 @@ struct HubView: View {
             syncSelection()
         }
         .onReceive(NotificationCenter.default.publisher(for: .edisonHubWillOpen)) { _ in
+            // The Hub opens fresh: no leftover search, type filter or collection.
+            appState.activeQuery = ""
+            appState.selectedTypeFilter = .all
+            appState.selectedCollectionID = nil
             focusedField = nil
             showQuickLook = false
             showsQuickPasteBadges = false
