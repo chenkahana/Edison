@@ -16,13 +16,13 @@ enum ShortcutAction: String, CaseIterable, Codable, Hashable, Identifiable {
 
     var title: String {
         switch self {
-        case .openHub: return "Open Edison"
-        case .captureScreenshot: return "Capture Screenshot"
+        case .openHub: return "Open Hub"
+        case .captureScreenshot: return "Capture Area"
         case .captureWindow: return "Capture Window"
         case .captureFullScreen: return "Capture Full Screen"
         case .capturePreviousArea: return "Capture Previous Area"
-        case .editLastScreenshot: return "Edit Last Screenshot"
-        case .toggleHistoryPause: return "Pause / Resume History"
+        case .editLastScreenshot: return "Annotate Last Screenshot"
+        case .toggleHistoryPause: return "Pause or Resume Clipboard History"
         case .openSettings: return "Open Settings"
         }
     }

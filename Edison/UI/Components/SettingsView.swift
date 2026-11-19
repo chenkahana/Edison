@@ -57,7 +57,7 @@ struct SettingsView: View {
     @State private var editableSettings = AppSettings.default
     @State private var editableShortcuts = ShortcutSet.default
     @State private var isBootstrapping = true
-    @State private var storageUsageDescription = "Calculating..."
+    @State private var storageUsageDescription = "Calculating…"
     @State private var isConfirmingClearHistory = false
     @State private var isConfirmingRestoreAllDefaults = false
 
@@ -291,7 +291,7 @@ struct SettingsView: View {
                 editorStyleStepper("Font Size", value: editableSettings.editor.defaultStyle.fontSize, range: 14...96) {
                     editableSettings.editor.defaultStyle.fontSize = $0
                 }
-                editorStyleStepper("Blur Strength", value: editableSettings.editor.defaultStyle.blurRadius, range: 4...40) {
+                editorStyleStepper("Pixelation Size", value: editableSettings.editor.defaultStyle.blurRadius, range: 4...40) {
                     editableSettings.editor.defaultStyle.blurRadius = $0
                 }
             }
@@ -455,7 +455,7 @@ struct SettingsView: View {
             Text(description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button(isGranted ? "Open Settings" : "Fix Access", action: action)
+            Button("Open System Settings…", action: action)
         }
         .padding(HubTheme.Space.x4)
         .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))

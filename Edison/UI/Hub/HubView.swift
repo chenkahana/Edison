@@ -73,7 +73,7 @@ struct HubView: View {
         if filter == .favorites {
             return ("No Favorites Yet", "Right-click an item and choose Add Favorite to keep it here.")
         }
-        return ("No History Yet", "Copy text, images, or files — or capture a screenshot — to start building the shelf.")
+        return ("No History Yet", "Copy text, images, or files — or capture a screenshot — to fill the Hub.")
     }
 
     private var gridColumnCount: Int {
@@ -673,7 +673,7 @@ extension ClipboardItem {
             let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return compact.isEmpty ? "Text item" : compact
         case .image:
-            return "Image / Screenshot"
+            return "Image"
         case let .fileURL(url):
             return url.lastPathComponent
         }
@@ -721,9 +721,9 @@ extension ClipboardItem {
         switch payload {
         case let .text(text):
             let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            return compact.isEmpty ? "Clipboard text" : compact
+            return compact.isEmpty ? "Text" : compact
         case .image:
-            return "Clipboard image"
+            return "Image"
         case let .fileURL(url):
             return url.lastPathComponent
         }

@@ -65,11 +65,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(shortcutItem("Open Hub", #selector(openHub), .openHub))
         menu.addItem(.separator())
-        menu.addItem(shortcutItem("Capture Screenshot", #selector(captureScreenshot), .captureScreenshot))
+        menu.addItem(shortcutItem("Capture Area", #selector(captureScreenshot), .captureScreenshot))
         menu.addItem(shortcutItem("Capture Window", #selector(captureWindow), .captureWindow))
         menu.addItem(shortcutItem("Capture Full Screen", #selector(captureFullScreen), .captureFullScreen))
         menu.addItem(shortcutItem("Capture Previous Area", #selector(capturePreviousArea), .capturePreviousArea))
-        menu.addItem(shortcutItem("Edit Last Screenshot", #selector(editLastScreenshot), .editLastScreenshot))
+        menu.addItem(shortcutItem("Annotate Last Screenshot…", #selector(editLastScreenshot), .editLastScreenshot))
         menu.addItem(.separator())
         pauseItem.action = #selector(toggleHistoryPause)
         shortcutItems[.toggleHistoryPause] = pauseItem
