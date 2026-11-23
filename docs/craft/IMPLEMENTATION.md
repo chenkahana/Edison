@@ -1,4 +1,4 @@
-RESUME HERE (2026-11-23): batch-2 (#69) merged. Branch craft/batch-3 (pushed, 24e4840, 4 editor/share commits) needs a PR. Remaining: E74, E54, E53, E58, E76, E49, E50, E46 HUD, E65/E71/E72, E67 (confirm design), E14 and W8 (need traces), plus live checks F3-F10, D1, Dvorak, swatches VoiceOver, capture sound.
+RESUME HERE (2026-11-23): batch-3 (#70, editor polish + share fidelity) merged. Batch-4 (#71: E50, E49, E76, E46/E65/E71/E72 cluster, E67) open, CI running. Remaining: E14 (needs live take), W8 (needs Instruments traces), P08/P23-P25/P28/P37-P39/P42/P44/P45/P47/P52/P53/P55/P59 (M/L, not started), P16 copy pass (waiting: Chen glossary), plus live checks F3-F10, D1, Dvorak, swatches VoiceOver, capture sound.
 
 # Implementation tracker
 
@@ -38,16 +38,23 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 - [x] E45 Capture sound (P41) — batch PR https://github.com/chenkahana/Edison/pull/68 (merged b631d9c) (write-up: #64)
 - [x] E79 Editor swatch names (P54) — batch PR https://github.com/chenkahana/Edison/pull/68 (merged b631d9c) (write-up: #66)
 - [x] 2.2 changelog entries — in batch PR https://github.com/chenkahana/Edison/pull/68 (merged b631d9c)
+- [x] E58 Editor nudges coalesce into one undo (P30, part) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
+- [x] E54 Trackpad haptic on Shift-snap (P57) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
+- [x] E53 Editor cursors follow the tool (P56) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
+- [x] E74 Share anchors at the card, sends full item (P26, part) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
+- [x] E76 Editor drag-out renders lazily (P30, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
+- [x] E50 Area selection stays on its starting display (P46) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
+- [x] E49 Overlay: system-style window highlight, legible instructions (P43, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
+- [x] E46 + E65 + E71 + E72 Capture/background errors in a floating non-modal HUD; Screen Recording status auto-refreshes; Quit & Reopen after a mid-session grant (P11/P12, part) — one commit (shared mechanism) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
+- [x] E67 History Limit + new age-based Keep History as menus with a confirm step (P20) — **decision (mine, conservative):** any change that would delete items — the menu picks, or Restore Defaults on the Privacy pane — asks first and states the count; favorites are exempt from age-based removal — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
 
 ## Skipped (not gated, but not done)
 
 - E14 / P07 double-click: backlog says only if F2 reproduces; needs the live take.
 - E06 / P19 paused glyph: menu-bar icon artwork is Chen's.
-- E67 / P20 retention menu: a one-click picker can trim hundreds of items via `trimHistoryToSettingsLimit`; needs a confirm design first. Age retention is new scope.
 - P16 copy pass (E64, E61, E40, E42 rename): marked Chen (glossary).
-- W8 speed (E18, E22, E34, E43, E56, E66): backlog says R0 T1–T5 trace numbers first.
-- P08 (E27/E28), P23–P25, P28, P37–P39, P42, P44, P45, P47, P52, P53, P55, P59: M/L size; not started this session.
-- E74 share anchor, E54 haptics, E53 editor cursors, E58 nudge undo, E76, E49, E50, E46 HUD, E65/E71/E72: not started this session.
+- W8 speed (E18, E22, E34, E43, E56, E66): needs Instruments traces (R0 T1–T5), to capture live.
+- P08 (E27/E28), P23–P25, P28, P37–P39, P42, P44, P45, P47, P52, P53, P55, P59: M/L size; not started.
 
 ## Waiting: Chen
 
