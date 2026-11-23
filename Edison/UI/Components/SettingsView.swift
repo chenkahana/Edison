@@ -539,13 +539,21 @@ struct SettingsView: View {
         .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))
     }
 
+    /// Walks the whole storage folder, so it runs off the main thread; only the result assignment
+    /// (back on this Task's own context, the main actor) touches view state.
     private func refreshStorageUsage() {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        storageUsageDescription = formatter.string(fromByteCount: Int64(directorySize(at: HistoryStore.storageDirectory)))
+        let directory = HistoryStore.storageDirectory
+        Task {
+            let size = await Task.detached(priority: .utility) {
+                Self.directorySize(at: directory)
+            }.value
+            let formatter = ByteCountFormatter()
+            formatter.countStyle = .file
+            storageUsageDescription = formatter.string(fromByteCount: Int64(size))
+        }
     }
 
-    private func directorySize(at url: URL) -> Int {
+    private nonisolated static func directorySize(at url: URL) -> Int {
         let resourceKeys: Set<URLResourceKey> = [.fileSizeKey, .isDirectoryKey]
         let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(resourceKeys))
         var total = 0
