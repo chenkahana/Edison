@@ -822,28 +822,31 @@ private struct EditorSessionView: View {
         cropDraft = nil
     }
 
+    /// Renders and writes the PNG only once the drag actually needs it, not when it starts.
     private func makeDragItemProvider() -> NSItemProvider {
-        guard let data = try? session.renderedPNGData() else { return NSItemProvider() }
-
+        let session = session
         let baseName = session.draft.fileNameHint
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: ".")
         let fileName = (baseName.isEmpty ? "Edison Screenshot" : baseName) + ".png"
-        var fileURL: URL?
-        do {
-            let url = try TemporaryFiles.url(in: .dragOut, subfolder: session.id.uuidString, fileName: fileName)
-            try data.write(to: url, options: .atomic)
-            fileURL = url
-        } catch {
-            Log.capture.error("Editor drag-out write failed – \(error.localizedDescription)")
-        }
+        let sessionID = session.id
 
-        let provider = fileURL.flatMap { NSItemProvider(contentsOf: $0) } ?? NSItemProvider()
-        provider.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
-            completion(data, nil)
+        let provider = NSItemProvider()
+        provider.suggestedName = fileName
+        provider.registerFileRepresentation(forTypeIdentifier: UTType.png.identifier, fileOptions: [], visibility: .all) { completion in
+            Task { @MainActor in
+                do {
+                    let data = try session.renderedPNGData()
+                    let url = try TemporaryFiles.url(in: .dragOut, subfolder: sessionID.uuidString, fileName: fileName)
+                    try data.write(to: url, options: .atomic)
+                    completion(url, true, nil)
+                } catch {
+                    Log.capture.error("Editor drag-out write failed – \(error.localizedDescription)")
+                    completion(nil, false, error)
+                }
+            }
             return nil
         }
-        provider.suggestedName = fileName
         return provider
     }
 
