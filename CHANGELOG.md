@@ -62,6 +62,8 @@
 - History Limit and a new Keep History (age) setting are menus, not a 25-step stepper; lowering either asks
   first and says how many items it deletes (favorites are kept). Previously the stepper made an accidental jump
   unlikely only because each click moved it by 25.
+- Storage Usage is recomputed off the main thread, so changing a setting with a large history no longer stalls
+  the window while it walks the storage folder.
 
 ### Menu bar
 - Capture Previous Area and Edit Last Screenshot are dimmed when there's no area or screenshot yet, instead of
