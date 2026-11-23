@@ -382,13 +382,13 @@ private final class RegionSelectionSession: NSObject {
 
         case .leftMouseDragged:
             guard mode == .area else { return nil }
-            currentPoint = NSEvent.mouseLocation
+            currentPoint = clampedToStartingDisplay(NSEvent.mouseLocation)
             updateSelectionRect()
             return nil
 
         case .leftMouseUp:
             guard mode == .area else { return nil }
-            currentPoint = NSEvent.mouseLocation
+            currentPoint = clampedToStartingDisplay(NSEvent.mouseLocation)
             let rect = makeSelectionRect()
             finish(with: .area(rect ?? .zero, displayID(containing: rect?.mid)))
             return nil
@@ -419,6 +419,19 @@ private final class RegionSelectionSession: NSObject {
         default:
             return event
         }
+    }
+
+    /// Keeps the drag on the display it started on, so the selection you see is exactly what gets
+    /// captured (a rect spanning two displays would otherwise be cut at the far one's edge).
+    private func clampedToStartingDisplay(_ point: CGPoint) -> CGPoint {
+        guard let dragStartPoint,
+              let frame = NSScreen.screens.first(where: { $0.frame.contains(dragStartPoint) })?.frame else {
+            return point
+        }
+        return CGPoint(
+            x: min(max(point.x, frame.minX), frame.maxX),
+            y: min(max(point.y, frame.minY), frame.maxY)
+        )
     }
 
     private func makeSelectionRect() -> CGRect? {
