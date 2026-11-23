@@ -62,6 +62,9 @@
   window-selection mode, where the result is shown; area mode was discarding it on every move.
 - Moving the pointer during a capture no longer redraws every display's full-screen overlay on every pixel moved;
   each one now redraws only when something it actually shows has changed.
+- An area capture is cropped from the exact frame the overlay showed while you were selecting, not a fresh capture
+  taken after it closes — so a video frame, tooltip or hover highlight that changed in between can no longer make
+  the result differ from what you selected.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,

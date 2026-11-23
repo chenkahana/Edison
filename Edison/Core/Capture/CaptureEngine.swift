@@ -57,7 +57,7 @@ final class CaptureEngine {
             guard let previous = previousArea(settings: settings) else {
                 return .failure("No previous capture area is available yet.")
             }
-            return await captureArea(previous.rect, displayID: previous.displayID)
+            return await captureArea(previous.rect, displayID: previous.displayID, frozenFrame: nil)
         }
     }
 
@@ -76,11 +76,11 @@ final class CaptureEngine {
         }
 
         switch selection {
-        case let .area(rect, displayID):
+        case let .area(rect, displayID, frozenFrame):
             if settings.capture.rememberLastArea, let displayID {
                 lastAreaByDisplay[displayID] = rect
             }
-            return await captureArea(rect, displayID: displayID)
+            return await captureArea(rect, displayID: displayID, frozenFrame: frozenFrame)
         case let .window(windowID):
             return await captureWindow(windowID: windowID)
         case let .display(displayID):
@@ -90,10 +90,18 @@ final class CaptureEngine {
         }
     }
 
-    private func captureArea(_ rect: CGRect, displayID: CGDirectDisplayID?) async -> CaptureResult {
+    private func captureArea(_ rect: CGRect, displayID: CGDirectDisplayID?, frozenFrame: CGImage?) async -> CaptureResult {
         let standardized = rect.standardized.integral
         guard standardized.width > 1, standardized.height > 1 else {
             return .cancelled
+        }
+
+        // Crop the exact frame the overlay showed during selection, instead of taking a fresh
+        // capture after it closes: live content (video, tooltips, hover highlights) can change
+        // between "selection finished" and "capture ran," so the two used to disagree.
+        if let displayID, let frozenFrame,
+           let data = croppedPNG(frozenFrame, globalRect: standardized, displayID: displayID) {
+            return .success(data: data, displayID: displayID, rect: standardized)
         }
 
         if let displayID,
@@ -204,6 +212,34 @@ final class CaptureEngine {
         return max(1, pixelsWide / boundsWide)
     }
 
+    /// Crops `globalRect` (Cocoa bottom-left points, as produced by the selection) out of a
+    /// display's frozen frame and encodes it as PNG. `nil` on any failure, so the caller can fall
+    /// back to a fresh capture.
+    private func croppedPNG(_ frame: CGImage, globalRect: CGRect, displayID: CGDirectDisplayID) -> Data? {
+        guard let screen = NSScreen.screens.first(where: {
+            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
+        }) else { return nil }
+
+        let displayFrame = screen.frame
+        let scale = pointPixelScale(for: globalRect)
+        let localRect = CGRect(
+            x: globalRect.minX - displayFrame.minX,
+            y: globalRect.minY - displayFrame.minY,
+            width: globalRect.width,
+            height: globalRect.height
+        )
+        // CGImage rows run top-down; the rect above is bottom-up, so flip before scaling to pixels.
+        let topDownY = displayFrame.height - localRect.maxY
+        let pixelRect = CGRect(
+            x: (localRect.minX * scale).rounded(),
+            y: (topDownY * scale).rounded(),
+            width: (localRect.width * scale).rounded(),
+            height: (localRect.height * scale).rounded()
+        )
+        guard let cropped = frame.cropping(to: pixelRect) else { return nil }
+        return NSBitmapImageRep(cgImage: cropped).representation(using: .png, properties: [:])
+    }
+
     private func displayID(containing point: CGPoint) -> CGDirectDisplayID? {
         displayIDForCurrentPointer(point: point)
     }
@@ -260,7 +296,7 @@ private enum SelectionMode {
 }
 
 private enum SelectionResult {
-    case area(CGRect, CGDirectDisplayID?)
+    case area(CGRect, CGDirectDisplayID?, CGImage?)
     case window(CGWindowID)
     case display(CGDirectDisplayID)
     case cancelled
@@ -277,6 +313,10 @@ private final class RegionSelectionSession: NSObject {
     private var currentPoint: CGPoint?
     private var mode: SelectionMode = .area
     private var completion: ((SelectionResult) -> Void)?
+    /// The frame each display's overlay froze on at `begin()`, so a finished area selection can be
+    /// cropped from exactly what was shown throughout the drag instead of a fresh capture taken
+    /// after the overlay windows are already gone.
+    private var frozenFrames: [CGDirectDisplayID: CGImage] = [:]
 
     init(showMeasurements: Bool) {
         self.showMeasurements = showMeasurements
@@ -319,9 +359,14 @@ private final class RegionSelectionSession: NSObject {
             window.ignoresMouseEvents = false
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
+            let frozen = displaySnapshot(for: screen)
+            if let frozen {
+                frozenFrames[frozen.displayID] = frozen.image
+            }
+
             let overlay = SelectionOverlayView(frame: window.contentView?.bounds ?? .zero)
             overlay.autoresizingMask = [.width, .height]
-            overlay.snapshot = displaySnapshot(for: screen)
+            overlay.snapshot = frozen.map { NSImage(cgImage: $0.image, size: screen.frame.size) }
             overlay.showMeasurements = showMeasurements
             overlay.mode = mode
             window.contentView = overlay
@@ -390,7 +435,8 @@ private final class RegionSelectionSession: NSObject {
             guard mode == .area else { return nil }
             currentPoint = clampedToStartingDisplay(NSEvent.mouseLocation)
             let rect = makeSelectionRect()
-            finish(with: .area(rect ?? .zero, displayID(containing: rect?.mid)))
+            let resultDisplayID = displayID(containing: rect?.mid)
+            finish(with: .area(rect ?? .zero, resultDisplayID, resultDisplayID.flatMap { frozenFrames[$0] }))
             return nil
 
         case .mouseMoved:
@@ -517,12 +563,13 @@ private final class RegionSelectionSession: NSObject {
         return nil
     }
 
-    private func displaySnapshot(for screen: NSScreen) -> NSImage? {
-        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
-              let image = CGDisplayCreateImage(CGDirectDisplayID(number.uint32Value)) else {
+    private func displaySnapshot(for screen: NSScreen) -> (displayID: CGDirectDisplayID, image: CGImage)? {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
             return nil
         }
-        return NSImage(cgImage: image, size: screen.frame.size)
+        let displayID = CGDirectDisplayID(number.uint32Value)
+        guard let image = CGDisplayCreateImage(displayID) else { return nil }
+        return (displayID, image)
     }
 
     private func finish(with result: SelectionResult) {
