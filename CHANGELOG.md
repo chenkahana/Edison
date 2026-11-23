@@ -58,6 +58,8 @@
 - Screen Recording's prompt and status update as soon as Edison regains focus, instead of needing Settings ›
   Refresh Status; once access is granted mid-session, Settings and the prompt offer Quit & Reopen Edison, since
   macOS only applies the grant after a relaunch.
+- Moving the pointer during area selection no longer scans every on-screen window — that lookup only matters in
+  window-selection mode, where the result is shown; area mode was discarding it on every move.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,
