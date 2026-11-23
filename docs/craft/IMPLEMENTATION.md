@@ -1,4 +1,4 @@
-RESUME HERE: DONE for this round. #42 (E07) merged 88ba099; batch #68 (25 items + Clear History keeps collections + 2.2 changelog) merged b631d9c. Next: Chen's live checks (list below), gated decisions, and the skipped/not-started items.
+RESUME HERE (2026-11-23): batch-2 (#69) merged. Branch craft/batch-3 (pushed, 24e4840, 4 editor/share commits) needs a PR. Remaining: E74, E54, E53, E58, E76, E49, E50, E46 HUD, E65/E71/E72, E67 (confirm design), E14 and W8 (need traces), plus live checks F3-F10, D1, Dvorak, swatches VoiceOver, capture sound.
 
 # Implementation tracker
 
