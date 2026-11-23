@@ -35,6 +35,9 @@
 - The Hub opens fresh each time: no leftover search, type filter or collection, newest item selected.
 - Search and type/collection filtering run once per change instead of several times per Hub render — a single
   render used to re-run the full search over your whole history half a dozen times.
+- Cards show text exactly as it will paste. Before, anything containing `- `, `` ` ``, `**` or similar was
+  rendered as Markdown (joining single line breaks and hiding those characters), and JSON was pretty-printed
+  with its keys sorted — neither matched what ⌘V or a drag-out actually produced.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

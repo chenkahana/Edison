@@ -547,20 +547,13 @@ struct HubView: View {
 // MARK: - Text Formatting Utilities
 
 enum HubStructuredTextFormatter {
-    static func content(for text: String) -> HubStructuredTextContent {
+    /// Cards show text as it will paste: pretty-printing JSON re-sorts its keys and reformats its
+    /// values, and rendering Markdown joins single line breaks and hides `**`/`` ` ``/`- ` — neither
+    /// is what's actually on the pasteboard, so a card that did either was showing you something
+    /// other than what ⌘V or drag-out would produce.
+    static func content(for text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return .plain("Text item") }
-
-        if let json = prettyPrintedJSON(from: trimmed) {
-            return .json(json)
-        }
-
-        if looksLikeMarkdown(trimmed),
-           let markdown = attributedMarkdown(from: trimmed) {
-            return .markdown(markdown)
-        }
-
-        return .plain(trimmed)
+        return trimmed.isEmpty ? "Text item" : trimmed
     }
 
     static func prettyPrintedJSON(from text: String) -> String? {
@@ -583,40 +576,6 @@ enum HubStructuredTextFormatter {
         return prettyText
     }
 
-    private static func attributedMarkdown(from text: String) -> AttributedString? {
-        try? AttributedString(
-            markdown: text,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .full,
-                failurePolicy: .returnPartiallyParsedIfPossible
-            )
-        )
-    }
-
-    private static func looksLikeMarkdown(_ text: String) -> Bool {
-        let indicators = [
-            "```",
-            "# ",
-            "## ",
-            "### ",
-            "> ",
-            "- ",
-            "* ",
-            "`",
-            "**",
-            "__",
-            "](",
-            "\n1. "
-        ]
-
-        return indicators.contains { text.contains($0) }
-    }
-}
-
-enum HubStructuredTextContent {
-    case plain(String)
-    case json(String)
-    case markdown(AttributedString)
 }
 
 enum HubRelativeTimeFormatter {
