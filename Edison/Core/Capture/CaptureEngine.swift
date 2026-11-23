@@ -577,9 +577,11 @@ private final class SelectionOverlayView: NSView {
             let local = convertGlobalRectToLocal(highlightedWindowRect)
             NSColor.clear.setFill()
             local.fill(using: .copy)
-            NSColor.systemOrange.withAlphaComponent(0.95).setStroke()
-            let path = NSBezierPath(roundedRect: local, xRadius: 12, yRadius: 12)
-            path.lineWidth = 3
+            NSColor.controlAccentColor.withAlphaComponent(0.2).setFill()
+            let path = NSBezierPath(roundedRect: local, xRadius: 10, yRadius: 10)
+            path.fill()
+            NSColor.controlAccentColor.withAlphaComponent(0.7).setStroke()
+            path.lineWidth = 1
             path.stroke()
         }
 
@@ -604,15 +606,21 @@ private final class SelectionOverlayView: NSView {
     private func drawInstructions() {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.6)
+        shadow.shadowBlurRadius = 3
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
             .foregroundColor: NSColor.white,
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
+            .shadow: shadow
         ]
         let subtitleAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 11, weight: .medium),
             .foregroundColor: NSColor.white.withAlphaComponent(0.85),
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
+            .shadow: shadow
         ]
 
         let title = mode == .area ? "Drag to capture an area" : "Click a window to capture it"
