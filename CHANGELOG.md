@@ -43,12 +43,25 @@
 - After a capture a thumbnail appears in the corner for 5 seconds, as with ⇧⌘5: click it to annotate, drag it
   into any app, or swipe it away; the capture is already in history. Settings › Capture › Go Straight to the Editor
   brings back the old behaviour.
+- An area selection stays on the display it started on, so what you selected is what you get. Before, a drag that
+  crossed onto a second display was captured cut off at its edge.
+- The window-capture highlight is a soft tinted fill, like the system's own screenshot tool, instead of a thick
+  orange outline; the overlay's instructions keep a shadow so they read over bright content.
+- A capture or editor error appears as a floating banner even when the Hub is closed, with only the actions that
+  error has (a "Screen Recording" button no longer shows up for errors that aren't about permission). Before, it
+  was a banner inside the Hub, usually not open during a capture.
+- Screen Recording's prompt and status update as soon as Edison regains focus, instead of needing Settings ›
+  Refresh Status; once access is granted mid-session, Settings and the prompt offer Quit & Reopen Edison, since
+  macOS only applies the grant after a relaunch.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,
   emptied. Before, one click deleted everything, collections too, with no warning.
 - Restore All Defaults… asks first, and says when going back to the default history limit (250) deletes your
   oldest items.
+- History Limit and a new Keep History (age) setting are menus, not a 25-step stepper; lowering either asks
+  first and says how many items it deletes (favorites are kept). Previously the stepper made an accidental jump
+  unlikely only because each click moved it by 25.
 
 ### Menu bar
 - Capture Previous Area and Edit Last Screenshot are dimmed when there's no area or screenshot yet, instead of
@@ -71,6 +84,7 @@
   Text, a crosshair otherwise. It used to be only arrow (Select) or crosshair (everything else).
 - A Shift-snapped line, shape or crop (45°, square, circle) gives a trackpad tap the moment it snaps.
 - Ten arrow-key nudges now undo in one ⌘Z instead of ten.
+- Dragging the finished image out renders and writes it only once the drag needs it, not when you pick it up.
 
 ### Shortcuts
 - New installs use ⌃⌥⌘V (Hub) and ⌃⌥⌘S (Capture Area), which no macOS or app command uses. ⇧⌘V and ⇧⌘S took

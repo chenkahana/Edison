@@ -47,6 +47,9 @@ final class ClipboardCoordinator: ObservableObject {
     // Provides the current history limit from AppSettings.
     var historyLimit: () -> Int = { 500 }
 
+    // Provides the current age-based retention from AppSettings; nil keeps items forever.
+    var retentionDays: () -> Int? = { nil }
+
     // MARK: - Private state
 
     private var undoTimer: Timer?
@@ -117,12 +120,36 @@ final class ClipboardCoordinator: ObservableObject {
     var onPersistRequested: (() -> Void)?
 
     func trimHistoryToSettingsLimit() {
-        let limit = historyLimit()
-        guard historyItems.count > limit else { return }
-        let excess = historyItems.suffix(historyItems.count - limit)
-        excess.forEach(deleteAssets)
-        historyItems.removeLast(historyItems.count - limit)
+        let expired = itemsToRemove(historyLimit: historyLimit(), retentionDays: retentionDays())
+        guard !expired.isEmpty else { return }
+        let expiredIDs = Set(expired.map(\.id))
+        expired.forEach(deleteAssets)
+        historyItems.removeAll { expiredIDs.contains($0.id) }
         persistHistory()
+    }
+
+    /// How many items the given history limit and retention would remove right now, without removing
+    /// them — so Settings can ask before a change silently deletes a pile of history.
+    func itemsAtRisk(historyLimit: Int, retentionDays: Int?) -> Int {
+        itemsToRemove(historyLimit: historyLimit, retentionDays: retentionDays).count
+    }
+
+    /// Age-based retention drops non-favorite items past the cutoff first (favorites are exempt, the
+    /// same way Clear History keeps collections); the count limit then drops the oldest of what remains.
+    private func itemsToRemove(historyLimit: Int, retentionDays: Int?) -> [ClipboardItem] {
+        var remaining = historyItems
+        var expired: [ClipboardItem] = []
+        if let retentionDays, retentionDays > 0 {
+            let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86400)
+            let aged = remaining.filter { !$0.isFavorite && $0.createdAt < cutoff }
+            expired.append(contentsOf: aged)
+            let agedIDs = Set(aged.map(\.id))
+            remaining.removeAll { agedIDs.contains($0.id) }
+        }
+        if remaining.count > historyLimit {
+            expired.append(contentsOf: remaining.suffix(remaining.count - historyLimit))
+        }
+        return expired
     }
 
     // MARK: - Clipboard write

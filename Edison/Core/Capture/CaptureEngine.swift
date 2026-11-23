@@ -382,13 +382,13 @@ private final class RegionSelectionSession: NSObject {
 
         case .leftMouseDragged:
             guard mode == .area else { return nil }
-            currentPoint = NSEvent.mouseLocation
+            currentPoint = clampedToStartingDisplay(NSEvent.mouseLocation)
             updateSelectionRect()
             return nil
 
         case .leftMouseUp:
             guard mode == .area else { return nil }
-            currentPoint = NSEvent.mouseLocation
+            currentPoint = clampedToStartingDisplay(NSEvent.mouseLocation)
             let rect = makeSelectionRect()
             finish(with: .area(rect ?? .zero, displayID(containing: rect?.mid)))
             return nil
@@ -419,6 +419,19 @@ private final class RegionSelectionSession: NSObject {
         default:
             return event
         }
+    }
+
+    /// Keeps the drag on the display it started on, so the selection you see is exactly what gets
+    /// captured (a rect spanning two displays would otherwise be cut at the far one's edge).
+    private func clampedToStartingDisplay(_ point: CGPoint) -> CGPoint {
+        guard let dragStartPoint,
+              let frame = NSScreen.screens.first(where: { $0.frame.contains(dragStartPoint) })?.frame else {
+            return point
+        }
+        return CGPoint(
+            x: min(max(point.x, frame.minX), frame.maxX),
+            y: min(max(point.y, frame.minY), frame.maxY)
+        )
     }
 
     private func makeSelectionRect() -> CGRect? {
@@ -564,9 +577,11 @@ private final class SelectionOverlayView: NSView {
             let local = convertGlobalRectToLocal(highlightedWindowRect)
             NSColor.clear.setFill()
             local.fill(using: .copy)
-            NSColor.systemOrange.withAlphaComponent(0.95).setStroke()
-            let path = NSBezierPath(roundedRect: local, xRadius: 12, yRadius: 12)
-            path.lineWidth = 3
+            NSColor.controlAccentColor.withAlphaComponent(0.2).setFill()
+            let path = NSBezierPath(roundedRect: local, xRadius: 10, yRadius: 10)
+            path.fill()
+            NSColor.controlAccentColor.withAlphaComponent(0.7).setStroke()
+            path.lineWidth = 1
             path.stroke()
         }
 
@@ -591,15 +606,21 @@ private final class SelectionOverlayView: NSView {
     private func drawInstructions() {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.6)
+        shadow.shadowBlurRadius = 3
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
             .foregroundColor: NSColor.white,
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
+            .shadow: shadow
         ]
         let subtitleAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 11, weight: .medium),
             .foregroundColor: NSColor.white.withAlphaComponent(0.85),
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
+            .shadow: shadow
         ]
 
         let title = mode == .area ? "Drag to capture an area" : "Click a window to capture it"

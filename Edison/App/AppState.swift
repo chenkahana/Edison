@@ -41,6 +41,9 @@ final class AppState: ObservableObject {
     var historyItems: [ClipboardItem] { clipboardCoordinator.historyItems }
     var deletedItemForUndo: ClipboardItem? { clipboardCoordinator.deletedItemForUndo }
     var showDeleteUndoToast: Bool { clipboardCoordinator.showDeleteUndoToast }
+    func itemsAtRisk(historyLimit: Int, retentionDays: Int?) -> Int {
+        clipboardCoordinator.itemsAtRisk(historyLimit: historyLimit, retentionDays: retentionDays)
+    }
 
     // MARK: - Public API that delegates to CaptureCoordinator
 
@@ -53,6 +56,8 @@ final class AppState: ObservableObject {
     }
     var screenRecordingAccessGranted: Bool { captureCoordinator.screenRecordingAccessGranted }
     var lastCaptureFailureReason: String? { captureCoordinator.lastCaptureFailureReason }
+    var needsRelaunchForScreenRecording: Bool { captureCoordinator.needsRelaunchForScreenRecording }
+    func quitAndReopen() { captureCoordinator.quitAndReopen() }
 
     // MARK: - View-model computed properties (stay in AppState)
 
@@ -101,6 +106,7 @@ final class AppState: ObservableObject {
     private let accessibilitySettingsOpener: () -> Void
     private let screenRecordingSettingsOpener: () -> Void
     private let captureThumbnail = CaptureThumbnail()
+    private let messageHUD = MessageHUD()
     private lazy var pasteBackCoordinator = pasteBackCoordinatorOverride ?? makePasteBackCoordinator()
 
     weak var windowRouter: WindowRouter? {
@@ -168,6 +174,9 @@ final class AppState: ObservableObject {
         // Wire clipboard coordinator callbacks.
         coordinator.historyLimit = { [weak self] in
             self?.settings.privacy.historyLimit ?? 500
+        }
+        coordinator.retentionDays = { [weak self] in
+            self?.settings.privacy.retentionDays
         }
         coordinator.onHistoryChanged = { [weak self] liveItemIDs in
             guard let self else { return }
@@ -239,6 +248,8 @@ final class AppState: ObservableObject {
                 self.clipboardCoordinator.setHistoryItems(loadedItems)
                 self.clipboardCoordinator.reconcileRepresentationStore()
                 self.collections = loadedCollections
+                // Applies retention while the app wasn't running, not just when settings are saved.
+                self.clipboardCoordinator.trimHistoryToSettingsLimit()
                 self.clipboardCoordinator.startMonitor()
             }
         }
@@ -582,7 +593,9 @@ final class AppState: ObservableObject {
 
     func editLastScreenshot() {
         guard let lastScreenshotSession else {
-            captureCoordinator.captureError = "There is no previous screenshot to edit yet."
+            let message = "There is no previous screenshot to edit yet."
+            captureCoordinator.captureError = message
+            messageHUD.show(message: message)
             return
         }
         captureCoordinator.openEditor(for: lastScreenshotSession.duplicateForEditing())
@@ -826,12 +839,10 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// A floating banner, not `NSAlert.runModal()`: export/save/commit errors can be triggered from a
+    /// hotkey while another app is active, and a modal alert can open behind it and block the run loop.
     private func present(error: Error, title: String) {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = title
-        alert.informativeText = error.localizedDescription
-        alert.runModal()
+        messageHUD.show(message: "\(title): \(error.localizedDescription)")
     }
 }
 

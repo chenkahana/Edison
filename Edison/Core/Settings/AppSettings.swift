@@ -54,6 +54,9 @@ struct EditorSettings: Codable, Hashable {
 
 struct PrivacySettings: Codable, Hashable {
     var historyLimit = 250
+    /// Drops non-favorite items older than this many days. `nil` keeps history forever (until the
+    /// count limit trims it). Missing from settings saved before this existed, which decodes as `nil`.
+    var retentionDays: Int?
 }
 
 struct AppSettings: Codable, Hashable {

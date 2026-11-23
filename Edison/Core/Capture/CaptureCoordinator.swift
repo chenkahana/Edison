@@ -25,11 +25,17 @@ final class CaptureCoordinator: ObservableObject {
     @Published var captureError: String?
     @Published private(set) var screenRecordingAccessGranted: Bool
     @Published private(set) var lastCaptureFailureReason: String?
+    /// Set once a capture was refused for lack of Screen Recording access. macOS only applies a grant
+    /// made afterwards in System Settings once Edison relaunches, so Settings offers Quit & Reopen
+    /// instead of claiming the grant alone fixed it.
+    @Published private(set) var needsRelaunchForScreenRecording = false
 
     // MARK: - Dependencies
 
     private let captureEngine: CaptureEngine
     private let imageStore: ImageStore.Type
+    private let messageHUD = MessageHUD()
+    private var activationObserver: NSObjectProtocol?
     weak var windowRouter: WindowRouter?
 
     // MARK: - Injected closures
@@ -95,12 +101,38 @@ final class CaptureCoordinator: ObservableObject {
         self.presentError = presentError
         self.requestScreenRecordingAccess = requestScreenRecordingAccess
         self.screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
+
+        // Catches a Screen Recording grant made in System Settings while Edison was in the background,
+        // without waiting for the user to open Settings and press Refresh Status.
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.refreshPermissionStatuses()
+            }
+        }
+    }
+
+    deinit {
+        if let activationObserver {
+            NotificationCenter.default.removeObserver(activationObserver)
+        }
     }
 
     // MARK: - Permission
 
     func refreshPermissionStatuses() {
         screenRecordingAccessGranted = CGPreflightScreenCaptureAccess()
+    }
+
+    /// Quits and relaunches Edison so a Screen Recording grant made after launch takes effect.
+    func quitAndReopen() {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: configuration) { _, _ in }
+        NSApp.terminate(nil)
     }
 
     // MARK: - Capture
@@ -150,13 +182,17 @@ final class CaptureCoordinator: ObservableObject {
             windowRouter?.yieldFocusIfIdle()
         case .permissionDenied:
             screenRecordingAccessGranted = false
+            needsRelaunchForScreenRecording = true
             lastCaptureFailureReason = "Screen Recording permission is required before Edison can capture screenshots."
             captureError = lastCaptureFailureReason
-            presentScreenRecordingPermissionAlert()
+            presentScreenRecordingPermissionPrompt()
         case let .failure(reason):
             lastCaptureFailureReason = reason
             captureError = reason
             Log.capture.error("Capture failed – \(reason)")
+            // Capture often starts from a hotkey with the Hub closed, so the failure must surface on
+            // its own rather than wait inside a window nobody has open.
+            messageHUD.show(message: reason)
         }
     }
 
@@ -231,16 +267,16 @@ final class CaptureCoordinator: ObservableObject {
         _ = pasteboard.setData(data, forType: .png)
     }
 
-    private func presentScreenRecordingPermissionAlert() {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Allow Screen Recording"
-        alert.informativeText = "Edison needs Screen Recording access to capture screenshots. Open System Settings and enable Edison under Privacy & Security > Screen Recording."
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Not Now")
-        if alert.runModal() == .alertFirstButtonReturn {
-            requestScreenRecordingAccess()
-        }
+    /// A floating prompt, not `NSAlert.runModal()`: this fires from a hotkey while another app is
+    /// active, and a modal alert can open behind that app and block the run loop until answered.
+    private func presentScreenRecordingPermissionPrompt() {
+        let action: HubMessageBanner.Action = needsRelaunchForScreenRecording && screenRecordingAccessGranted
+            ? HubMessageBanner.Action(title: "Quit & Reopen Edison", handler: { [weak self] in self?.quitAndReopen() })
+            : HubMessageBanner.Action(title: "Open System Settings", handler: { [weak self] in self?.requestScreenRecordingAccess() })
+        messageHUD.show(
+            message: "Edison needs Screen Recording access to capture screenshots.",
+            actions: [action]
+        )
     }
 }
 

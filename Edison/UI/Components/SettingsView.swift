@@ -60,6 +60,10 @@ struct SettingsView: View {
     @State private var storageUsageDescription = "Calculating…"
     @State private var isConfirmingClearHistory = false
     @State private var isConfirmingRestoreAllDefaults = false
+    @State private var isConfirmingPrivacyChange = false
+    @State private var pendingHistoryLimit = AppSettings.default.privacy.historyLimit
+    @State private var pendingRetentionDays: Int?
+    @State private var pendingRemovedCount = 0
 
     private var filteredPanes: [SettingsPane] {
         let normalized = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -302,17 +306,26 @@ struct SettingsView: View {
         .formStyle(.grouped)
     }
 
+    private static let historyLimitOptions = [100, 250, 500, 1000, 2500]
+    private static let retentionDayOptions = [7, 30, 90, 180]
+
     private var privacyPane: some View {
         Form {
-            Stepper(
-                "History Limit: \(editableSettings.privacy.historyLimit)",
-                value: Binding(
-                    get: { editableSettings.privacy.historyLimit },
-                    set: { editableSettings.privacy.historyLimit = max(25, min($0, 1000)) }
-                ),
-                in: 25...1000,
-                step: 25
-            )
+            Picker("History Limit", selection: historyLimitBinding) {
+                ForEach(Self.historyLimitOptions, id: \.self) { value in
+                    Text("\(value) Items").tag(value)
+                }
+            }
+
+            Picker("Keep History", selection: retentionDaysBinding) {
+                Text("Forever").tag(Int?.none)
+                ForEach(Self.retentionDayOptions, id: \.self) { days in
+                    Text("\(days) Days").tag(Int?.some(days))
+                }
+            }
+            Text("Favorites are kept regardless of age.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             LabeledContent("Storage Usage", value: storageUsageDescription)
 
@@ -339,6 +352,44 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
+        .alert("Lower History Retention?", isPresented: $isConfirmingPrivacyChange) {
+            Button("Delete \(pendingRemovedCount) \(pendingRemovedCount == 1 ? "Item" : "Items")", role: .destructive) {
+                editableSettings.privacy.historyLimit = pendingHistoryLimit
+                editableSettings.privacy.retentionDays = pendingRetentionDays
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes your \(pendingRemovedCount) oldest \(pendingRemovedCount == 1 ? "item" : "items") (favorites are kept). You can't undo this.")
+        }
+    }
+
+    private var historyLimitBinding: Binding<Int> {
+        Binding(
+            get: { editableSettings.privacy.historyLimit },
+            set: { applyPrivacyChange(historyLimit: $0, retentionDays: editableSettings.privacy.retentionDays) }
+        )
+    }
+
+    private var retentionDaysBinding: Binding<Int?> {
+        Binding(
+            get: { editableSettings.privacy.retentionDays },
+            set: { applyPrivacyChange(historyLimit: editableSettings.privacy.historyLimit, retentionDays: $0) }
+        )
+    }
+
+    /// A lower limit or shorter retention can silently delete hundreds of items in one click (unlike
+    /// the old 25-step stepper, which took dozens of clicks to reach); ask first whenever it would.
+    private func applyPrivacyChange(historyLimit: Int, retentionDays: Int?) {
+        let removed = appState.itemsAtRisk(historyLimit: historyLimit, retentionDays: retentionDays)
+        guard removed > 0 else {
+            editableSettings.privacy.historyLimit = historyLimit
+            editableSettings.privacy.retentionDays = retentionDays
+            return
+        }
+        pendingHistoryLimit = historyLimit
+        pendingRetentionDays = retentionDays
+        pendingRemovedCount = removed
+        isConfirmingPrivacyChange = true
     }
 
     private var clearHistoryScope: String {
@@ -350,14 +401,27 @@ struct SettingsView: View {
         return scope + " You can't undo this."
     }
 
+    /// macOS only applies a Screen Recording grant made after launch once Edison relaunches, so once
+    /// this session has seen it denied, a later grant still needs Quit & Reopen, not a re-prompt.
+    private var needsScreenRecordingRelaunch: Bool {
+        appState.needsRelaunchForScreenRecording && appState.screenRecordingAccessGranted
+    }
+
     private var permissionsPane: some View {
         Form {
             statusCard(
                 title: "Screen Recording",
                 isGranted: appState.screenRecordingAccessGranted,
-                description: "Required for screenshot capture."
+                description: needsScreenRecordingRelaunch
+                    ? "Granted, but Edison needs to relaunch before it can capture screenshots."
+                    : "Required for screenshot capture.",
+                buttonTitle: needsScreenRecordingRelaunch ? "Quit & Reopen Edison" : "Open System Settings…"
             ) {
-                appState.requestScreenRecordingAccess()
+                if needsScreenRecordingRelaunch {
+                    appState.quitAndReopen()
+                } else {
+                    appState.requestScreenRecordingAccess()
+                }
             }
 
             statusCard(
@@ -404,7 +468,12 @@ struct SettingsView: View {
         case .editor:
             editableSettings.editor = AppSettings.default.editor
         case .privacy:
-            editableSettings.privacy = AppSettings.default.privacy
+            // Routed through the same confirm gate as the pickers: going back to the default limit
+            // and retention can delete just as much history as picking them directly.
+            applyPrivacyChange(
+                historyLimit: AppSettings.default.privacy.historyLimit,
+                retentionDays: AppSettings.default.privacy.retentionDays
+            )
         case .permissions:
             appState.refreshPermissionStatuses()
         case .about:
@@ -446,7 +515,13 @@ struct SettingsView: View {
         }
     }
 
-    private func statusCard(title: String, isGranted: Bool, description: String, action: @escaping () -> Void) -> some View {
+    private func statusCard(
+        title: String,
+        isGranted: Bool,
+        description: String,
+        buttonTitle: String = "Open System Settings…",
+        action: @escaping () -> Void
+    ) -> some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
             HStack {
                 Label(title, systemImage: isGranted ? "checkmark.shield" : "exclamationmark.triangle")
@@ -458,7 +533,7 @@ struct SettingsView: View {
             Text(description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button("Open System Settings…", action: action)
+            Button(buttonTitle, action: action)
         }
         .padding(HubTheme.Space.x4)
         .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))
