@@ -60,6 +60,8 @@
   macOS only applies the grant after a relaunch.
 - Moving the pointer during area selection no longer scans every on-screen window — that lookup only matters in
   window-selection mode, where the result is shown; area mode was discarding it on every move.
+- Moving the pointer during a capture no longer redraws every display's full-screen overlay on every pixel moved;
+  each one now redraws only when something it actually shows has changed.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,

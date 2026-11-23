@@ -460,7 +460,6 @@ private final class RegionSelectionSession: NSObject {
         let windowRect = mode == .window ? currentWindowRect(at: mouseLocation) : nil
         let displayRect = displayRect(containing: mouseLocation)
         overlays.forEach {
-            $0.pointerLocation = mouseLocation
             $0.highlightedWindowRect = windowRect
             $0.highlightedDisplayRect = displayRect
             $0.mode = mode
@@ -547,12 +546,14 @@ private struct WindowSelectionInfo {
 
 private final class SelectionOverlayView: NSView {
     var snapshot: NSImage? { didSet { needsDisplay = true } }
-    var selectionRect: CGRect? { didSet { needsDisplay = true } }
-    var highlightedWindowRect: CGRect? { didSet { needsDisplay = true } }
-    var highlightedDisplayRect: CGRect? { didSet { needsDisplay = true } }
-    var pointerLocation: CGPoint? { didSet { needsDisplay = true } }
-    var showMeasurements = true { didSet { needsDisplay = true } }
-    var mode: SelectionMode = .area { didSet { needsDisplay = true } }
+    // Every move posts new values to every display's overlay (see updateHoverState), so without
+    // an equality guard each one re-blits its full-screen snapshot and redraws its dim/chrome on
+    // every mouse pixel moved — including displays the pointer isn't even on.
+    var selectionRect: CGRect? { didSet { if oldValue != selectionRect { needsDisplay = true } } }
+    var highlightedWindowRect: CGRect? { didSet { if oldValue != highlightedWindowRect { needsDisplay = true } } }
+    var highlightedDisplayRect: CGRect? { didSet { if oldValue != highlightedDisplayRect { needsDisplay = true } } }
+    var showMeasurements = true { didSet { if oldValue != showMeasurements { needsDisplay = true } } }
+    var mode: SelectionMode = .area { didSet { if oldValue != mode { needsDisplay = true } } }
 
     override var acceptsFirstResponder: Bool { true }
 
