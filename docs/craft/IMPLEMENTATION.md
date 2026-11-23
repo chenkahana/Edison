@@ -1,4 +1,4 @@
-RESUME HERE (2026-11-23): batch-4 (#71: E50, E49, E76, E46/E65/E71/E72 cluster, E67) merged. Branch craft/batch-5 open (rebased on main, no commits yet) for the M/L design-system items. Live checks (F1-F10, D1, Dvorak, swatches, capture sound) next, verified via local build + screenshot since this Mac has no isolated test account. Remaining: E14 (needs live take), W8 (needs Instruments traces), P08/P23-P25/P28/P37-P39/P42/P44/P45/P47/P52/P53/P55/P59 (M/L), P16 copy pass (waiting: Chen glossary).
+RESUME HERE (2026-11-23): batch-4 (#71) merged. PR #72 (craft/batch-5) open: E66 (storage size off main thread) + E34 (Hub search cached, not recomputed per read). Verification is build+launch+window-scoped-screenshot (`screencapture -x -o -l <windowID>`, never full-screen) gated on `pgrep -x CptHost` + `ioreg` HIDIdleTime<300s, re-checked before every step; paused automatically while Chen is at the keyboard, resumed once idle. F1's old Hub-didn't-open note was a test mistake, not a bug: the 2.2 default is ⌃⌥⌘V, not the legacy ⇧⌘V. Remaining: E14 (needs live take), W8 (E18/E22/E43/E56 need Instruments traces; E66/E34 done), P08/P23-P25/P28/P37-P39/P42/P44/P45/P47/P52/P53/P55/P59 (M/L), P16 copy pass (waiting: Chen glossary), F1-F10/D1/Dvorak/swatches/capture-sound live checks (in progress under the gate above).
 
 # Implementation tracker
 
@@ -47,13 +47,15 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 - [x] E49 Overlay: system-style window highlight, legible instructions (P43, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
 - [x] E46 + E65 + E71 + E72 Capture/background errors in a floating non-modal HUD; Screen Recording status auto-refreshes; Quit & Reopen after a mid-session grant (P11/P12, part) — one commit (shared mechanism) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
 - [x] E67 History Limit + new age-based Keep History as menus with a confirm step (P20) — **decision (mine, conservative):** any change that would delete items — the menu picks, or Restore Defaults on the Privacy pane — asks first and states the count; favorites are exempt from age-based removal — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
+- [x] E66 Storage Usage computed off the main thread (P51, part) — batch PR https://github.com/chenkahana/Edison/pull/72 (open, CI running)
+- [x] E34 Hub `filteredItems` cached and recomputed once per input change instead of once per read (P49) — batch PR https://github.com/chenkahana/Edison/pull/72 (open, CI running)
 
 ## Skipped (not gated, but not done)
 
 - E14 / P07 double-click: backlog says only if F2 reproduces; needs the live take.
 - E06 / P19 paused glyph: menu-bar icon artwork is Chen's.
 - P16 copy pass (E64, E61, E40, E42 rename): marked Chen (glossary).
-- W8 speed (E18, E22, E34, E43, E56, E66): needs Instruments traces (R0 T1–T5), to capture live.
+- W8 speed remainder (E18, E22, E43, E56): needs Instruments traces (R0 T1–T5), to capture live.
 - P08 (E27/E28), P23–P25, P28, P37–P39, P42, P44, P45, P47, P52, P53, P55, P59: M/L size; not started.
 
 ## Waiting: Chen
