@@ -1,4 +1,4 @@
-RESUME HERE (2026-11-23): batch-3 (#70, editor polish + share fidelity) merged. Batch-4 (#71: E50, E49, E76, E46/E65/E71/E72 cluster, E67) open, CI running. Remaining: E14 (needs live take), W8 (needs Instruments traces), P08/P23-P25/P28/P37-P39/P42/P44/P45/P47/P52/P53/P55/P59 (M/L, not started), P16 copy pass (waiting: Chen glossary), plus live checks F3-F10, D1, Dvorak, swatches VoiceOver, capture sound.
+RESUME HERE (2026-11-23): batch-4 (#71: E50, E49, E76, E46/E65/E71/E72 cluster, E67) merged. Branch craft/batch-5 open (rebased on main, no commits yet) for the M/L design-system items. Live checks (F1-F10, D1, Dvorak, swatches, capture sound) next, verified via local build + screenshot since this Mac has no isolated test account. Remaining: E14 (needs live take), W8 (needs Instruments traces), P08/P23-P25/P28/P37-P39/P42/P44/P45/P47/P52/P53/P55/P59 (M/L), P16 copy pass (waiting: Chen glossary).
 
 # Implementation tracker
 
@@ -42,11 +42,11 @@ Chen approved 2026-11-18: build the backlog items that don't need his decision. 
 - [x] E54 Trackpad haptic on Shift-snap (P57) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
 - [x] E53 Editor cursors follow the tool (P56) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
 - [x] E74 Share anchors at the card, sends full item (P26, part) — batch PR https://github.com/chenkahana/Edison/pull/70 (merged)
-- [x] E76 Editor drag-out renders lazily (P30, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
-- [x] E50 Area selection stays on its starting display (P46) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
-- [x] E49 Overlay: system-style window highlight, legible instructions (P43, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
-- [x] E46 + E65 + E71 + E72 Capture/background errors in a floating non-modal HUD; Screen Recording status auto-refreshes; Quit & Reopen after a mid-session grant (P11/P12, part) — one commit (shared mechanism) — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
-- [x] E67 History Limit + new age-based Keep History as menus with a confirm step (P20) — **decision (mine, conservative):** any change that would delete items — the menu picks, or Restore Defaults on the Privacy pane — asks first and states the count; favorites are exempt from age-based removal — batch PR https://github.com/chenkahana/Edison/pull/71 (open, CI running)
+- [x] E76 Editor drag-out renders lazily (P30, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
+- [x] E50 Area selection stays on its starting display (P46) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
+- [x] E49 Overlay: system-style window highlight, legible instructions (P43, part) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
+- [x] E46 + E65 + E71 + E72 Capture/background errors in a floating non-modal HUD; Screen Recording status auto-refreshes; Quit & Reopen after a mid-session grant (P11/P12, part) — one commit (shared mechanism) — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
+- [x] E67 History Limit + new age-based Keep History as menus with a confirm step (P20) — **decision (mine, conservative):** any change that would delete items — the menu picks, or Restore Defaults on the Privacy pane — asks first and states the count; favorites are exempt from age-based removal — batch PR https://github.com/chenkahana/Edison/pull/71 (merged)
 
 ## Skipped (not gated, but not done)
 
