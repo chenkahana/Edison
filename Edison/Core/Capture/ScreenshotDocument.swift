@@ -463,6 +463,8 @@ final class ScreenshotSession: ObservableObject, Identifiable {
     @Published private(set) var committedItemID: UUID?
 
     private var committedSnapshot: ScreenshotDocumentSnapshot?
+    private var commitCount = 0
+    private var lastNudge: (annotationID: UUID, commitCount: Int, historyIndex: Int)?
 
     init(
         draft: ScreenshotDraft,
@@ -512,6 +514,7 @@ final class ScreenshotSession: ObservableObject, Identifiable {
         }
         history = next
         historyIndex = history.count - 1
+        commitCount += 1
     }
 
     func undo() {
@@ -549,6 +552,21 @@ final class ScreenshotSession: ObservableObject, Identifiable {
         guard let index = snapshot.annotations.firstIndex(where: { $0.id == selectedAnnotationID }) else { return }
         mutate(&snapshot.annotations[index])
         commit(snapshot: snapshot)
+    }
+
+    /// Arrow-key nudges of the same annotation, with nothing in between, are one undo step.
+    func nudgeSelectedAnnotation(by delta: CGSize) {
+        guard let selectedAnnotationID else { return }
+        var snapshot = currentSnapshot
+        guard let index = snapshot.annotations.firstIndex(where: { $0.id == selectedAnnotationID }) else { return }
+        snapshot.annotations[index] = snapshot.annotations[index].moved(by: delta)
+        if let lastNudge, lastNudge.annotationID == selectedAnnotationID,
+           lastNudge.commitCount == commitCount, lastNudge.historyIndex == historyIndex {
+            history[historyIndex] = snapshot
+        } else {
+            commit(snapshot: snapshot)
+        }
+        lastNudge = (selectedAnnotationID, commitCount, historyIndex)
     }
 
     func recordCommit(itemID: UUID?) {

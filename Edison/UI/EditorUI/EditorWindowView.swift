@@ -47,6 +47,7 @@ private struct EditorSessionView: View {
     @State private var tool: ScreenshotTool = .arrow
     @State private var draftSnapshot: ScreenshotDocumentSnapshot?
     @State private var dragContext: EditorDragContext?
+    @State private var isSnapped = false
     @State private var cropDraft: CGRect?
     @State private var textDraft: EditorTextDraft?
     @FocusState private var isTextFieldFocused: Bool
@@ -331,8 +332,8 @@ private struct EditorSessionView: View {
                     .gesture(dragGesture(displayRect: displayRect))
                     .onContinuousHover { phase in
                         switch phase {
-                        case .active:
-                            (tool == .select ? NSCursor.arrow : NSCursor.crosshair).set()
+                        case let .active(location):
+                            cursor(at: toImagePoint(location, displayRect: displayRect)).set()
                         case .ended:
                             NSCursor.arrow.set()
                         }
@@ -550,6 +551,7 @@ private struct EditorSessionView: View {
                     target = AnnotationConstraint.snappedSegmentEnd(start: anchor, end: point)
                 }
             }
+            updateSnapFeedback(constrained && snapshot.annotations[index].kind.isSegment)
             snapshot.annotations[index] = snapshot.annotations[index].resized(handle: handle.handle, to: target)
             draftSnapshot = snapshot
 
@@ -559,6 +561,7 @@ private struct EditorSessionView: View {
                 snapshot.annotations.append(annotation)
             }
             draftSnapshot = snapshot
+            updateSnapFeedback(constrained)
 
         case let .freehand(annotationID, _):
             guard var snapshot = draftSnapshot,
@@ -571,6 +574,7 @@ private struct EditorSessionView: View {
             draftSnapshot = snapshot
 
         case let .crop(start):
+            updateSnapFeedback(constrained)
             cropDraft = constrained
                 ? AnnotationConstraint.squareRect(start: start, end: point).intersection(visibleImageRect)
                 : CGRect(segmentFrom: start, to: point)
@@ -580,8 +584,19 @@ private struct EditorSessionView: View {
         }
     }
 
+    /// A trackpad tap on the way into a Shift snap (45°, square, circle), never while it stays snapped.
+    private func updateSnapFeedback(_ snapped: Bool) {
+        if snapped, !isSnapped {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        }
+        isSnapped = snapped
+    }
+
     private func finishDrag() {
-        defer { dragContext = nil }
+        defer {
+            dragContext = nil
+            isSnapped = false
+        }
         guard let dragContext else { return }
 
         switch dragContext {
@@ -702,7 +717,7 @@ private struct EditorSessionView: View {
             case 125: delta = CGSize(width: 0, height: -step)
             default: delta = CGSize(width: 0, height: step)
             }
-            session.updateSelectedAnnotation { $0 = $0.moved(by: delta) }
+            session.nudgeSelectedAnnotation(by: delta)
             return true
         default:
             break
@@ -830,6 +845,24 @@ private struct EditorSessionView: View {
         }
         provider.suggestedName = fileName
         return provider
+    }
+
+    /// Resize over a handle, a hand over what can be moved, an I-beam for Text, a crosshair for drawing.
+    private func cursor(at point: CGPoint) -> NSCursor {
+        if textDraft == nil, let handle = handle(at: point) {
+            if #available(macOS 15, *), let position = handle.handle.frameResizePosition {
+                return .frameResize(position: position, directions: .all)
+            }
+            return .crosshair
+        }
+        if tool != .text, let selected = currentSelection, selected.contains(point) {
+            return .openHand
+        }
+        switch tool {
+        case .select: return annotation(at: point) == nil ? .arrow : .openHand
+        case .text: return .iBeam
+        default: return .crosshair
+        }
     }
 
     // MARK: - Geometry helpers
@@ -1045,5 +1078,18 @@ private struct EditorWindowAccessor: NSViewRepresentable {
 private extension CGFloat {
     func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
         Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+private extension ScreenshotResizeHandle {
+    @available(macOS 15, *)
+    var frameResizePosition: NSCursor.FrameResizePosition? {
+        switch self {
+        case .topLeading: return .topLeft
+        case .topTrailing: return .topRight
+        case .bottomLeading: return .bottomLeft
+        case .bottomTrailing: return .bottomRight
+        case .arrowStart, .arrowEnd: return nil
+        }
     }
 }

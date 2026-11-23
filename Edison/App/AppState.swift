@@ -499,17 +499,16 @@ final class AppState: ObservableObject {
         do {
             let shareItems = try makeShareItems(for: item)
             let picker = NSSharingServicePicker(items: shareItems)
-            guard let contentView = NSApp.keyWindow?.contentView else {
+            guard let window = NSApp.keyWindow, let contentView = window.contentView else {
                 throw missingWindowError
             }
 
-            let anchor = NSRect(
-                x: contentView.bounds.midX,
-                y: contentView.bounds.midY,
-                width: 1,
-                height: 1
-            )
-            picker.show(relativeTo: anchor, of: contentView, preferredEdge: .minY)
+            // Share is chosen from the card's context menu, so the pointer is on or next to that card.
+            let pointer = contentView.convert(window.mouseLocationOutsideOfEventStream, from: nil)
+            let origin = contentView.bounds.contains(pointer)
+                ? pointer
+                : NSPoint(x: contentView.bounds.midX, y: contentView.bounds.midY)
+            picker.show(relativeTo: NSRect(origin: origin, size: NSSize(width: 1, height: 1)), of: contentView, preferredEdge: .minY)
         } catch {
             present(error: error, title: "Share Failed")
         }
@@ -811,13 +810,17 @@ final class AppState: ObservableObject {
     private func makeShareItems(for item: ClipboardItem) throws -> [Any] {
         switch item.payload {
         case let .text(value):
-            return [value]
+            return [clipboardCoordinator.attributedText(of: item) ?? value]
         case let .image(image):
+            // The stored PNG under the item's file name, not a re-encoded NSImage.
             let data = try ImageStore.load(relativePath: image.imagePath)
-            guard let nsImage = NSImage(data: data) else {
-                throw CocoaError(.fileReadCorruptFile)
-            }
-            return [nsImage]
+            let url = try TemporaryFiles.url(
+                in: .dragOut,
+                subfolder: item.id.uuidString,
+                fileName: settings.defaultFileName(at: item.createdAt) + ".png"
+            )
+            try data.write(to: url, options: .atomic)
+            return [url]
         case let .fileURL(url):
             return [url]
         }

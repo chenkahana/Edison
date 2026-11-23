@@ -237,6 +237,22 @@ final class ClipboardCoordinator: ObservableObject {
         return representations
     }
 
+    /// The item's text as the source app formatted it, for Share; nil when it was copied as plain text.
+    func attributedText(of item: ClipboardItem) -> NSAttributedString? {
+        guard case let .text(value) = item.payload else { return nil }
+        for (type, data) in sourceFormattedRepresentations(of: item, value: value) {
+            let text: NSAttributedString?
+            switch type {
+            case .rtf: text = NSAttributedString(rtf: data, documentAttributes: nil)
+            case .rtfd: text = NSAttributedString(rtfd: data, documentAttributes: nil)
+            case .html: text = NSAttributedString(html: data, documentAttributes: nil)
+            default: text = nil
+            }
+            if let text { return text }
+        }
+        return nil
+    }
+
     /// What a card offers when it is dragged out of the Hub: the same representations a normal paste writes.
     func dragItemProvider(for item: ClipboardItem) -> NSItemProvider {
         switch item.payload {
