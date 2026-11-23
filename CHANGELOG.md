@@ -23,6 +23,8 @@
 - Items older than a week show their date ("Nov 3", or "Nov 3, 2025" from another year) instead of "16d".
 - Export… names text and images like screenshots, after the item's date, and copies a file item straight to the
   new place instead of loading it into memory first. Export and Share have their ellipses.
+- Share opens at the card you chose it from, not the Hub's centre. Text shares with its formatting (RTF/HTML)
+  instead of plain text, and an image shares as its stored PNG under its file name instead of a re-decoded image.
 - Quick Look writes its preview copy once when it opens (and when the selection changes), not on every redraw.
 - The selected card or row has the same blue ring whatever the item is. It used to take the item's type colour,
   which changed from card to card and could vanish on white or grey items.
@@ -65,6 +67,10 @@
   reading "Colour".
 - While the editor is open Edison has a Dock icon, ⌘-Tab and a menu bar (⌘W closes the editor); it goes back to
   the menu bar when the editor closes.
+- The cursor follows what's under it: resize arrows over a handle, a hand over a movable mark, an I-beam for
+  Text, a crosshair otherwise. It used to be only arrow (Select) or crosshair (everything else).
+- A Shift-snapped line, shape or crop (45°, square, circle) gives a trackpad tap the moment it snaps.
+- Ten arrow-key nudges now undo in one ⌘Z instead of ten.
 
 ### Shortcuts
 - New installs use ⌃⌥⌘V (Hub) and ⌃⌥⌘S (Capture Area), which no macOS or app command uses. ⇧⌘V and ⇧⌘S took
