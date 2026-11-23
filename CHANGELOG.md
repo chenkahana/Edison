@@ -33,6 +33,8 @@
 - The Hub no longer takes focus from the app you're in: it's a panel that takes your typing while that app stays
   active, so its selection stays lit and paste lands there without a re-activation.
 - The Hub opens fresh each time: no leftover search, type filter or collection, newest item selected.
+- Search and type/collection filtering run once per change instead of several times per Hub render — a single
+  render used to re-run the full search over your whole history half a dozen times.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

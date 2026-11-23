@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     /// so existing view bindings (which observe AppState) continue to trigger re-renders.
     private let clipboardCoordinator: ClipboardCoordinator
     private var coordinatorCancellable: AnyCancellable?
+    private var filteredItemsCancellable: AnyCancellable?
 
     // MARK: - Delegated capture state
 
@@ -61,25 +62,34 @@ final class AppState: ObservableObject {
 
     // MARK: - View-model computed properties (stay in AppState)
 
-    var filteredItems: [ClipboardItem] {
-        return Log.performance.withIntervalSignpost("Search Filter") {
-            let searched = searchEngine.filter(
-                query: activeQuery,
-                in: clipboardCoordinator.historyItems,
-                type: selectedTypeFilter
-            )
-            guard let selectedCollectionID,
-                  let collection = collections.first(where: { $0.id == selectedCollectionID }) else {
+    /// Cached, not computed: this used to re-run the full search over every history item on
+    /// every read, and a single Hub render reads it half a dozen times (isEmpty, ForEach,
+    /// selectedItem, onChange...). It now recomputes once per actual input change instead of
+    /// once per read, via the Combine subscription set up in init.
+    @Published private(set) var filteredItems: [ClipboardItem] = []
+
+    var favoriteItems: [ClipboardItem] {
+        filteredItems.filter(\.isFavorite)
+    }
+
+    private static func computeFilteredItems(
+        query: String,
+        typeFilter: HistoryItemTypeFilter,
+        collectionID: UUID?,
+        collections: [ItemCollection],
+        historyItems: [ClipboardItem],
+        searchEngine: HistorySearchEngine
+    ) -> [ClipboardItem] {
+        Log.performance.withIntervalSignpost("Search Filter") {
+            let searched = searchEngine.filter(query: query, in: historyItems, type: typeFilter)
+            guard let collectionID,
+                  let collection = collections.first(where: { $0.id == collectionID }) else {
                 return searched
             }
 
             let itemIDs = Set(collection.itemIDs)
             return searched.filter { itemIDs.contains($0.id) }
         }
-    }
-
-    var favoriteItems: [ClipboardItem] {
-        filteredItems.filter(\.isFavorite)
     }
 
     // MARK: - Services
@@ -239,6 +249,24 @@ final class AppState: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
         captureCoordinatorCancellable = captureCoordinator.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
+
+        // Recomputes filteredItems exactly once per actual change to any of its inputs, using
+        // the values Combine hands us (never `self.`) — @Published publishes on willSet, so
+        // reading self's stored properties here would see last turn's value, not this one.
+        filteredItemsCancellable = Publishers.CombineLatest4($activeQuery, $selectedTypeFilter, $selectedCollectionID, $collections)
+            .combineLatest(coordinator.$historyItems)
+            .sink { [weak self] inputs, historyItems in
+                guard let self else { return }
+                let (query, typeFilter, collectionID, collections) = inputs
+                self.filteredItems = Self.computeFilteredItems(
+                    query: query,
+                    typeFilter: typeFilter,
+                    collectionID: collectionID,
+                    collections: collections,
+                    historyItems: historyItems,
+                    searchEngine: self.searchEngine
+                )
+            }
 
         guard enableRuntimeServices else { return }
 
