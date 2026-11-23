@@ -82,7 +82,7 @@ struct HubClipboardTextView: View {
     let fontWeight: Font.Weight
     let lineLimit: Int?
 
-    private let content: HubStructuredTextContent
+    private let content: String
 
     init(text: String, fontSize: CGFloat, fontWeight: Font.Weight, lineLimit: Int?) {
         self.fontSize = fontSize
@@ -92,25 +92,11 @@ struct HubClipboardTextView: View {
     }
 
     var body: some View {
-        Group {
-            switch content {
-            case let .plain(text):
-                Text(text)
-                    .font(.system(size: fontSize, weight: fontWeight))
-                    .foregroundStyle(HubTheme.textPrimary)
-            case let .json(text):
-                Text(text)
-                    .font(.system(size: max(fontSize - 1, 12), weight: .regular, design: .monospaced))
-                    .foregroundStyle(HubTheme.textPrimary)
-            case let .markdown(text):
-                Text(text)
-                    .font(.system(size: fontSize, weight: fontWeight))
-                    .foregroundStyle(HubTheme.textPrimary)
-                    .tint(HubTheme.accentBrand)
-            }
-        }
-        .multilineTextAlignment(.leading)
-        .lineLimit(lineLimit)
+        Text(content)
+            .font(.system(size: fontSize, weight: fontWeight))
+            .foregroundStyle(HubTheme.textPrimary)
+            .multilineTextAlignment(.leading)
+            .lineLimit(lineLimit)
     }
 }
 
