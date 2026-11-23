@@ -455,11 +455,13 @@ private final class RegionSelectionSession: NSObject {
 
     private func updateHoverState() {
         let mouseLocation = NSEvent.mouseLocation
-        let windowRect = currentWindowRect(at: mouseLocation)
+        // CGWindowListCopyWindowInfo scans every on-screen window, so only call it in window
+        // mode, where the result is actually shown — area mode discarded it every move anyway.
+        let windowRect = mode == .window ? currentWindowRect(at: mouseLocation) : nil
         let displayRect = displayRect(containing: mouseLocation)
         overlays.forEach {
             $0.pointerLocation = mouseLocation
-            $0.highlightedWindowRect = mode == .window ? windowRect : nil
+            $0.highlightedWindowRect = windowRect
             $0.highlightedDisplayRect = displayRect
             $0.mode = mode
         }
