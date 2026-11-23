@@ -89,7 +89,6 @@ struct HubView: View {
 
             mainContent
             undoToastOverlay
-            captureErrorOverlay
         }
         .background(
             Group {
@@ -264,25 +263,6 @@ struct HubView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
-        }
-    }
-
-    @ViewBuilder
-    private var captureErrorOverlay: some View {
-        if let errorMessage = appState.captureError {
-            VStack {
-                HubCaptureErrorBanner(
-                    message: errorMessage,
-                    dismiss: {
-                        appState.captureError = nil
-                    }
-                )
-                .padding(.horizontal, HubTheme.Space.x5)
-                .padding(.top, HubTheme.Space.x5)
-                Spacer()
-            }
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.captureError != nil)
         }
     }
 

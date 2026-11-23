@@ -350,14 +350,27 @@ struct SettingsView: View {
         return scope + " You can't undo this."
     }
 
+    /// macOS only applies a Screen Recording grant made after launch once Edison relaunches, so once
+    /// this session has seen it denied, a later grant still needs Quit & Reopen, not a re-prompt.
+    private var needsScreenRecordingRelaunch: Bool {
+        appState.needsRelaunchForScreenRecording && appState.screenRecordingAccessGranted
+    }
+
     private var permissionsPane: some View {
         Form {
             statusCard(
                 title: "Screen Recording",
                 isGranted: appState.screenRecordingAccessGranted,
-                description: "Required for screenshot capture."
+                description: needsScreenRecordingRelaunch
+                    ? "Granted, but Edison needs to relaunch before it can capture screenshots."
+                    : "Required for screenshot capture.",
+                buttonTitle: needsScreenRecordingRelaunch ? "Quit & Reopen Edison" : "Open System Settings…"
             ) {
-                appState.requestScreenRecordingAccess()
+                if needsScreenRecordingRelaunch {
+                    appState.quitAndReopen()
+                } else {
+                    appState.requestScreenRecordingAccess()
+                }
             }
 
             statusCard(
@@ -446,7 +459,13 @@ struct SettingsView: View {
         }
     }
 
-    private func statusCard(title: String, isGranted: Bool, description: String, action: @escaping () -> Void) -> some View {
+    private func statusCard(
+        title: String,
+        isGranted: Bool,
+        description: String,
+        buttonTitle: String = "Open System Settings…",
+        action: @escaping () -> Void
+    ) -> some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x2) {
             HStack {
                 Label(title, systemImage: isGranted ? "checkmark.shield" : "exclamationmark.triangle")
@@ -458,7 +477,7 @@ struct SettingsView: View {
             Text(description)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button("Open System Settings…", action: action)
+            Button(buttonTitle, action: action)
         }
         .padding(HubTheme.Space.x4)
         .background(HubTheme.cardFillMuted, in: RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous))

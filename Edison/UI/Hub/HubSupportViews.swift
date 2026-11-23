@@ -145,10 +145,19 @@ struct HubToastView: View {
     }
 }
 
-// MARK: - HubCaptureErrorBanner
+// MARK: - HubMessageBanner
 
-struct HubCaptureErrorBanner: View {
+/// A dismissible banner for a capture error or background alert, with actions specific to what went
+/// wrong (so "Screen Recording" only appears when that is actually the problem). Used both inside the
+/// Hub and, via `MessageHUD`, as a floating panel when the Hub is closed.
+struct HubMessageBanner: View {
+    struct Action {
+        let title: String
+        let handler: () -> Void
+    }
+
     let message: String
+    var actions: [Action] = []
     let dismiss: () -> Void
 
     var body: some View {
@@ -159,16 +168,17 @@ struct HubCaptureErrorBanner: View {
             Text(message)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(HubTheme.textPrimary)
-                .lineLimit(1)
-            Spacer()
-            Button("Screen Recording") {
-                NSWorkspace.shared.open(
-                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
-                )
+                .lineLimit(2)
+            Spacer(minLength: HubTheme.Space.x3)
+            ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
+                Button(action.title) {
+                    action.handler()
+                    dismiss()
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(HubTheme.accentBrand)
+                .buttonStyle(.plain)
             }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(HubTheme.accentBrand)
-            .buttonStyle(.plain)
             Button(action: dismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .semibold))
@@ -178,6 +188,7 @@ struct HubCaptureErrorBanner: View {
         }
         .padding(.horizontal, HubTheme.Space.x5)
         .padding(.vertical, HubTheme.Space.x3)
+        .frame(maxWidth: 420)
         .background(
             Capsule(style: .continuous)
                 .fill(HubTheme.cardFill)
