@@ -41,6 +41,9 @@ final class AppState: ObservableObject {
     var historyItems: [ClipboardItem] { clipboardCoordinator.historyItems }
     var deletedItemForUndo: ClipboardItem? { clipboardCoordinator.deletedItemForUndo }
     var showDeleteUndoToast: Bool { clipboardCoordinator.showDeleteUndoToast }
+    func itemsAtRisk(historyLimit: Int, retentionDays: Int?) -> Int {
+        clipboardCoordinator.itemsAtRisk(historyLimit: historyLimit, retentionDays: retentionDays)
+    }
 
     // MARK: - Public API that delegates to CaptureCoordinator
 
@@ -172,6 +175,9 @@ final class AppState: ObservableObject {
         coordinator.historyLimit = { [weak self] in
             self?.settings.privacy.historyLimit ?? 500
         }
+        coordinator.retentionDays = { [weak self] in
+            self?.settings.privacy.retentionDays
+        }
         coordinator.onHistoryChanged = { [weak self] liveItemIDs in
             guard let self else { return }
             for index in self.collections.indices {
@@ -242,6 +248,8 @@ final class AppState: ObservableObject {
                 self.clipboardCoordinator.setHistoryItems(loadedItems)
                 self.clipboardCoordinator.reconcileRepresentationStore()
                 self.collections = loadedCollections
+                // Applies retention while the app wasn't running, not just when settings are saved.
+                self.clipboardCoordinator.trimHistoryToSettingsLimit()
                 self.clipboardCoordinator.startMonitor()
             }
         }
