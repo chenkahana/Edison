@@ -65,6 +65,10 @@
 - The editor and Settings now share one "Edison is a regular app" state: opening either while the other is
   already open, then closing just one, keeps the Dock icon and menu bar until the last one closes. Before,
   closing the editor always dropped back to menu-bar-only even with Settings still open.
+- The Hub and editor's 34 scattered `.system(size:...)` font declarations now snap to one 7-step type
+  ramp (`HubTheme.Step`/`HubTheme.TypeRamp`), each step documented with its nearest system text style.
+  Two sites moved to the nearest step (code preview 11.5→11pt, link preview title 17→18pt); the other 32
+  were already on a step and are pixel-identical to before.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

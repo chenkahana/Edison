@@ -178,7 +178,7 @@ private struct EditorSessionView: View {
     private func iconButton(_ symbol: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
+                .font(HubTheme.TypeRamp.size13Semibold)
                 .frame(width: 26, height: 24)
         }
         .buttonStyle(.borderless)
@@ -198,7 +198,7 @@ private struct EditorSessionView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
             Text("Drag")
-                .font(.system(size: 12, weight: .semibold))
+                .font(HubTheme.TypeRamp.size12Semibold)
                 .foregroundStyle(HubTheme.textSecondary)
         }
         .padding(.horizontal, HubTheme.Space.x2)
@@ -270,13 +270,13 @@ private struct EditorSessionView: View {
             Spacer(minLength: 0)
 
             Text(hintText)
-                .font(.system(size: 11))
+                .font(HubTheme.TypeRamp.size11Regular)
                 .foregroundStyle(HubTheme.textTertiary)
                 .lineLimit(1)
                 .truncationMode(.head)
 
             Text("\(Int(visibleImageRect.width)) × \(Int(visibleImageRect.height))")
-                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .font(HubTheme.TypeRamp.size11MediumMonoDigit)
                 .foregroundStyle(HubTheme.textSecondary)
         }
         .padding(.horizontal, HubTheme.Space.x3)
@@ -402,7 +402,7 @@ private struct EditorSessionView: View {
                 .position(center(of: frame))
 
             Text("\(Int(crop.width)) × \(Int(crop.height))")
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .font(HubTheme.TypeRamp.size11SemiboldMonoDigit)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
@@ -954,7 +954,7 @@ private struct EditorToolButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: tool.symbolName)
-                .font(.system(size: 14, weight: .semibold))
+                .font(HubTheme.TypeRamp.size14Semibold)
                 .frame(width: 30, height: 26)
                 .foregroundStyle(isSelected ? Color.white : HubTheme.textPrimary)
                 .background(

@@ -291,11 +291,11 @@ struct HubView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x3) {
             Label(emptyStateCopy.title, systemImage: "doc.on.clipboard")
-            .font(.system(size: 18, weight: .semibold))
+            .font(HubTheme.TypeRamp.size18Semibold)
             .foregroundStyle(HubTheme.textPrimary)
 
             Text(emptyStateCopy.message)
-            .font(.system(size: 13))
+            .font(HubTheme.TypeRamp.size13Regular)
             .foregroundStyle(HubTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

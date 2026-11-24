@@ -89,15 +89,15 @@ struct HubHeaderView: View {
     private var searchPill: some View {
         HStack(spacing: HubTheme.Space.x2) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
+                .font(HubTheme.TypeRamp.size14Medium)
                 .foregroundStyle(HubTheme.textSecondary)
             TextField("Search — try app:Safari or type:link", text: $appState.activeQuery)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(HubTheme.TypeRamp.size13Regular)
                 .focused($focusedField, equals: .search)
             if !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(resultCount == 1 ? "1 result" : "\(resultCount) results")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(HubTheme.TypeRamp.size12Medium)
                     .foregroundStyle(HubTheme.textSecondary)
                     .fixedSize()
             }
@@ -118,7 +118,7 @@ struct HubHeaderView: View {
                 appState.setHistoryPaused(false)
             } label: {
                 Label("History paused — Resume", systemImage: "pause.circle.fill")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(HubTheme.TypeRamp.size12Semibold)
                     .foregroundStyle(HubTheme.accentBrand)
                     .padding(.horizontal, HubTheme.Space.x3)
                     .frame(height: HubTheme.searchPillHeight)
