@@ -33,6 +33,8 @@
   which changed from card to card and could vanish on white or grey items.
 - Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
   on white instead of 2.7:1.
+- With Increase Contrast on, the Hub's glass stroke, dividers and card fills switch to stronger variants instead
+  of staying at their standard translucency.
 - The Hub no longer takes focus from the app you're in: it's a panel that takes your typing while that app stays
   active, so its selection stays lit and paste lands there without a re-activation.
 - The Hub opens fresh each time: no leftover search, type filter or collection, newest item selected.

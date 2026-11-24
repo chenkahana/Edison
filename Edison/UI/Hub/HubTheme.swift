@@ -74,11 +74,15 @@ enum HubTheme {
     ))
     static let glassStroke = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 1, alpha: 0.26),
-        dark: NSColor(calibratedWhite: 1, alpha: 0.08)
+        dark: NSColor(calibratedWhite: 1, alpha: 0.08),
+        lightHighContrast: NSColor(calibratedWhite: 0, alpha: 0.55),
+        darkHighContrast: NSColor(calibratedWhite: 1, alpha: 0.45)
     ))
     static let dividerOnGlass = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 0, alpha: 0.10),
-        dark: NSColor(calibratedWhite: 1, alpha: 0.10)
+        dark: NSColor(calibratedWhite: 1, alpha: 0.10),
+        lightHighContrast: NSColor(calibratedWhite: 0, alpha: 0.45),
+        darkHighContrast: NSColor(calibratedWhite: 1, alpha: 0.45)
     ))
     static let selectionFill = Color(nsColor: dynamicColor(
         light: NSColor(calibratedRed: 0, green: 122 / 255, blue: 1, alpha: 0.18),
@@ -91,11 +95,15 @@ enum HubTheme {
     ))
     static let cardFill = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 1, alpha: 0.18),
-        dark: NSColor(calibratedWhite: 0.16, alpha: 0.22)
+        dark: NSColor(calibratedWhite: 0.16, alpha: 0.22),
+        lightHighContrast: NSColor(calibratedWhite: 1, alpha: 0.65),
+        darkHighContrast: NSColor(calibratedWhite: 0.10, alpha: 0.75)
     ))
     static let cardFillMuted = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 1, alpha: 0.10),
-        dark: NSColor(calibratedWhite: 0.14, alpha: 0.14)
+        dark: NSColor(calibratedWhite: 0.14, alpha: 0.14),
+        lightHighContrast: NSColor(calibratedWhite: 1, alpha: 0.55),
+        darkHighContrast: NSColor(calibratedWhite: 0.08, alpha: 0.65)
     ))
     static let opaqueFallback = Color(nsColor: dynamicColor(
         light: NSColor(calibratedWhite: 0.95, alpha: 1),
@@ -114,9 +122,22 @@ enum HubTheme {
             : Color.black.opacity(0.08)
     }
 
-    private static func dynamicColor(light: NSColor, dark: NSColor) -> NSColor {
+    private static func dynamicColor(
+        light: NSColor,
+        dark: NSColor,
+        lightHighContrast: NSColor? = nil,
+        darkHighContrast: NSColor? = nil
+    ) -> NSColor {
         NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            // Matches the Reduce Motion check elsewhere (CaptureThumbnail.swift): this NSWorkspace
+            // flag is the live system Increase Contrast state, unlike NSAppearance.bestMatch(from:),
+            // which collapses the accessibility appearance names back to plain aqua/darkAqua.
+            if NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast {
+                if isDark, let darkHighContrast { return darkHighContrast }
+                if !isDark, let lightHighContrast { return lightHighContrast }
+            }
+            return isDark ? dark : light
         }
     }
 }
