@@ -27,8 +27,31 @@ enum HubTheme {
         static let fast: Double = 0.12
         static let standard: Double = 0.20
         static let emphasis: Double = 0.28
+        /// Window slide-out and scroll-to-selection run slightly faster than `standard`/`fast` call
+        /// for; named rather than left as bare numbers at each call site (matches the slide-in/out
+        /// pair in WindowRouter and the scroll-to-selection calls in HubView).
+        static let windowSlideIn: Double = 0.20
+        static let windowSlideOut: Double = 0.18
+        static let scrollToSelection: Double = 0.16
         static let spring = Animation.spring(response: 0.32, dampingFraction: 0.82, blendDuration: 0)
         static let fastSpring = Animation.spring(response: 0.22, dampingFraction: 0.80, blendDuration: 0)
+        static let toast = Animation.spring(response: 0.3, dampingFraction: 0.8)
+
+        static var reduceMotion: Bool {
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+
+        /// `nil` disables the animation entirely (the value still changes, just without a
+        /// transition), which is what Reduce Motion asks for.
+        static func motion(_ animation: Animation) -> Animation? {
+            reduceMotion ? nil : animation
+        }
+
+        /// For AppKit `NSAnimationContext` durations, which take a plain `TimeInterval` rather
+        /// than an `Animation`.
+        static func duration(_ seconds: Double) -> Double {
+            reduceMotion ? 0 : seconds
+        }
     }
 
     static func cardSide(for availableHeight: CGFloat) -> CGFloat {

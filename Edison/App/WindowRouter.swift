@@ -262,7 +262,7 @@ final class WindowRouter {
         window.makeKeyAndOrderFront(nil)
 
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.20
+            ctx.duration = HubTheme.Anim.duration(HubTheme.Anim.windowSlideIn)
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(finalFrame, display: true)
         }
@@ -279,7 +279,7 @@ final class WindowRouter {
         endFrame.origin.y = screen.visibleFrame.minY - startFrame.height
 
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
+            ctx.duration = HubTheme.Anim.duration(HubTheme.Anim.windowSlideOut)
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(endFrame, display: true)
         } completionHandler: {

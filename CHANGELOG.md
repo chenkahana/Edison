@@ -52,6 +52,8 @@
 - A card reads as one VoiceOver element (not its text, metadata and badges separately), announces when it's
   selected, says how long ago it was copied in words and which app it came from (instead of a bare "5m", read as
   "5 meters"), and offers Paste, Copy, Favorite and Delete as VoiceOver actions.
+- The Hub's window slide, scroll-to-selection and the undo toast respect Reduce Motion: with it on, they apply
+  instantly instead of animating. Their durations are now named tokens instead of bare numbers at each call site.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

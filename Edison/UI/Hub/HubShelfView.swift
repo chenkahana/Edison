@@ -149,7 +149,7 @@ struct HubShelfCardView: View {
         }
         .shadow(color: HubTheme.cardShadowAmbient(colorScheme: colorScheme), radius: 10, y: 2)
         .shadow(color: HubTheme.cardShadowKey(colorScheme: colorScheme), radius: 28, x: 0, y: 10)
-        .animation(HubTheme.Anim.fastSpring, value: quickPasteNumber)
+        .animation(HubTheme.Anim.motion(HubTheme.Anim.fastSpring), value: quickPasteNumber)
         .contentShape(cardShape)
         .onHover { isHovered = $0 }
         .onDrag(makeDragItemProvider)
