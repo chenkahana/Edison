@@ -21,6 +21,8 @@
 - Pasting without Accessibility access says the item is copied and ⌘V pastes it; OK closes the Hub so you can.
   Before, the alert only said Edison "needs" access and to retry.
 - Items older than a week show their date ("Nov 3", or "Nov 3, 2025" from another year) instead of "16d".
+- Double-clicking a card to paste it registers reliably. Before, a single-tap and a double-tap gesture on the
+  same card left SwiftUI to resolve the conflict, and it favoured the single tap.
 - Export… names text and images like screenshots, after the item's date, and copies a file item straight to the
   new place instead of loading it into memory first. Export and Share have their ellipses.
 - Share opens at the card you chose it from, not the Hub's centre. Text shares with its formatting (RTF/HTML)

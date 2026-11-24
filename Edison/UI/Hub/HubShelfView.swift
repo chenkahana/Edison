@@ -153,12 +153,13 @@ struct HubShelfCardView: View {
         .contentShape(cardShape)
         .onHover { isHovered = $0 }
         .onDrag(makeDragItemProvider)
-        .onTapGesture {
-            onSelect()
-        }
-        .onTapGesture(count: 2) {
-            onActivate()
-        }
+        // Two separate onTapGesture modifiers left this to SwiftUI's gesture-conflict resolution,
+        // which favoured the single tap; exclusively(before:) tries the double tap first instead.
+        .gesture(
+            TapGesture(count: 2)
+                .onEnded { onActivate() }
+                .exclusively(before: TapGesture(count: 1).onEnded { onSelect() })
+        )
         .contextMenu {
             HubItemActionMenu(
                 item: item,
