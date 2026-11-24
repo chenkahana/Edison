@@ -57,7 +57,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             image?.size = NSSize(width: 18, height: 18)
             button.image = image
             button.imagePosition = .imageOnly
-            // Click opens the Hub; right-click or Option-click shows the menu.
+            // Click toggles the Hub; right-click or Control-click shows the menu.
             button.target = self
             button.action = #selector(statusItemClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -87,7 +87,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func statusItemClicked() {
         let event = NSApp.currentEvent
-        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.option) == true {
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
             // Attaching the menu only for this click keeps a plain click free for the Hub.
             statusItem.menu = menu
             statusItem.button?.performClick(nil)
