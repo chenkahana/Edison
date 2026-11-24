@@ -54,6 +54,8 @@
   "5 meters"), and offers Paste, Copy, Favorite and Delete as VoiceOver actions.
 - The Hub's window slide, scroll-to-selection and the undo toast respect Reduce Motion: with it on, they apply
   instantly instead of animating. Their durations are now named tokens instead of bare numbers at each call site.
+- Cards and list rows are concentric with the Hub window: an 8 pt radius 20 pt inside the window's 28 pt radius,
+  instead of 18 pt — the two no longer curve at different rates at the corner.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

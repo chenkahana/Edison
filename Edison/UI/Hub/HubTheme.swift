@@ -4,7 +4,10 @@ import SwiftUI
 enum HubTheme {
     enum Radius {
         static let window: CGFloat = 28
-        static let card: CGFloat = 18
+        // Concentric with `window`: the card sits `Space.x5` (20 pt) inside it (HubView's
+        // `mainContent`), and `window - Space.x5` = 8 — this used to be 18, with no such relation
+        // to the window around it.
+        static let card: CGFloat = 8
         static let menu: CGFloat = 12
         static let pill: CGFloat = 999
     }
