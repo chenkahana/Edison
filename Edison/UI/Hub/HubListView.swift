@@ -178,7 +178,7 @@ struct HubListRowView: View {
         .accessibilityActions {
             Button("Paste") { onActivate() }
             Button("Copy") { onCopy() }
-            Button(item.isFavorite ? "Remove from Favorites" : "Add to Favorites") { onToggleFavorite() }
+            Button(item.isFavorite ? "Remove Favorite" : "Add Favorite") { onToggleFavorite() }
             Button("Delete", role: .destructive) { onDelete() }
         }
     }

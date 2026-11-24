@@ -184,11 +184,6 @@ struct SettingsView: View {
                 set: { editableSettings.general.launchAtLogin = $0 }
             ))
 
-            Toggle("Start Hidden When Launched at Login", isOn: Binding(
-                get: { editableSettings.general.startHiddenWhenLaunchedAtLogin },
-                set: { editableSettings.general.startHiddenWhenLaunchedAtLogin = $0 }
-            ))
-
             LabeledContent("Launch at Login Status", value: appState.launchAtLoginStatusDescription)
 
             if let error = appState.launchAtLoginErrorMessage {
@@ -438,7 +433,7 @@ struct SettingsView: View {
                 Button("Refresh Status") {
                     appState.refreshPermissionStatuses()
                 }
-                Button("Export Diagnostics") {
+                Button("Export Diagnostics…") {
                     appState.exportDiagnostics()
                 }
             }
