@@ -77,10 +77,27 @@ enum ClipboardSourceApplicationIconProvider {
 // MARK: - HubClipboardTextView
 // Used by both HubShelfCardView and HubListRowView (W3.2).
 
+/// The Hub's active free-text search terms (HistorySearchQuery.terms), read by card text views to
+/// highlight matches. An environment key rather than an init parameter so the layout views between
+/// HubView and the cards (HubShelfView, HubListView, the grid's ForEach) don't all need to thread
+/// it through.
+private struct HubSearchTermsKey: EnvironmentKey {
+    static let defaultValue: [String] = []
+}
+
+extension EnvironmentValues {
+    var hubSearchTerms: [String] {
+        get { self[HubSearchTermsKey.self] }
+        set { self[HubSearchTermsKey.self] = newValue }
+    }
+}
+
 struct HubClipboardTextView: View {
     let fontSize: CGFloat
     let fontWeight: Font.Weight
     let lineLimit: Int?
+
+    @Environment(\.hubSearchTerms) private var searchTerms
 
     private let content: String
 
@@ -92,11 +109,31 @@ struct HubClipboardTextView: View {
     }
 
     var body: some View {
-        Text(content)
-            .font(.system(size: fontSize, weight: fontWeight))
-            .foregroundStyle(HubTheme.textPrimary)
-            .multilineTextAlignment(.leading)
-            .lineLimit(lineLimit)
+        Group {
+            if searchTerms.isEmpty {
+                Text(content)
+            } else {
+                Text(Self.highlighted(content, matching: searchTerms))
+            }
+        }
+        .font(.system(size: fontSize, weight: fontWeight))
+        .foregroundStyle(HubTheme.textPrimary)
+        .multilineTextAlignment(.leading)
+        .lineLimit(lineLimit)
+    }
+
+    /// Backgrounds every case-insensitive occurrence of each term; overlapping matches just
+    /// re-highlight the same text, which is harmless.
+    private static func highlighted(_ text: String, matching terms: [String]) -> AttributedString {
+        var attributed = AttributedString(text)
+        for term in terms where !term.isEmpty {
+            var searchRange = attributed.startIndex..<attributed.endIndex
+            while let range = attributed[searchRange].range(of: term, options: .caseInsensitive) {
+                attributed[range].backgroundColor = HubTheme.accentBrand.opacity(0.32)
+                searchRange = range.upperBound..<attributed.endIndex
+            }
+        }
+        return attributed
     }
 }
 
@@ -341,7 +378,10 @@ struct HubWindowAccessor: NSViewRepresentable {
             parent.onCommandHeldChanged(false)
             guard let window,
                   window.attachedSheet == nil,
-                  window.childWindows?.isEmpty ?? true else { return }
+                  window.childWindows?.isEmpty ?? true,
+                  // Quick Look is a separate panel, not a sheet or child window of the Hub, so it
+                  // becoming key used to read as "focus left Edison" and closed the Hub under it.
+                  !(NSApp.keyWindow is QLPreviewPanel) else { return }
             parent.onDismiss()
         }
 
@@ -499,23 +539,30 @@ struct HubWindowAccessor: NSViewRepresentable {
 
 // MARK: - QuickLookBridge
 
+/// Previews the whole visible history, like Finder: ←/→ in the panel move `currentPreviewItemIndex`,
+/// which this mirrors back into the Hub's selection, and selecting a different card while the panel
+/// is open moves the panel to match.
 struct QuickLookBridge: NSViewRepresentable {
-    let url: URL
+    let items: [ClipboardItem]
+    let selectedIndex: Int
+    let urlProvider: (ClipboardItem) -> URL?
     @Binding var isPresented: Bool
+    let onIndexChange: (Int) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
-            context.coordinator.open(url: url)
+            context.coordinator.open(at: selectedIndex)
         }
         return view
     }
 
     func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.parent = self
         if isPresented {
-            context.coordinator.open(url: url)
+            context.coordinator.sync(to: selectedIndex)
         } else {
             QLPreviewPanel.shared()?.close()
         }
@@ -523,23 +570,53 @@ struct QuickLookBridge: NSViewRepresentable {
 
     final class Coordinator: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
         var parent: QuickLookBridge
+        private var indexObservation: NSKeyValueObservation?
 
         init(parent: QuickLookBridge) {
             self.parent = parent
         }
 
-        func open(url: URL) {
+        func open(at index: Int) {
             let panel = QLPreviewPanel.shared()!
             panel.dataSource = self
             panel.delegate = self
             panel.reloadData()
+            panel.currentPreviewItemIndex = index
             if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
+            observeIndex(of: panel)
         }
 
-        func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { 1 }
+        /// Called on every SwiftUI update while the panel is open: moves the panel to match a
+        /// selection change that came from outside the panel (anything other than the panel's own
+        /// ←/→, which already is the current index and so is a no-op here).
+        func sync(to index: Int) {
+            let panel = QLPreviewPanel.shared()!
+            guard panel.dataSource === self else {
+                open(at: index)
+                return
+            }
+            if panel.currentPreviewItemIndex != index {
+                panel.currentPreviewItemIndex = index
+            }
+        }
+
+        private func observeIndex(of panel: QLPreviewPanel) {
+            indexObservation = panel.observe(\.currentPreviewItemIndex, options: [.new]) { [weak self] _, change in
+                guard let self, let newIndex = change.newValue, newIndex >= 0 else { return }
+                DispatchQueue.main.async { [weak self] in
+                    self?.parent.onIndexChange(newIndex)
+                }
+            }
+        }
+
+        func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { parent.items.count }
 
         func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> (any QLPreviewItem)! {
-            parent.url as NSURL
+            guard parent.items.indices.contains(index),
+                  let url = parent.urlProvider(parent.items[index]) else {
+                return nil
+            }
+            return url as NSURL
         }
 
         func previewPanelDidClose(_ panel: QLPreviewPanel!) {

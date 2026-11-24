@@ -30,8 +30,11 @@ enum HubItemIcon {
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @FocusState private var focusedField: HubFocusTarget?
-    @State private var filter: HubFilter = .all
-    @State private var layoutMode: HubLayoutMode = .rail
+    // Durable across relaunches, unlike the query/type-filter/collection fields the
+    // .edisonHubWillOpen handler below resets on every open: this is a standing view
+    // preference (Shelf vs. List vs. Grid, All vs. Favorites), not per-session search state.
+    @AppStorage("hub.filter") private var filter: HubFilter = .all
+    @AppStorage("hub.layoutMode") private var layoutMode: HubLayoutMode = .rail
     @State private var selectedItemID: UUID?
     @State private var newCollectionName = ""
     @State private var contentWidth: CGFloat = 0
@@ -47,6 +50,12 @@ struct HubView: View {
         case .all: return appState.filteredItems
         case .favorites: return appState.favoriteItems
         }
+    }
+
+    /// Free-text search terms only (not the `app:`/`type:` tokens, which don't appear in card
+    /// text), for cards to highlight via `hubSearchTerms`.
+    private var searchTerms: [String] {
+        HistorySearchQuery(appState.activeQuery).terms
     }
 
     private var selectedItem: ClipboardItem? {
@@ -92,9 +101,19 @@ struct HubView: View {
         }
         .background(
             Group {
-                if showQuickLook, let url = quickLookFileURL {
-                    QuickLookBridge(url: url, isPresented: $showQuickLook)
-                        .frame(width: 0, height: 0)
+                if showQuickLook, quickLookFileURL != nil,
+                   let selectedItem, let index = items.firstIndex(where: { $0.id == selectedItem.id }) {
+                    QuickLookBridge(
+                        items: items,
+                        selectedIndex: index,
+                        urlProvider: { quickLookURL(for: $0) },
+                        isPresented: $showQuickLook,
+                        onIndexChange: { newIndex in
+                            guard items.indices.contains(newIndex) else { return }
+                            selectedItemID = items[newIndex].id
+                        }
+                    )
+                    .frame(width: 0, height: 0)
                 }
             }
         )
@@ -236,13 +255,15 @@ struct HubView: View {
                 filter: $filter,
                 layoutMode: $layoutMode,
                 newCollectionName: $newCollectionName,
-                focusedField: $focusedField
+                focusedField: $focusedField,
+                resultCount: items.count
             )
 
             if items.isEmpty {
                 emptyState
             } else {
                 contentColumn
+                    .environment(\.hubSearchTerms, searchTerms)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -666,6 +687,14 @@ extension ClipboardItem {
         case let .fileURL(url):
             return url.lastPathComponent
         }
+    }
+
+    /// Spoken-friendly value for the card's accessibility value: "5m" reads as "5 meters" to
+    /// VoiceOver, and the compact label doesn't say which app it came from.
+    var accessibilityTimestampAndSource: String {
+        let relative = RelativeDateTimeFormatter().localizedString(for: createdAt, relativeTo: .now)
+        guard let appName = sourceApplication?.localizedName else { return relative }
+        return "\(relative), from \(appName)"
     }
 }
 

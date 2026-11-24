@@ -8,6 +8,9 @@ struct HubHeaderView: View {
     @Binding var layoutMode: HubLayoutMode
     @Binding var newCollectionName: String
     @FocusState.Binding var focusedField: HubFocusTarget?
+    /// The count after both the search/type/app/collection filters and the Hub's own All/Favorites
+    /// toggle — shown next to the search field so a query's result count doesn't need counting cards.
+    let resultCount: Int
     @State private var collectionPendingDeletion: ItemCollection?
 
     var body: some View {
@@ -92,6 +95,12 @@ struct HubHeaderView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($focusedField, equals: .search)
+            if !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(resultCount == 1 ? "1 result" : "\(resultCount) results")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(HubTheme.textSecondary)
+                    .fixedSize()
+            }
         }
         .padding(.horizontal, HubTheme.Space.x4)
         .frame(height: HubTheme.searchPillHeight)

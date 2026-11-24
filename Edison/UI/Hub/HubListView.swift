@@ -147,12 +147,13 @@ struct HubListRowView: View {
         )
         .clipShape(rowShape)
         .contentShape(rowShape)
-        .onTapGesture {
-            onSelect()
-        }
-        .onTapGesture(count: 2) {
-            onActivate()
-        }
+        // Two separate onTapGesture modifiers left this to SwiftUI's gesture-conflict resolution,
+        // which favoured the single tap; exclusively(before:) tries the double tap first instead.
+        .gesture(
+            TapGesture(count: 2)
+                .onEnded { onActivate() }
+                .exclusively(before: TapGesture(count: 1).onEnded { onSelect() })
+        )
         .contextMenu {
             HubItemActionMenu(
                 item: item,
@@ -170,8 +171,16 @@ struct HubListRowView: View {
                 onOpen: onOpen
             )
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.accessibilityTitle)
-        .accessibilityValue(item.compactRelativeTimestamp)
+        .accessibilityValue(item.accessibilityTimestampAndSource)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityActions {
+            Button("Paste") { onActivate() }
+            Button("Copy") { onCopy() }
+            Button(item.isFavorite ? "Remove from Favorites" : "Add to Favorites") { onToggleFavorite() }
+            Button("Delete", role: .destructive) { onDelete() }
+        }
     }
 
     @ViewBuilder

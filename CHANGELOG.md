@@ -21,15 +21,22 @@
 - Pasting without Accessibility access says the item is copied and ⌘V pastes it; OK closes the Hub so you can.
   Before, the alert only said Edison "needs" access and to retry.
 - Items older than a week show their date ("Nov 3", or "Nov 3, 2025" from another year) instead of "16d".
+- Double-clicking a card to paste it registers reliably. Before, a single-tap and a double-tap gesture on the
+  same card left SwiftUI to resolve the conflict, and it favoured the single tap.
 - Export… names text and images like screenshots, after the item's date, and copies a file item straight to the
   new place instead of loading it into memory first. Export and Share have their ellipses.
 - Share opens at the card you chose it from, not the Hub's centre. Text shares with its formatting (RTF/HTML)
   instead of plain text, and an image shares as its stored PNG under its file name instead of a re-decoded image.
 - Quick Look writes its preview copy once when it opens (and when the selection changes), not on every redraw.
+- Quick Look no longer closes the Hub out from under it — it's a separate panel, not a sheet, so it taking
+  focus used to read as "focus left Edison." ←/→ in Quick Look now move through your whole visible history,
+  like Finder, and keep the Hub's selection in sync.
 - The selected card or row has the same blue ring whatever the item is. It used to take the item's type colour,
   which changed from card to card and could vanish on white or grey items.
 - Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
   on white instead of 2.7:1.
+- With Increase Contrast on, the Hub's glass stroke, dividers and card fills switch to stronger variants instead
+  of staying at their standard translucency.
 - The Hub no longer takes focus from the app you're in: it's a panel that takes your typing while that app stays
   active, so its selection stays lit and paste lands there without a re-activation.
 - The Hub opens fresh each time: no leftover search, type filter or collection, newest item selected.
@@ -38,6 +45,13 @@
 - Cards show text exactly as it will paste. Before, anything containing `- `, `` ` ``, `**` or similar was
   rendered as Markdown (joining single line breaks and hiding those characters), and JSON was pretty-printed
   with its keys sorted — neither matched what ⌘V or a drag-out actually produced.
+- Shelf/List/Grid and All/Favorites are remembered across launches, like any other view preference. Before,
+  every relaunch went back to Shelf and All.
+- Search shows how many items matched, and highlights the matching text on every card. Before, results swapped
+  with no feedback on what actually matched.
+- A card reads as one VoiceOver element (not its text, metadata and badges separately), announces when it's
+  selected, says how long ago it was copied in words and which app it came from (instead of a bare "5m", read as
+  "5 meters"), and offers Paste, Copy, Favorite and Delete as VoiceOver actions.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
@@ -60,6 +74,11 @@
   macOS only applies the grant after a relaunch.
 - Moving the pointer during area selection no longer scans every on-screen window — that lookup only matters in
   window-selection mode, where the result is shown; area mode was discarding it on every move.
+- Moving the pointer during a capture no longer redraws every display's full-screen overlay on every pixel moved;
+  each one now redraws only when something it actually shows has changed.
+- An area capture is cropped from the exact frame the overlay showed while you were selecting, not a fresh capture
+  taken after it closes — so a video frame, tooltip or hover highlight that changed in between can no longer make
+  the result differ from what you selected.
 
 ### Settings
 - Clear History… asks first and says how many items go (favorites and screenshots included). Collections stay,
