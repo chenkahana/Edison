@@ -77,10 +77,27 @@ enum ClipboardSourceApplicationIconProvider {
 // MARK: - HubClipboardTextView
 // Used by both HubShelfCardView and HubListRowView (W3.2).
 
+/// The Hub's active free-text search terms (HistorySearchQuery.terms), read by card text views to
+/// highlight matches. An environment key rather than an init parameter so the layout views between
+/// HubView and the cards (HubShelfView, HubListView, the grid's ForEach) don't all need to thread
+/// it through.
+private struct HubSearchTermsKey: EnvironmentKey {
+    static let defaultValue: [String] = []
+}
+
+extension EnvironmentValues {
+    var hubSearchTerms: [String] {
+        get { self[HubSearchTermsKey.self] }
+        set { self[HubSearchTermsKey.self] = newValue }
+    }
+}
+
 struct HubClipboardTextView: View {
     let fontSize: CGFloat
     let fontWeight: Font.Weight
     let lineLimit: Int?
+
+    @Environment(\.hubSearchTerms) private var searchTerms
 
     private let content: String
 
@@ -92,11 +109,31 @@ struct HubClipboardTextView: View {
     }
 
     var body: some View {
-        Text(content)
-            .font(.system(size: fontSize, weight: fontWeight))
-            .foregroundStyle(HubTheme.textPrimary)
-            .multilineTextAlignment(.leading)
-            .lineLimit(lineLimit)
+        Group {
+            if searchTerms.isEmpty {
+                Text(content)
+            } else {
+                Text(Self.highlighted(content, matching: searchTerms))
+            }
+        }
+        .font(.system(size: fontSize, weight: fontWeight))
+        .foregroundStyle(HubTheme.textPrimary)
+        .multilineTextAlignment(.leading)
+        .lineLimit(lineLimit)
+    }
+
+    /// Backgrounds every case-insensitive occurrence of each term; overlapping matches just
+    /// re-highlight the same text, which is harmless.
+    private static func highlighted(_ text: String, matching terms: [String]) -> AttributedString {
+        var attributed = AttributedString(text)
+        for term in terms where !term.isEmpty {
+            var searchRange = attributed.startIndex..<attributed.endIndex
+            while let range = attributed[searchRange].range(of: term, options: .caseInsensitive) {
+                attributed[range].backgroundColor = HubTheme.accentBrand.opacity(0.32)
+                searchRange = range.upperBound..<attributed.endIndex
+            }
+        }
+        return attributed
     }
 }
 

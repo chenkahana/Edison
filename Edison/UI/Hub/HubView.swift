@@ -52,6 +52,12 @@ struct HubView: View {
         }
     }
 
+    /// Free-text search terms only (not the `app:`/`type:` tokens, which don't appear in card
+    /// text), for cards to highlight via `hubSearchTerms`.
+    private var searchTerms: [String] {
+        HistorySearchQuery(appState.activeQuery).terms
+    }
+
     private var selectedItem: ClipboardItem? {
         if let selectedItemID,
            let selected = items.first(where: { $0.id == selectedItemID }) {
@@ -239,13 +245,15 @@ struct HubView: View {
                 filter: $filter,
                 layoutMode: $layoutMode,
                 newCollectionName: $newCollectionName,
-                focusedField: $focusedField
+                focusedField: $focusedField,
+                resultCount: items.count
             )
 
             if items.isEmpty {
                 emptyState
             } else {
                 contentColumn
+                    .environment(\.hubSearchTerms, searchTerms)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }

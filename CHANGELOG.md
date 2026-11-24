@@ -40,6 +40,8 @@
   with its keys sorted — neither matched what ⌘V or a drag-out actually produced.
 - Shelf/List/Grid and All/Favorites are remembered across launches, like any other view preference. Before,
   every relaunch went back to Shelf and All.
+- Search shows how many items matched, and highlights the matching text on every card. Before, results swapped
+  with no feedback on what actually matched.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
