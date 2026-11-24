@@ -202,7 +202,7 @@ struct HubListRowView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(accent.opacity(0.16))
             Image(systemName: item.contentKind.symbolName)
-                .font(.system(size: 15, weight: .semibold))
+                .font(HubTheme.TypeRamp.size15Semibold)
                 .foregroundStyle(accent)
         }
         .frame(width: 36, height: 36)

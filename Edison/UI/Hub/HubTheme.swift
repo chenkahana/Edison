@@ -21,6 +21,59 @@ enum HubTheme {
         static let x6: CGFloat = 24
     }
 
+    // MARK: - Type ramp
+    //
+    // Named Font tokens for every size/weight/design combination the Hub and editor actually
+    // draw text in (P38), replacing scattered `.system(size:...)` literals. Each keeps the
+    // exact pixel size already shipped — this is a naming/consolidation pass, not a redesign —
+    // with the nearest built-in system text style noted for reference. Two call sites stay
+    // parameterized (`HubItemIconView`'s `size:`, `HubClipboardTextView`'s `fontSize:`/
+    // `fontWeight:`) since they're already flexible, reusable APIs, not magic numbers.
+    enum TypeRamp {
+        /// Nearest: .caption2. Favorite star glyph.
+        static let size10Bold = Font.system(size: 10, weight: .bold)
+        /// Nearest: .caption2. Small accessory label.
+        static let size10Semibold = Font.system(size: 10, weight: .semibold)
+        /// Nearest: .subheadline. Secondary line, regular weight.
+        static let size11Regular = Font.system(size: 11)
+        /// Nearest: .subheadline. Card header symbol.
+        static let size11Bold = Font.system(size: 11, weight: .bold)
+        /// Nearest: .subheadline. Counter/digit readout.
+        static let size11MediumMonoDigit = Font.system(size: 11, weight: .medium).monospacedDigit()
+        /// Nearest: .subheadline. Counter/digit readout, heavier.
+        static let size11SemiboldMonoDigit = Font.system(size: 11, weight: .semibold).monospacedDigit()
+        /// Nearest: .subheadline. Code preview continuation line.
+        static let size11Monospaced = Font.system(size: 11, design: .monospaced)
+        /// Nearest: .subheadline. Code preview body text.
+        static let size11_5Monospaced = Font.system(size: 11.5, weight: .regular, design: .monospaced)
+        /// Nearest: .callout. Secondary/path text.
+        static let size12Regular = Font.system(size: 12)
+        /// Nearest: .callout. Label text.
+        static let size12Medium = Font.system(size: 12, weight: .medium)
+        /// Nearest: .callout. The most common header/title weight in the Hub.
+        static let size12Semibold = Font.system(size: 12, weight: .semibold)
+        /// Nearest: .callout. Counter/digit readout, medium weight.
+        static let size12MediumMonoDigit = Font.system(size: 12, weight: .medium).monospacedDigit()
+        /// Nearest: .callout. Quick-paste number badge.
+        static let size12BoldRoundedMonoDigit = Font.system(size: 12, weight: .bold, design: .rounded).monospacedDigit()
+        /// Nearest: .body. Body text, regular weight.
+        static let size13Regular = Font.system(size: 13)
+        /// Nearest: .headline. Toolbar label.
+        static let size13Semibold = Font.system(size: 13, weight: .semibold)
+        /// Nearest: .body. Search field text.
+        static let size14Medium = Font.system(size: 14, weight: .medium)
+        /// Nearest: .headline. Section title.
+        static let size14Semibold = Font.system(size: 14, weight: .semibold)
+        /// Nearest: .title3. List row primary text.
+        static let size15Semibold = Font.system(size: 15, weight: .semibold)
+        /// Nearest: .title3. Colour swatch hex code.
+        static let size15BoldMonospaced = Font.system(size: 15, weight: .bold, design: .monospaced)
+        /// Nearest: .title2. Link preview host title.
+        static let size17Bold = Font.system(size: 17, weight: .bold)
+        /// Nearest: .title2. Empty-state title, the largest text in the Hub.
+        static let size18Semibold = Font.system(size: 18, weight: .semibold)
+    }
+
     static let shelfWindowSize = CGSize(width: 1440, height: 278)
     static let searchPillHeight: CGFloat = 36
     static let minimumCardSide: CGFloat = 148

@@ -223,15 +223,15 @@ struct HubCardHeader: View {
     var body: some View {
         HStack(spacing: HubTheme.Space.x2) {
             Image(systemName: kind.symbolName)
-                .font(.system(size: 11, weight: .bold))
+                .font(HubTheme.TypeRamp.size11Bold)
                 .foregroundStyle(accent)
             Text(kind.title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(HubTheme.TypeRamp.size12Semibold)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(1)
             if item.isFavorite {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(HubTheme.TypeRamp.size10Bold)
                     .foregroundStyle(HubTheme.accentBrand)
                     .accessibilityLabel("Favorite")
             }
@@ -271,7 +271,7 @@ struct HubTextContentView: View {
             }
         case .code:
             Text(HubCodePreview.displayText(text))
-                .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+                .font(HubTheme.TypeRamp.size11_5Monospaced)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(lineLimit + 1)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -288,11 +288,11 @@ struct HubTextContentView: View {
     private func linkContent(_ url: URL) -> some View {
         VStack(alignment: .leading, spacing: HubTheme.Space.x1) {
             Text(HubLinkPreview.displayHost(for: url))
-                .font(.system(size: 17, weight: .bold))
+                .font(HubTheme.TypeRamp.size17Bold)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(2)
             Text(HubLinkPreview.displayPath(for: url))
-                .font(.system(size: 12))
+                .font(HubTheme.TypeRamp.size12Regular)
                 .foregroundStyle(HubTheme.textSecondary)
                 .lineLimit(max(2, lineLimit - 2))
         }
@@ -310,10 +310,10 @@ struct HubTextContentView: View {
             .overlay(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(value.hexString)
-                        .font(.system(size: 15, weight: .bold, design: .monospaced))
+                        .font(HubTheme.TypeRamp.size15BoldMonospaced)
                     if text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() != value.hexString {
                         Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(HubTheme.TypeRamp.size11Monospaced)
                             .lineLimit(1)
                     }
                 }
@@ -334,11 +334,11 @@ struct HubFileContentView: View {
                 .interpolation(.high)
                 .frame(width: 44, height: 44)
             Text(url.lastPathComponent)
-                .font(.system(size: 14, weight: .semibold))
+                .font(HubTheme.TypeRamp.size14Semibold)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(2)
             Text((url.deletingLastPathComponent().path(percentEncoded: false) as NSString).abbreviatingWithTildeInPath)
-                .font(.system(size: 11))
+                .font(HubTheme.TypeRamp.size11Regular)
                 .foregroundStyle(HubTheme.textSecondary)
                 .lineLimit(2)
                 .truncationMode(.head)
@@ -352,7 +352,7 @@ struct HubQuickPasteBadge: View {
 
     var body: some View {
         Text("⌘\(number)")
-            .font(.system(size: 12, weight: .bold, design: .rounded).monospacedDigit())
+            .font(HubTheme.TypeRamp.size12BoldRoundedMonoDigit)
             .foregroundStyle(.white)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
@@ -464,14 +464,14 @@ struct HubCardFooter: View {
     var body: some View {
         HStack(spacing: HubTheme.Space.x2) {
             Text(item.compactRelativeTimestamp)
-                .font(.system(size: 12, weight: .semibold))
+                .font(HubTheme.TypeRamp.size12Semibold)
                 .foregroundStyle(HubTheme.textSecondary)
                 .lineLimit(1)
             if let detail = item.detailSummary {
                 Text("·")
                     .foregroundStyle(HubTheme.textTertiary)
                 Text(detail)
-                    .font(.system(size: 12, weight: .medium).monospacedDigit())
+                    .font(HubTheme.TypeRamp.size12MediumMonoDigit)
                     .foregroundStyle(HubTheme.textSecondary)
                     .lineLimit(1)
             }

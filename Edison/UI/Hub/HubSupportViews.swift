@@ -147,10 +147,10 @@ struct HubToastView: View {
     var body: some View {
         HStack(spacing: HubTheme.Space.x3) {
             Text(title)
-                .font(.system(size: 12, weight: .medium))
+                .font(HubTheme.TypeRamp.size12Medium)
                 .foregroundStyle(HubTheme.textPrimary)
             Button(buttonTitle, action: action)
-                .font(.system(size: 12, weight: .semibold))
+                .font(HubTheme.TypeRamp.size12Semibold)
                 .foregroundStyle(HubTheme.accentBrand)
                 .buttonStyle(.plain)
         }
@@ -187,9 +187,9 @@ struct HubMessageBanner: View {
         HStack(spacing: HubTheme.Space.x3) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-                .font(.system(size: 12))
+                .font(HubTheme.TypeRamp.size12Regular)
             Text(message)
-                .font(.system(size: 12, weight: .medium))
+                .font(HubTheme.TypeRamp.size12Medium)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(2)
             Spacer(minLength: HubTheme.Space.x3)
@@ -198,13 +198,13 @@ struct HubMessageBanner: View {
                     action.handler()
                     dismiss()
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .font(HubTheme.TypeRamp.size12Semibold)
                 .foregroundStyle(HubTheme.accentBrand)
                 .buttonStyle(.plain)
             }
             Button(action: dismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(HubTheme.TypeRamp.size10Semibold)
                     .foregroundStyle(HubTheme.textSecondary)
             }
             .buttonStyle(.plain)
