@@ -38,6 +38,8 @@
 - Cards show text exactly as it will paste. Before, anything containing `- `, `` ` ``, `**` or similar was
   rendered as Markdown (joining single line breaks and hiding those characters), and JSON was pretty-printed
   with its keys sorted — neither matched what ⌘V or a drag-out actually produced.
+- Shelf/List/Grid and All/Favorites are remembered across launches, like any other view preference. Before,
+  every relaunch went back to Shelf and All.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

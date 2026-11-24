@@ -30,8 +30,11 @@ enum HubItemIcon {
 struct HubView: View {
     @EnvironmentObject private var appState: AppState
     @FocusState private var focusedField: HubFocusTarget?
-    @State private var filter: HubFilter = .all
-    @State private var layoutMode: HubLayoutMode = .rail
+    // Durable across relaunches, unlike the query/type-filter/collection fields the
+    // .edisonHubWillOpen handler below resets on every open: this is a standing view
+    // preference (Shelf vs. List vs. Grid, All vs. Favorites), not per-session search state.
+    @AppStorage("hub.filter") private var filter: HubFilter = .all
+    @AppStorage("hub.layoutMode") private var layoutMode: HubLayoutMode = .rail
     @State private var selectedItemID: UUID?
     @State private var newCollectionName = ""
     @State private var contentWidth: CGFloat = 0
