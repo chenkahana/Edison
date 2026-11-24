@@ -26,6 +26,8 @@ import AppKit
 final class WindowRouter {
     private weak var hubWindow: NSWindow?
     private weak var storedEditorWindow: NSWindow?
+    private weak var settingsWindow: NSWindow?
+    private var settingsCloseObserver: NSObjectProtocol?
     private var openHubAction: (() -> Void)?
     private var openEditorAction: (() -> Void)?
     private var hubRequestedVisible = false
@@ -98,8 +100,46 @@ final class WindowRouter {
     }
 
     func openSettings() {
+        // While Settings is open Edison is a regular app, same as the editor; shared with it so
+        // closing one doesn't drop the policy out from under the other.
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.trackSettingsWindowIfNeeded()
+        }
+    }
+
+    /// The Settings window is a native SwiftUI `Settings` scene: there's no open/registration
+    /// hook for it like the hub and editor get, so it's found by elimination (not hub, not
+    /// editor) once `showSettingsWindow:` has had a chance to create it.
+    private func trackSettingsWindowIfNeeded() {
+        guard settingsWindow == nil else { return }
+        let hub = hubWindows()
+        guard let window = NSApp.windows.first(where: {
+            $0.isVisible && $0.canBecomeKey && !hub.contains($0) && $0 !== resolveEditorWindow()
+        }) else { return }
+
+        settingsWindow = window
+        settingsCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.settingsWindow = nil
+                self?.revertActivationPolicyIfNeitherOpen()
+            }
+        }
+    }
+
+    /// Only drop back to a menu-bar-only app once neither the editor nor Settings is left open —
+    /// each opens the other's shared `.regular` policy, so either closing first must leave it alone.
+    private func revertActivationPolicyIfNeitherOpen() {
+        let editorOpen = resolveEditorWindow()?.isVisible ?? false
+        let settingsOpen = settingsWindow?.isVisible ?? false
+        guard !editorOpen, !settingsOpen else { return }
+        NSApp.setActivationPolicy(.accessory)
     }
 
     var editorWindow: NSWindow? {
@@ -137,7 +177,7 @@ final class WindowRouter {
 
     func dismissEditor() {
         resolveEditorWindow()?.orderOut(nil)
-        NSApp.setActivationPolicy(.accessory)
+        revertActivationPolicyIfNeitherOpen()
         yieldFocusIfIdle()
     }
 
