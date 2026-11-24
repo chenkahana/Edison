@@ -101,9 +101,19 @@ struct HubView: View {
         }
         .background(
             Group {
-                if showQuickLook, let url = quickLookFileURL {
-                    QuickLookBridge(url: url, isPresented: $showQuickLook)
-                        .frame(width: 0, height: 0)
+                if showQuickLook, quickLookFileURL != nil,
+                   let selectedItem, let index = items.firstIndex(where: { $0.id == selectedItem.id }) {
+                    QuickLookBridge(
+                        items: items,
+                        selectedIndex: index,
+                        urlProvider: { quickLookURL(for: $0) },
+                        isPresented: $showQuickLook,
+                        onIndexChange: { newIndex in
+                            guard items.indices.contains(newIndex) else { return }
+                            selectedItemID = items[newIndex].id
+                        }
+                    )
+                    .frame(width: 0, height: 0)
                 }
             }
         )

@@ -26,6 +26,9 @@
 - Share opens at the card you chose it from, not the Hub's centre. Text shares with its formatting (RTF/HTML)
   instead of plain text, and an image shares as its stored PNG under its file name instead of a re-decoded image.
 - Quick Look writes its preview copy once when it opens (and when the selection changes), not on every redraw.
+- Quick Look no longer closes the Hub out from under it — it's a separate panel, not a sheet, so it taking
+  focus used to read as "focus left Edison." ←/→ in Quick Look now move through your whole visible history,
+  like Finder, and keep the Hub's selection in sync.
 - The selected card or row has the same blue ring whatever the item is. It used to take the item's type colour,
   which changed from card to card and could vanish on white or grey items.
 - Card metadata (size, line count, dimensions) is easier to read: it uses the secondary text colour, about 5.7:1
