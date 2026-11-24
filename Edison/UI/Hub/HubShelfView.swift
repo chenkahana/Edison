@@ -106,8 +106,13 @@ struct HubShelfCardView: View {
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: HubTheme.Radius.card, style: .continuous)
     }
+    // "84" is the header + footer + padding this leaves for text (header is a fixed 30 pt, the
+    // rest is the card's own top/bottom padding) — the content area's height is sideLength minus
+    // that. The line height below is the 14 pt medium font the default text case actually draws in
+    // (HubTextContentView.plain), not a constant that can drift from it.
     private var textLineLimit: Int {
-        max(3, Int((sideLength - 84) / 20))
+        let lineHeight = HubTheme.lineHeight(size: 14, weight: .medium)
+        return max(3, Int((sideLength - 84) / lineHeight))
     }
 
     var body: some View {
