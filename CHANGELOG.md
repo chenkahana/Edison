@@ -58,6 +58,13 @@
   instead of 18 pt — the two no longer curve at different rates at the corner.
 - A shelf card's text line count is derived from the actual font's line height instead of a fixed 20 pt guess,
   so the limit tracks what's really drawn; cards now fit a line or two more of text before truncating.
+- Opening the Hub only clears your search and the selected collection. The Type filter now carries over like the
+  Shelf/List/Grid view does, instead of resetting to All every time.
+- Add Favorite and Remove Favorite read the same whether you reach them from the right-click menu or from
+  VoiceOver's rotor; the rotor used to say "Add to Favorites" for the same action.
+- The editor and Settings now share one "Edison is a regular app" state: opening either while the other is
+  already open, then closing just one, keeps the Dock icon and menu bar until the last one closes. Before,
+  closing the editor always dropped back to menu-bar-only even with Settings still open.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
@@ -96,13 +103,17 @@
   unlikely only because each click moved it by 25.
 - Storage Usage is recomputed off the main thread, so changing a setting with a large history no longer stalls
   the window while it walks the storage folder.
+- Export Diagnostics… has its Mac ellipsis, since it opens a save dialog.
+- Removed Start Hidden When Launched at Login: it was never read anywhere, so toggling it did nothing.
 
 ### Menu bar
 - Capture Previous Area and Edit Last Screenshot are dimmed when there's no area or screenshot yet, instead of
   doing nothing.
 - The menu shows each action's shortcut, including ones you set in Settings, and uses Mac titles: Settings… and
   Quit Edison.
-- Clicking the menu-bar icon opens the Hub; right-click or Option-click shows the menu.
+- Clicking the menu-bar icon toggles the Hub; right-click or Control-click shows the menu. (Option-click
+  used to show the menu instead of Control-click, which doesn't match how every other menu-bar icon on the Mac
+  responds to a secondary click.)
 - A vector menu-bar icon, sharp at every scale.
 
 ### Screenshot editor
