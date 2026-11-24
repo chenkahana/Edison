@@ -62,6 +62,14 @@ enum HubTheme {
         return min(maximumCardSide, max(minimumCardSide, target))
     }
 
+    /// The real line height for a system font at this size/weight (ascender − descender + leading),
+    /// for callers that divide an available height by a line's height to get a line count — so that
+    /// number tracks the font actually drawn instead of a constant that drifts from it.
+    static func lineHeight(size: CGFloat, weight: NSFont.Weight = .regular) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: size, weight: weight)
+        return font.ascender - font.descender + font.leading
+    }
+
     static func accentColor(for item: ClipboardItem) -> Color {
         switch item.contentKind {
         case .text: return Color(hex: 0x34C759)

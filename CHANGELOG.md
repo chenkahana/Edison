@@ -56,6 +56,8 @@
   instantly instead of animating. Their durations are now named tokens instead of bare numbers at each call site.
 - Cards and list rows are concentric with the Hub window: an 8 pt radius 20 pt inside the window's 28 pt radius,
   instead of 18 pt — the two no longer curve at different rates at the corner.
+- A shelf card's text line count is derived from the actual font's line height instead of a fixed 20 pt guess,
+  so the limit tracks what's really drawn; cards now fit a line or two more of text before truncating.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
