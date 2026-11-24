@@ -283,7 +283,7 @@ struct HubView: View {
                 .padding(.bottom, HubTheme.Space.x5)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: appState.showDeleteUndoToast)
+            .animation(HubTheme.Anim.motion(HubTheme.Anim.toast), value: appState.showDeleteUndoToast)
         }
     }
 
@@ -528,7 +528,7 @@ struct HubView: View {
         if opening {
             proxy.scrollTo(itemID, anchor: anchor)
         } else {
-            withAnimation(.easeInOut(duration: 0.16)) {
+            withAnimation(HubTheme.Anim.motion(.easeInOut(duration: HubTheme.Anim.scrollToSelection))) {
                 proxy.scrollTo(itemID, anchor: anchor)
             }
         }
