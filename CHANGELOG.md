@@ -65,6 +65,9 @@
 - The editor and Settings now share one "Edison is a regular app" state: opening either while the other is
   already open, then closing just one, keeps the Dock icon and menu bar until the last one closes. Before,
   closing the editor always dropped back to menu-bar-only even with Settings still open.
+- The Hub and editor's 34 scattered `.system(size:...)` font declarations are now named tokens in one place
+  (`HubTheme.TypeRamp`), each documented with its nearest system text style. Same sizes as before — a
+  consolidation, not a redesign.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
