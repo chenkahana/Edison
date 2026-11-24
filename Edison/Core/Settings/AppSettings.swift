@@ -34,7 +34,6 @@ struct AnnotationStyleSettings: Codable, Hashable {
 
 struct GeneralSettings: Codable, Hashable {
     var launchAtLogin = false
-    var startHiddenWhenLaunchedAtLogin = true
 }
 
 struct CaptureSettings: Codable, Hashable {

@@ -195,9 +195,10 @@ struct HubView: View {
             syncSelection()
         }
         .onReceive(NotificationCenter.default.publisher(for: .edisonHubWillOpen)) { _ in
-            // The Hub opens fresh: no leftover search, type filter or collection.
+            // The Hub opens fresh: no leftover search or collection. Layout and the type
+            // filter are preferences, not transient state, so they carry over like the
+            // shelf/list/grid choice does.
             appState.activeQuery = ""
-            appState.selectedTypeFilter = .all
             appState.selectedCollectionID = nil
             focusedField = nil
             showQuickLook = false
