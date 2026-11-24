@@ -49,6 +49,9 @@
   every relaunch went back to Shelf and All.
 - Search shows how many items matched, and highlights the matching text on every card. Before, results swapped
   with no feedback on what actually matched.
+- A card reads as one VoiceOver element (not its text, metadata and badges separately), announces when it's
+  selected, says how long ago it was copied in words and which app it came from (instead of a bare "5m", read as
+  "5 meters"), and offers Paste, Copy, Favorite and Delete as VoiceOver actions.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

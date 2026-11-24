@@ -688,6 +688,14 @@ extension ClipboardItem {
             return url.lastPathComponent
         }
     }
+
+    /// Spoken-friendly value for the card's accessibility value: "5m" reads as "5 meters" to
+    /// VoiceOver, and the compact label doesn't say which app it came from.
+    var accessibilityTimestampAndSource: String {
+        let relative = RelativeDateTimeFormatter().localizedString(for: createdAt, relativeTo: .now)
+        guard let appName = sourceApplication?.localizedName else { return relative }
+        return "\(relative), from \(appName)"
+    }
 }
 
 // MARK: - Color Hex String Extension
