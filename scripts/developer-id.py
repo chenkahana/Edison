@@ -2,8 +2,8 @@
 """Find, install or create the team's Developer ID Application certificate through the App Store Connect API.
 
 The API key comes from ASC_KEY_PATH (the .p8 file), ASC_KEY_ID and ASC_ISSUER_ID. The release workflow runs
-`install` to put the identity for DEVELOPER_ID_KEY into its keychain; set-release-secrets.sh runs `check` and
-`create`. Nothing here prints key material. See docs/release.md.
+`install` to put the identity for DEVELOPER_ID_KEY into its keychain; set-release-secrets.sh runs `check`, `count`
+and `create`. Nothing here prints key material. See docs/release.md.
 """
 import argparse
 import base64
@@ -20,6 +20,8 @@ import urllib.request
 API = 'https://api.appstoreconnect.apple.com/v1/'
 # Certificates issued from the G2 Sub-CA report the _G2 type.
 TYPES = ('DEVELOPER_ID_APPLICATION', 'DEVELOPER_ID_APPLICATION_G2')
+# Apple's limit on Developer ID Application certificates per team.
+CAP = 5
 
 
 def encode(data):
@@ -56,11 +58,14 @@ def request(method, path, body=None, **query):
     return json.loads(content) if content else None
 
 
+def certificates():
+    return request('GET', 'certificates', limit=200, **{'filter[certificateType]': ','.join(TYPES)})['data']
+
+
 def find(key):
     """The Developer ID Application certificate whose public key is `key`'s, as (ID, expiry, PEM)."""
     public = openssl('pkey', '-in', str(key), '-pubout')
-    listed = request('GET', 'certificates', limit=200, **{'filter[certificateType]': ','.join(TYPES)})
-    for item in listed['data']:
+    for item in certificates():
         pem = openssl('x509', '-inform', 'DER', data=base64.b64decode(item['attributes']['certificateContent']))
         if openssl('x509', '-noout', '-pubkey', data=pem) == public:
             return item['id'], item['attributes'].get('expirationDate', '?'), pem
@@ -84,8 +89,20 @@ def install(key, keychain, state):
     print(f'Installed Developer ID certificate {certificate_id} (expires {expiry})')
 
 
+def count():
+    """Prints the team's Developer ID Application certificates against the cap and returns how many there are."""
+    existing = certificates()
+    print(f'The team has {len(existing)} of at most {CAP} Developer ID Application certificates:')
+    for item in existing:
+        print(f"  {item['id']}  {item['attributes'].get('displayName', '')}, "
+              f"expires {item['attributes'].get('expirationDate', '?')}")
+    return len(existing)
+
+
 def create(csr):
     """Asks Apple for a Developer ID Application certificate for `csr` and prints its ID."""
+    if count() >= CAP:
+        raise RuntimeError(f'The team is at the cap of {CAP}: revoke one at developer.apple.com first')
     created = request('POST', 'certificates', {'data': {'type': 'certificates', 'attributes': {
         'certificateType': 'DEVELOPER_ID_APPLICATION_G2', 'csrContent': csr.read_text()}}})
     print(f"Created Developer ID certificate {created['data']['id']} "
@@ -94,7 +111,7 @@ def create(csr):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('command', choices=('check', 'install', 'create'))
+    parser.add_argument('command', choices=('check', 'count', 'install', 'create'))
     parser.add_argument('--key', type=Path, help='Developer ID private key, PEM (check, install)')
     parser.add_argument('--keychain', help='Keychain to import the identity into (install)')
     parser.add_argument('--state', type=Path, help='Scratch directory for the certificate (install)')
@@ -105,6 +122,8 @@ def main():
             parser.error('check requires --key')
         certificate_id, expiry, _ = find(args.key)
         print(f'The key belongs to Developer ID certificate {certificate_id} (expires {expiry})')
+    elif args.command == 'count':
+        count()
     elif args.command == 'install':
         if not (args.key and args.keychain and args.state):
             parser.error('install requires --key, --keychain and --state')
