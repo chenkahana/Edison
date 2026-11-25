@@ -80,6 +80,15 @@
 - On a sample of 84 real clips, 81 now get the right label, up from 43. No terminal output is labelled Code any more
   (9 were before).
 - Search highlights matches on Code and Terminal cards too, and list rows tell VoiceOver the item's kind.
+- With Apple Intelligence on (macOS 26 or later), Edison gives each text item one to three topic tags, using the
+  on-device model. Searching for a topic finds items tagged with it, and VoiceOver reads the tags. Where Edison's
+  own rules can't tell text, code and terminal output apart, the model's label decides; on the 84-clip sample
+  that's 82 right instead of 81.
+- New items are tagged in the background right after you copy them, one at a time and never on the main thread;
+  older history is worked through a few items at a time. Nothing runs in Low Power Mode. Copying the same thing
+  again keeps its tags.
+- Settings › Intelligence: turn labelling on or off (on by default), see Apple Intelligence's status, and process
+  your existing history now, with progress. It all stays on your Mac.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

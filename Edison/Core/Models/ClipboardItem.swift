@@ -107,6 +107,8 @@ struct ClipboardItem: Codable, Identifiable, Hashable {
     let sourceApplication: ClipboardSourceApplication?
     let payload: ClipboardPayload
     let textRepresentations: ClipboardTextRepresentations?
+    /// Labels and tags derived on this Mac; never part of what pastes. Nil until processed.
+    var intelligence: ClipboardIntelligence?
 
     init(
         id: UUID = UUID(),
@@ -114,7 +116,8 @@ struct ClipboardItem: Codable, Identifiable, Hashable {
         isFavorite: Bool = false,
         sourceApplication: ClipboardSourceApplication? = nil,
         payload: ClipboardPayload,
-        textRepresentations: ClipboardTextRepresentations? = nil
+        textRepresentations: ClipboardTextRepresentations? = nil,
+        intelligence: ClipboardIntelligence? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -122,6 +125,7 @@ struct ClipboardItem: Codable, Identifiable, Hashable {
         self.sourceApplication = sourceApplication
         self.payload = payload
         self.textRepresentations = textRepresentations
+        self.intelligence = intelligence
     }
 }
 

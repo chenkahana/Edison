@@ -98,6 +98,7 @@ struct HistorySearchEngine {
     }
 
     private func matchesContent(_ item: ClipboardItem, term: String) -> Bool {
+        if item.topics.contains(where: { $0.localizedCaseInsensitiveContains(term) }) { return true }
         switch item.payload {
         case let .text(text):
             return text.localizedCaseInsensitiveContains(term)

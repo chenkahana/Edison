@@ -694,8 +694,10 @@ extension ClipboardItem {
     /// VoiceOver, and the compact label doesn't say which app it came from.
     var accessibilityTimestampAndSource: String {
         let relative = RelativeDateTimeFormatter().localizedString(for: createdAt, relativeTo: .now)
-        guard let appName = sourceApplication?.localizedName else { return relative }
-        return "\(relative), from \(appName)"
+        var parts = [relative]
+        if let appName = sourceApplication?.localizedName { parts.append("from \(appName)") }
+        if !topics.isEmpty { parts.append("topics: \(topics.joined(separator: ", "))") }
+        return parts.joined(separator: ", ")
     }
 }
 

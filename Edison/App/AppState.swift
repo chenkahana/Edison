@@ -99,6 +99,8 @@ final class AppState: ObservableObject {
     let hotKeyCenter = HotKeyCenter.shared
     let captureEngine = CaptureEngine()  // retained here for requestScreenRecordingAccess
 
+    /// On-device labels and topics for history items; Settings › Intelligence observes it.
+    let intelligence = IntelligenceCoordinator()
     private let historyStore = HistoryStore()
     private let clipboardMonitor = ClipboardMonitor()
     private let launchAtLoginController = LaunchAtLoginController()
@@ -198,6 +200,18 @@ final class AppState: ObservableObject {
             guard let self else { return }
             self.historyStore.save(items: self.clipboardCoordinator.historyItems, collections: self.collections)
         }
+        coordinator.onItemAdded = { [weak self] item in
+            self?.intelligence.itemAdded(item)
+        }
+        intelligence.isEnabled = { [weak self] in
+            self?.settings.intelligence.isEnabled ?? false
+        }
+        intelligence.historyItems = { [weak self] in
+            self?.clipboardCoordinator.historyItems ?? []
+        }
+        intelligence.applyUpdate = { [weak self] itemID, update in
+            self?.clipboardCoordinator.updateIntelligence(itemID: itemID, update)
+        }
         coordinator.onItemDeleted = { [weak self] itemID in
             guard let self else { return }
             for idx in self.collections.indices {
@@ -279,6 +293,7 @@ final class AppState: ObservableObject {
                 // Applies retention while the app wasn't running, not just when settings are saved.
                 self.clipboardCoordinator.trimHistoryToSettingsLimit()
                 self.clipboardCoordinator.startMonitor()
+                self.intelligence.start()
             }
         }
 
@@ -391,8 +406,16 @@ final class AppState: ObservableObject {
     }
 
     func save(settings: AppSettings) {
+        let intelligenceWasEnabled = self.settings.intelligence.isEnabled
         self.settings = settings
         settingsStore.save(settings)
+        if settings.intelligence.isEnabled != intelligenceWasEnabled, enableRuntimeServices {
+            if settings.intelligence.isEnabled {
+                intelligence.start()
+            } else {
+                intelligence.stop()
+            }
+        }
         refreshLaunchAtLogin(settings.general.launchAtLogin)
         clipboardCoordinator.trimHistoryToSettingsLimit()
     }
