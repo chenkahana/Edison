@@ -289,6 +289,7 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.clipboardCoordinator.setHistoryItems(loadedItems)
                 self.clipboardCoordinator.reconcileRepresentationStore()
+                self.clipboardCoordinator.reconcileIntelligenceVectors()
                 self.collections = loadedCollections
                 // Applies retention while the app wasn't running, not just when settings are saved.
                 self.clipboardCoordinator.trimHistoryToSettingsLimit()

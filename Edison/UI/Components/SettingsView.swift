@@ -601,13 +601,13 @@ struct IntelligenceSettingsPane: View {
     var body: some View {
         Form {
             Toggle("Label and tag items", isOn: $isEnabled)
-            Text("Edison works out what each item is and adds a few topic tags you can search for. Turning this off stops new processing; labels already added stay.")
+            Text("Edison works out what each item is, reads the text and QR codes in images, spots near-duplicate screenshots, and adds a few topic tags you can search for. Turning this off stops new processing; what's already added stays.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
             LabeledContent("Apple Intelligence", value: availabilityDescription)
             if intelligence.textModelAvailability != .available {
-                Text("Without Apple Intelligence, Edison still labels items with its own rules; topic tags need it.")
+                Text("Without Apple Intelligence, Edison still labels items and reads images; topic tags need it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -632,8 +632,7 @@ struct IntelligenceSettingsPane: View {
             Button("Process Existing History") {
                 intelligence.processExistingHistory()
             }
-            .disabled(!isEnabled || intelligence.isWorking || intelligence.textModelAvailability != .available
-                || intelligence.processedCount >= intelligence.eligibleCount)
+            .disabled(!isEnabled || intelligence.isWorking || intelligence.processedCount >= intelligence.eligibleCount)
             .help("Works through older items now instead of a few at a time in the background.")
 
             Text("It all happens on this Mac. Nothing you copy is sent anywhere.")

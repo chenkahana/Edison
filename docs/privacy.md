@@ -18,10 +18,13 @@ uploaded.
 
 ## On-device intelligence
 
-Edison labels items (text, code, terminal output, links, colours) and, on a Mac with Apple Intelligence turned on,
-adds a few topic tags to text, using Apple's on-device language model (Foundation Models). This runs entirely on
-your Mac: no item, label or tag is sent to Apple, the developer or anyone else, and Edison has no network code for
-it. The labels and tags are stored with your history and deleted with it. Items marked concealed or transient are
+Edison labels items (text, code, terminal output, links, colours), reads the text, QR codes and barcodes in images
+with Apple's Vision framework, and, on a Mac with Apple Intelligence turned on, adds a few topic tags (and on
+macOS 27, a one-line image caption) using Apple's on-device language model (Foundation Models). This runs entirely
+on your Mac: no item, label or tag is sent to Apple, the developer or anyone else, and Edison has no network code for
+it. Edison never opens a link it finds in a QR code by itself; only when you click it. The labels, tags,
+recognised text and image fingerprints (used to spot near-duplicate screenshots) are stored with your history and
+deleted with it. Items marked concealed or transient are
 never stored, so they are never analysed either. Turn it off in Settings › Intelligence.
 
 ## What Edison does not store

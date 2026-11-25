@@ -89,6 +89,13 @@
   again keeps its tags.
 - Settings › Intelligence: turn labelling on or off (on by default), see Apple Intelligence's status, and process
   your existing history now, with progress. It all stays on your Mac.
+- Images and screenshots are read on your Mac with Vision (macOS 14 and later): the text in them, what kind of
+  picture they are (document, screenshot…), and any QR code or barcode. Search finds a screenshot by the words in
+  it, and VoiceOver reads them.
+- An image with a QR code link shows a QR mark on its card; click it, or choose Open QR Code Link, to open the link.
+- A screenshot that looks almost the same as an earlier one shows a "similar" mark, so repeats are easy to spot.
+- With Apple Intelligence on, screenshots get topic tags from their text. On macOS 27 the on-device model reads
+  the image itself and writes a one-line caption, which VoiceOver reads and search finds.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
