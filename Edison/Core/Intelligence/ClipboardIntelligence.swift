@@ -27,6 +27,9 @@ struct ClipboardIntelligence: Codable, Hashable {
     var visionPass: Int?
     /// The image-model pass that last ran on this image; nil until it has run.
     var imageModelPass: Int?
+    /// The search-vector pass that last ran on this item; reset whenever tags, captions or
+    /// recognised text change, so the vector is rebuilt from them.
+    var searchVectorPass: Int?
 
     static func resolvedKind(
         classified: ClipboardContentKind,

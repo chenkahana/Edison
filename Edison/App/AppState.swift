@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     private let clipboardCoordinator: ClipboardCoordinator
     private var coordinatorCancellable: AnyCancellable?
     private var filteredItemsCancellable: AnyCancellable?
+    private var relatedItemsCancellable: AnyCancellable?
+    private var relatedItemsTask: Task<Void, Never>?
 
     // MARK: - Delegated capture state
 
@@ -68,6 +70,14 @@ final class AppState: ObservableObject {
     /// once per read, via the Combine subscription set up in init.
     @Published private(set) var filteredItems: [ClipboardItem] = []
 
+    /// Search-by-meaning results for a query, best first. Computed off the main thread after a
+    /// short pause in typing, then appended after the keyword matches.
+    private struct RelatedItems: Equatable {
+        var query = ""
+        var itemIDs: [UUID] = []
+    }
+    @Published private var relatedItems = RelatedItems()
+
     var favoriteItems: [ClipboardItem] {
         filteredItems.filter(\.isFavorite)
     }
@@ -78,10 +88,16 @@ final class AppState: ObservableObject {
         collectionID: UUID?,
         collections: [ItemCollection],
         historyItems: [ClipboardItem],
+        relatedItemIDs: [UUID],
         searchEngine: HistorySearchEngine
     ) -> [ClipboardItem] {
         Log.performance.withIntervalSignpost("Search Filter") {
-            let searched = searchEngine.filter(query: query, in: historyItems, type: typeFilter)
+            let searched = searchEngine.filter(
+                query: query,
+                in: historyItems,
+                type: typeFilter,
+                relatedItemIDs: relatedItemIDs
+            )
             guard let collectionID,
                   let collection = collections.first(where: { $0.id == collectionID }) else {
                 return searched
@@ -268,8 +284,8 @@ final class AppState: ObservableObject {
         // the values Combine hands us (never `self.`) — @Published publishes on willSet, so
         // reading self's stored properties here would see last turn's value, not this one.
         filteredItemsCancellable = Publishers.CombineLatest4($activeQuery, $selectedTypeFilter, $selectedCollectionID, $collections)
-            .combineLatest(coordinator.$historyItems)
-            .sink { [weak self] inputs, historyItems in
+            .combineLatest(coordinator.$historyItems, $relatedItems)
+            .sink { [weak self] inputs, historyItems, related in
                 guard let self else { return }
                 let (query, typeFilter, collectionID, collections) = inputs
                 self.filteredItems = Self.computeFilteredItems(
@@ -278,8 +294,16 @@ final class AppState: ObservableObject {
                     collectionID: collectionID,
                     collections: collections,
                     historyItems: historyItems,
+                    relatedItemIDs: related.query == query ? related.itemIDs : [],
                     searchEngine: self.searchEngine
                 )
+            }
+
+        relatedItemsCancellable = $activeQuery
+            .removeDuplicates()
+            .debounce(for: .milliseconds(200), scheduler: DispatchQueue.main)
+            .sink { [weak self] query in
+                self?.findRelatedItems(for: query)
             }
 
         guard enableRuntimeServices else { return }
@@ -624,6 +648,30 @@ final class AppState: ObservableObject {
     }
 
     /// Opens a link in the default browser or reveals a file in Finder.
+    /// Appends a search token (such as `topic:git`) unless the query already has it.
+    func addSearchToken(_ token: String) {
+        let existing = activeQuery.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !existing.contains(where: { $0.caseInsensitiveCompare(token) == .orderedSame }) else { return }
+        activeQuery = (existing + [token]).joined(separator: " ")
+    }
+
+    private func findRelatedItems(for query: String) {
+        relatedItemsTask?.cancel()
+        let words = HistorySearchQuery(query).terms.joined(separator: " ")
+        guard settings.intelligence.isEnabled, words.count >= 3 else {
+            relatedItems = RelatedItems(query: query)
+            return
+        }
+        let candidates = historyItems.map(\.id)
+        relatedItemsTask = Task { [weak self] in
+            let itemIDs = await Task.detached(priority: .userInitiated) {
+                SemanticSearchIndex.shared.matches(for: words, among: candidates)
+            }.value
+            guard !Task.isCancelled, let self, self.activeQuery == query else { return }
+            self.relatedItems = RelatedItems(query: query, itemIDs: itemIDs)
+        }
+    }
+
     func openItem(itemID: UUID) {
         guard let item = historyItems.first(where: { $0.id == itemID }) else { return }
         if let url = item.linkURL {

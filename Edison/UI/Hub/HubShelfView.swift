@@ -462,6 +462,8 @@ struct HubImagePreviewView: View {
 
 struct HubCardFooter: View {
     let item: ClipboardItem
+    /// List rows have room for topic tags after the metadata; shelf cards don't.
+    var showsTopics = false
 
     var body: some View {
         HStack(spacing: HubTheme.Space.x2) {
@@ -474,6 +476,15 @@ struct HubCardFooter: View {
                     .foregroundStyle(HubTheme.textTertiary)
                 Text(detail)
                     .font(HubTheme.TypeRamp.size12MediumMonoDigit)
+                    .foregroundStyle(HubTheme.textSecondary)
+                    .lineLimit(1)
+            }
+            if showsTopics, !item.topics.isEmpty {
+                Text("·")
+                    .foregroundStyle(HubTheme.textTertiary)
+                Label(item.topics.joined(separator: ", "), systemImage: "tag")
+                    .labelStyle(.titleAndIcon)
+                    .font(HubTheme.TypeRamp.size12Medium)
                     .foregroundStyle(HubTheme.textSecondary)
                     .lineLimit(1)
             }

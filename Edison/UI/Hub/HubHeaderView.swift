@@ -61,7 +61,7 @@ struct HubHeaderView: View {
             filterPicker
                 .frame(width: 112)
             typePicker
-                .frame(width: 216)
+                .frame(width: 288)
             layoutPicker
                 .frame(width: 150)
         }
@@ -70,6 +70,7 @@ struct HubHeaderView: View {
 
     private var collectionControls: some View {
         HStack(alignment: .center, spacing: HubTheme.Space.x2) {
+            topicMenu
             collectionMenu
                 .frame(width: 134)
             newCollectionComposer
@@ -91,7 +92,7 @@ struct HubHeaderView: View {
             Image(systemName: "magnifyingglass")
                 .font(HubTheme.TypeRamp.size14Medium)
                 .foregroundStyle(HubTheme.textSecondary)
-            TextField("Search — try app:Safari or type:link", text: $appState.activeQuery)
+            TextField("Search words or meaning — try app:Safari", text: $appState.activeQuery)
                 .textFieldStyle(.plain)
                 .font(HubTheme.TypeRamp.size13Regular)
                 .focused($focusedField, equals: .search)
@@ -164,6 +165,34 @@ struct HubHeaderView: View {
         .pickerStyle(.segmented)
     }
 
+    /// The most common topic tags; choosing one adds its `topic:` token to the search, where it
+    /// shows and can be removed like any other token.
+    @ViewBuilder
+    private var topicMenu: some View {
+        let topics = HubTopicSummary.topTopics(in: appState.historyItems)
+        if !topics.isEmpty {
+            Menu {
+                ForEach(topics, id: \.topic) { entry in
+                    Button("\(entry.topic) (\(entry.count))") {
+                        appState.addSearchToken(HistorySearchQuery.token(forTopic: entry.topic))
+                    }
+                }
+            } label: {
+                Label("Topics", systemImage: "tag")
+                    .font(HubTheme.TypeRamp.size12Semibold)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .padding(.horizontal, HubTheme.Space.x3)
+            .frame(height: HubTheme.searchPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(HubTheme.cardFillMuted)
+            )
+            .help("Show items with a topic")
+        }
+    }
+
     private var newCollectionComposer: some View {
         HStack(spacing: HubTheme.Space.x2) {
             TextField("New collection", text: $newCollectionName)
@@ -226,5 +255,19 @@ struct HubHeaderView: View {
         case .grid:
             return "square.grid.2x2"
         }
+    }
+}
+
+enum HubTopicSummary {
+    /// Topics by how many items carry them, most first, then alphabetically.
+    static func topTopics(in items: [ClipboardItem], limit: Int = 12) -> [(topic: String, count: Int)] {
+        var counts: [String: Int] = [:]
+        for item in items {
+            for topic in item.topics { counts[topic, default: 0] += 1 }
+        }
+        return counts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            .prefix(limit)
+            .map { (topic: $0.key, count: $0.value) }
     }
 }

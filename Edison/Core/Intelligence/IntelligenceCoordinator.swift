@@ -14,6 +14,7 @@ final class IntelligenceCoordinator: ObservableObject {
     static let textModelPass = 1
     static let visionPass = 1
     static let imageModelPass = 1
+    static let searchVectorPass = 1
     /// Text shorter than this has too little to label or tag.
     static let minimumTextLength = 12
 
@@ -31,6 +32,7 @@ final class IntelligenceCoordinator: ObservableObject {
     private let availabilityProvider: () -> OnDeviceTextModel.Availability
     private let imageModelAvailabilityProvider: () -> Bool
     private let vectorStore: IntelligenceVectorStore
+    private let searchIndex: SemanticSearchIndex
     private var imageModelAvailable = false
     /// Items whose analysis couldn't complete this launch, so the backlog doesn't spin on them.
     private var failedIDs: Set<UUID> = []
@@ -51,6 +53,7 @@ final class IntelligenceCoordinator: ObservableObject {
         availabilityProvider: @escaping () -> OnDeviceTextModel.Availability = { OnDeviceTextModel.availability },
         imageModelAvailabilityProvider: @escaping () -> Bool = { OnDeviceImageModel.isAvailable },
         vectorStore: IntelligenceVectorStore = .shared,
+        searchIndex: SemanticSearchIndex = .shared,
         isLowPowerMode: @escaping () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled },
         backlogPause: Duration = .seconds(1)
     ) {
@@ -59,6 +62,7 @@ final class IntelligenceCoordinator: ObservableObject {
         self.availabilityProvider = availabilityProvider
         self.imageModelAvailabilityProvider = imageModelAvailabilityProvider
         self.vectorStore = vectorStore
+        self.searchIndex = searchIndex
         self.isLowPowerMode = isLowPowerMode
         self.backlogPause = backlogPause
     }
@@ -79,11 +83,15 @@ final class IntelligenceCoordinator: ObservableObject {
         }
         refreshAvailability()
         let items = historyItems()
+        let vectorStore = self.vectorStore
+        let searchIndex = self.searchIndex
         Task { [weak self] in
             // Classifying a whole history takes tens of milliseconds; do it off the main thread so
-            // the kind cache makes the progress count (and the Hub's first render) cheap.
+            // the kind cache makes the progress count (and the Hub's first render) cheap. Stored
+            // search vectors load in the same pass.
             await Task.detached(priority: .utility) {
                 for item in items { _ = item.contentKind }
+                searchIndex.load(itemIDs: items.map(\.id), from: vectorStore)
             }.value
             self?.refreshProgress()
             self?.kick()
@@ -139,10 +147,16 @@ final class IntelligenceCoordinator: ObservableObject {
         case imageModel
         /// The language model on an image's recognised text, for topics, where it can't read images.
         case recognizedTextModel
+        /// The search vector, built last from everything the other stages found.
+        case searchVector
     }
 
     /// Every stage that applies to the item on this Mac, done or not.
     private func stages(for item: ClipboardItem) -> [Stage] {
+        analysisStages(for: item) + [.searchVector]
+    }
+
+    private func analysisStages(for item: ClipboardItem) -> [Stage] {
         switch item.payload {
         case let .text(text):
             guard textModelAvailability == .available,
@@ -160,12 +174,18 @@ final class IntelligenceCoordinator: ObservableObject {
         }
     }
 
+    /// Other stages reset the pass when they add words, so the vector is rebuilt from them.
+    private func searchVectorIsDone(_ item: ClipboardItem) -> Bool {
+        (item.intelligence?.searchVectorPass ?? 0) >= Self.searchVectorPass
+    }
+
     private func isDone(_ stage: Stage, _ item: ClipboardItem) -> Bool {
         let intelligence = item.intelligence
         switch stage {
         case .textModel, .recognizedTextModel: return (intelligence?.textModelPass ?? 0) >= Self.textModelPass
         case .vision: return (intelligence?.visionPass ?? 0) >= Self.visionPass
         case .imageModel: return (intelligence?.imageModelPass ?? 0) >= Self.imageModelPass
+        case .searchVector: return searchVectorIsDone(item)
         }
     }
 
@@ -212,26 +232,30 @@ final class IntelligenceCoordinator: ObservableObject {
             refreshProgress()
         }
         while !Task.isCancelled, canRun, let (item, isBacklog) = nextItem() {
-            await analyze(item)
+            let ranModel = await analyze(item)
             // An item a stage couldn't finish (unreadable image file) isn't picked again this launch.
             if let current = historyItems().first(where: { $0.id == item.id }), needsWork(current) {
                 failedIDs.insert(item.id)
             }
             refreshProgress()
-            if isBacklog && isBacklogThrottled {
+            // The pause spaces out model and Vision work; building a search vector alone is cheap.
+            if isBacklog && isBacklogThrottled && ranModel {
                 try? await Task.sleep(for: backlogPause)
             }
         }
     }
 
     /// Runs the item's pending stages in order, one model call at a time, each off the main actor.
-    private func analyze(_ item: ClipboardItem) async {
+    /// Returns whether any stage other than the search vector ran.
+    private func analyze(_ item: ClipboardItem) async -> Bool {
+        var ranModel = false
         for stage in stages(for: item) {
             guard !Task.isCancelled,
                   let current = historyItems().first(where: { $0.id == item.id }),
                   stages(for: current).contains(where: { $0 == stage }),
                   !isDone(stage, current) else { continue }
             let started = ContinuousClock.now
+            ranModel = ranModel || stage != .searchVector
             switch stage {
             case .textModel:
                 guard case let .text(text) = current.payload else { continue }
@@ -243,10 +267,13 @@ final class IntelligenceCoordinator: ObservableObject {
                 await runVision(on: current)
             case .imageModel:
                 await runImageModel(on: current)
+            case .searchVector:
+                await buildSearchVector(for: current)
             }
             let elapsed = ContinuousClock.now - started
             Log.intelligence.debug("\(String(describing: stage), privacy: .public): \(elapsed.formatted(.units(allowed: [.milliseconds])), privacy: .public)")
         }
+        return ranModel
     }
 
     private func runTextModel(on text: String, itemID: UUID, keepKind: Bool) async {
@@ -264,6 +291,7 @@ final class IntelligenceCoordinator: ObservableObject {
             if keepKind { intelligence.modelKind = result?.kind }
             intelligence.topics = result.map { ClipboardIntelligence.normalizedTopics($0.topics) }
             intelligence.textModelPass = Self.textModelPass
+            intelligence.searchVectorPass = nil
         }
     }
 
@@ -301,6 +329,7 @@ final class IntelligenceCoordinator: ObservableObject {
             intelligence.barcodePayload = result.barcodePayload
             intelligence.nearDuplicateOf = nearDuplicateOf
             intelligence.visionPass = Self.visionPass
+            intelligence.searchVectorPass = nil
         }
     }
 
@@ -320,6 +349,21 @@ final class IntelligenceCoordinator: ObservableObject {
             intelligence.caption = result?.caption
             intelligence.topics = result.map { ClipboardIntelligence.normalizedTopics($0.topics) }
             intelligence.imageModelPass = Self.imageModelPass
+            intelligence.searchVectorPass = nil
+        }
+    }
+
+    private func buildSearchVector(for item: ClipboardItem) async {
+        let document = SemanticSearchIndex.document(for: item)
+        let vector = await Task.detached(priority: .utility) {
+            document.flatMap(SemanticSearchIndex.vector(for:))
+        }.value
+        if let vector {
+            vectorStore.save(SemanticSearchIndex.encode(vector), kind: .searchVector, itemID: item.id)
+        }
+        searchIndex.set(vector, for: item.id)
+        applyUpdate(item.id) { intelligence in
+            intelligence.searchVectorPass = Self.searchVectorPass
         }
     }
 }
