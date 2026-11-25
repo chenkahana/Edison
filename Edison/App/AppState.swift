@@ -34,6 +34,8 @@ final class AppState: ObservableObject {
     @Published private(set) var settings: AppSettings
     @Published var showEditorDiscardAlert = false
     @Published private(set) var accessibilityDenied = false
+    /// Whether Edison may press ⌘V for you; without it, choosing an item only copies it.
+    @Published private(set) var isAccessibilityTrusted = true
     @Published private(set) var isHistoryPaused = false
     @Published private(set) var failedShortcutActions: [ShortcutAction] = []
     @Published private(set) var launchAtLoginStatusDescription = "Unavailable"
@@ -131,6 +133,7 @@ final class AppState: ObservableObject {
     private let frontmostApplicationProvider: () -> NSRunningApplication?
     private let pasteBackCoordinatorOverride: PasteBackCoordinator?
     private let accessibilityPromptRequester: () -> Void
+    private let accessibilityTrustProvider: () -> Bool
     private let accessibilitySettingsOpener: () -> Void
     private let screenRecordingSettingsOpener: () -> Void
     private let captureThumbnail = CaptureThumbnail()
@@ -154,6 +157,7 @@ final class AppState: ObservableObject {
         pasteBackCoordinatorOverride: PasteBackCoordinator? = nil,
         initialLastActiveApp: NSRunningApplication? = nil,
         accessibilityPromptRequester: (() -> Void)? = nil,
+        accessibilityTrustProvider: @escaping () -> Bool = { AXIsProcessTrusted() },
         accessibilitySettingsOpener: (() -> Void)? = nil,
         screenRecordingSettingsOpener: (() -> Void)? = nil
     ) {
@@ -162,6 +166,7 @@ final class AppState: ObservableObject {
         self.pasteBackCoordinatorOverride = pasteBackCoordinatorOverride
         self.lastActiveApp = initialLastActiveApp
         self.settings = settingsStore.current
+        self.accessibilityTrustProvider = accessibilityTrustProvider
         self.accessibilityPromptRequester = accessibilityPromptRequester ?? {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
@@ -388,6 +393,12 @@ final class AppState: ObservableObject {
 
     /// Triggers the macOS system accessibility permission prompt.
     /// Call from a user-initiated action (e.g., Settings button) — not from the paste hot path.
+    func refreshAccessibilityTrust() {
+        let trusted = accessibilityTrustProvider()
+        guard trusted != isAccessibilityTrusted else { return }
+        isAccessibilityTrusted = trusted
+    }
+
     func requestAccessibilityAccess() {
         accessibilityPromptRequester()
         accessibilitySettingsOpener()

@@ -137,6 +137,46 @@ struct HubClipboardTextView: View {
     }
 }
 
+// MARK: - HubAccessibilityBanner
+
+/// Shown in the Hub while Edison lacks Accessibility access, before you pick an item rather than
+/// after: Return still copies the item, but only Accessibility lets Edison press ⌘V for you.
+struct HubAccessibilityBanner: View {
+    let onOpenSettings: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x3) {
+            Image(systemName: "hand.raised.fill")
+                .font(HubTheme.TypeRamp.size14Medium)
+                .foregroundStyle(HubTheme.accentBrand)
+                .accessibilityHidden(true)
+            Text("Return copies the item, but Edison can't paste it for you without Accessibility access.")
+                .font(HubTheme.TypeRamp.size12Medium)
+                .foregroundStyle(HubTheme.textPrimary)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+            Button("Open Accessibility Settings", action: onOpenSettings)
+                .font(HubTheme.TypeRamp.size12Semibold)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(HubTheme.TypeRamp.size11Bold)
+                    .foregroundStyle(HubTheme.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .help("Hide")
+            .accessibilityLabel("Hide")
+        }
+        .padding(.horizontal, HubTheme.Space.x4)
+        .padding(.vertical, HubTheme.Space.x2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(HubTheme.accentBrand.opacity(0.14))
+        )
+        .accessibilityElement(children: .contain)
+    }
+}
+
 // MARK: - HubToastView
 
 struct HubToastView: View {

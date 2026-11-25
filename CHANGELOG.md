@@ -3,6 +3,12 @@
 ## 2.2 — 2026-11-25
 
 ### Hub
+- Return, ⇧Return, ↑/↓ and Esc work while the search field has focus (after clicking it or ⌘F). Before, the field
+  took them: Return did nothing and the arrows only moved the caret, so you couldn't pick a result without
+  clicking a card. ←/→ and typing still edit the search.
+- While Edison doesn't have Accessibility access, the Hub says so up front: Return copies the item, but only
+  Accessibility lets Edison paste it for you. The banner opens the right System Settings pane, and hiding it
+  keeps it hidden until access is granted and lost again.
 - Closing the Hub with Esc or its shortcut gives focus back to the app you were in, and so does cancelling a capture
   or a capture that only goes to history. Before, keys went nowhere until you clicked that app.
 - Dragging a card out offers exactly what a paste writes: formatted text keeps its RTF and HTML, an image drops as
