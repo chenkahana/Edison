@@ -255,6 +255,8 @@ struct HubTextContentView: View {
     let kind: ClipboardContentKind
     let lineLimit: Int
 
+    @Environment(\.hubSearchTerms) private var searchTerms
+
     var body: some View {
         switch kind {
         case .link:
@@ -269,8 +271,8 @@ struct HubTextContentView: View {
             } else {
                 plain
             }
-        case .code:
-            Text(HubCodePreview.displayText(text))
+        case .code, .terminal:
+            Text(HubClipboardTextView.highlighted(HubCodePreview.displayText(text), matching: searchTerms))
                 .font(HubTheme.TypeRamp.size11_5Monospaced)
                 .foregroundStyle(HubTheme.textPrimary)
                 .lineLimit(lineLimit + 1)

@@ -124,7 +124,7 @@ struct HubClipboardTextView: View {
 
     /// Backgrounds every case-insensitive occurrence of each term; overlapping matches just
     /// re-highlight the same text, which is harmless.
-    private static func highlighted(_ text: String, matching terms: [String]) -> AttributedString {
+    static func highlighted(_ text: String, matching terms: [String]) -> AttributedString {
         var attributed = AttributedString(text)
         for term in terms where !term.isEmpty {
             var searchRange = attributed.startIndex..<attributed.endIndex

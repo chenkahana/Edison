@@ -1,11 +1,12 @@
 import Foundation
 
 /// What a clipboard item *looks like* to a person, derived from its payload without changing it.
-enum ClipboardContentKind: String, CaseIterable, Hashable {
+enum ClipboardContentKind: String, CaseIterable, Hashable, Codable {
     case text
     case link
     case color
     case code
+    case terminal
     case image
     case file
 
@@ -15,6 +16,7 @@ enum ClipboardContentKind: String, CaseIterable, Hashable {
         case .link: return "Link"
         case .color: return "Colour"
         case .code: return "Code"
+        case .terminal: return "Terminal"
         case .image: return "Image"
         case .file: return "File"
         }
@@ -26,6 +28,7 @@ enum ClipboardContentKind: String, CaseIterable, Hashable {
         case .link: return "link"
         case .color: return "paintpalette"
         case .code: return "chevron.left.forwardslash.chevron.right"
+        case .terminal: return "terminal"
         case .image: return "photo"
         case .file: return "doc"
         }
@@ -51,20 +54,30 @@ struct ClipboardColorValue: Hashable {
 }
 
 enum ClipboardContentClassifier {
-    static func kind(for payload: ClipboardPayload) -> ClipboardContentKind {
+    static func kind(for payload: ClipboardPayload, sourceBundleIdentifier: String? = nil) -> ClipboardContentKind {
         switch payload {
         case .image: return .image
         case .fileURL: return .file
-        case let .text(text): return kind(forText: text)
+        case let .text(text): return kind(forText: text, sourceBundleIdentifier: sourceBundleIdentifier)
         }
     }
 
-    static func kind(forText text: String) -> ClipboardContentKind {
+    /// Links and colours are recognised first, whatever the source. Text copied from a terminal
+    /// app is terminal output unless it reads as source code with no shell output in it (`cat`
+    /// of a file); elsewhere, prompts, logs, stack traces and command output make it terminal.
+    static func kind(forText text: String, sourceBundleIdentifier: String? = nil) -> ClipboardContentKind {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= 20_000 else { return .text }
         if link(in: trimmed) != nil { return .link }
         if color(in: trimmed) != nil { return .color }
-        if looksLikeCode(trimmed) { return .code }
+        // The heuristics only need the start of the text; this bounds their cost on long items.
+        let sample = String(trimmed.prefix(4_000))
+        let terminal = TerminalOutputHeuristic.signal(in: sample)
+        if TerminalOutputHeuristic.isTerminalApplication(sourceBundleIdentifier) {
+            return terminal == .none && looksLikeCode(sample) ? .code : .terminal
+        }
+        if terminal == .strong || terminal == .likely { return .terminal }
+        if looksLikeCode(sample) { return .code }
         return .text
     }
 
@@ -167,35 +180,168 @@ enum ClipboardContentClassifier {
 
     private static func clamp(_ value: Double) -> Double { min(max(value, 0), 1) }
 
-    private static let codeKeywords = [
-        "func ", "def ", "class ", "import ", "#include", "const ", "let ", "var ", "return ",
-        "=> ", "->", "public ", "private ", "fn ", "SELECT ", "#!/", "</", "package ", "struct "
+    /// Keywords that start a line of code (after its indentation). Prose rarely starts a line
+    /// with these, unlike "return" or "->" anywhere in a sentence.
+    private static let lineLeadingKeywords = [
+        "func ", "def ", "class ", "import ", "from ", "#include", "#import", "const ", "let ", "var ",
+        "return ", "public ", "private ", "internal ", "static ", "fn ", "package ", "struct ", "enum ",
+        "guard ", "if (", "if let ", "for (", "while (", "switch ", "export ", "async ", "@", "#!/",
+        "SELECT ", "FROM ", "WHERE ", "INSERT ", "UPDATE ", "DELETE ", "CREATE ", "JOIN ", "LEFT JOIN ",
+        "GROUP BY ", "ORDER BY ", "<div", "<span", "<html", "<?xml", "// ", "/*"
     ]
+    private static let codeOperators = ["->", "=>", "==", "!=", "&&", "||", "+=", "</", "/>", "::", "${", ":="]
 
     static func looksLikeCode(_ trimmed: String) -> Bool {
         let lines = trimmed.split(separator: "\n", omittingEmptySubsequences: true)
         let symbolCount = trimmed.reduce(into: 0) { count, character in
-            if "{};()[]=<>".contains(character) { count += 1 }
+            if "{};=<>[]".contains(character) { count += 1 }
         }
         let density = Double(symbolCount) / Double(max(trimmed.count, 1))
-        let hasKeyword = codeKeywords.contains { trimmed.contains($0) }
-        let indentedLines = lines.filter { $0.hasPrefix("    ") || $0.hasPrefix("\t") }.count
+        let keywordLines = lines.filter { line in
+            let start = line.drop(while: { $0 == " " || $0 == "\t" })
+            return lineLeadingKeywords.contains { start.hasPrefix($0) }
+        }.count
+        let operatorCount = codeOperators.reduce(0) { $0 + (trimmed.contains($1) ? 1 : 0) }
+        // Indented list items ("    - milk") are outlines, not code.
+        let indentedLines = lines.filter { line in
+            guard line.hasPrefix("  ") || line.hasPrefix("\t") else { return false }
+            let start = line.drop(while: { $0 == " " || $0 == "\t" })
+            return !(start.hasPrefix("- ") || start.hasPrefix("* ") || start.hasPrefix("• "))
+        }.count
         let endsWithCodePunctuation = lines.filter { line in
             guard let last = line.last else { return false }
             return ";{}".contains(last)
         }.count
 
+        if trimmed.hasPrefix("#!/") { return true }
         if lines.count >= 2 {
             let structural = endsWithCodePunctuation + indentedLines
-            return (hasKeyword && (density > 0.02 || structural > 0)) || Double(structural) / Double(lines.count) >= 0.4
+            if keywordLines > 0 && (structural > 0 || density > 0.04) { return true }
+            if Double(keywordLines + endsWithCodePunctuation) / Double(lines.count) >= 0.3 { return true }
+            return Double(structural) / Double(lines.count) >= 0.4
         }
-        return hasKeyword && density > 0.06
+        let endsLikeCode = endsWithCodePunctuation > 0 && density > 0.04
+        return (keywordLines > 0 && (operatorCount > 0 || density > 0.04)) || endsLikeCode
+            || (operatorCount >= 2 && density > 0.06)
+    }
+}
+
+/// Recognises what a terminal prints: shell prompts, `ls -l` listings, timestamped log lines,
+/// stack traces, compiler diagnostics and the output of common commands.
+enum TerminalOutputHeuristic {
+    enum Signal {
+        case none
+        /// Some lines look like output, but not enough to call the whole item terminal output.
+        case weak
+        /// Enough output-looking lines that the item is terminal output.
+        case likely
+        /// A line that only a terminal prints, such as a prompt or a traceback header.
+        case strong
+    }
+
+    /// Terminal emulators by bundle identifier. VS Code's integrated terminal copies text with no
+    /// marker that tells it apart from the editor, so VS Code relies on the text heuristic.
+    static let terminalBundleIdentifiers: Set<String> = [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "com.mitchellh.ghostty",
+        "dev.warp.Warp-Stable",
+        "dev.warp.Warp",
+        "dev.warp.Warp-Preview",
+        "net.kovidgoyal.kitty",
+        "org.alacritty",
+        "io.alacritty",
+        "com.github.wez.wezterm",
+        "co.zeit.hyper",
+        "org.tabby",
+        "com.raphaelamorim.rio"
+    ]
+
+    static func isTerminalApplication(_ bundleIdentifier: String?) -> Bool {
+        guard let bundleIdentifier else { return false }
+        return terminalBundleIdentifiers.contains(bundleIdentifier)
+    }
+
+    // Each alternative is anchored to a line start, so one match is one line.
+    private static let strongPattern = try! NSRegularExpression(
+        pattern: [
+            #"^\$ [a-z./~_]"#,                                     // $ command
+            #"^% [a-z./~_]"#,                                       // % command (zsh)
+            #"^[❯➜λ»] +\S"#,                                        // starship, oh-my-zsh, …
+            #"^(\(\S+\) )?[\w.-]+@[\w.-]+[^\n]{0,80}?[$#%] \S"#,   // user@host:~$ cmd, (venv) user@host dir % cmd
+            #"^PS [A-Z]:\\[^\n>]*> "#,                              // PowerShell
+            #"^Traceback \(most recent call last\):"#,
+            #"^Exception in thread "#,
+            #"^Thread \d+( Crashed)?:"#,
+            #"^commit [0-9a-f]{7,40}\b"#,
+            #"^On branch \S+"#,
+            #"^Changes (not staged|to be committed)"#,
+            #"^(fatal error|error|fatal|panic): "#,                  // swiftc, git, Go
+            #"^goroutine \d+ \["#,
+            #"^ \d+ files? changed"#,                               // git diff --stat
+            #"^[^\s:]+:\d+:\d+: (error|warning|note): "#,          // clang/swiftc diagnostics
+            #"^\S+\(\d+,\d+\): error TS\d+"#,                     // tsc diagnostics
+            #": command not found"#,
+            #"^\S+: \S[^\n]*: No such file or directory$"#,
+            #"^npm (ERR!|WARN|error|warn) "#,
+            #"^==> \S"#                                             // Homebrew
+        ].joined(separator: "|"),
+        options: [.anchorsMatchLines]
+    )
+
+    private static let weakLinePattern = try! NSRegularExpression(
+        pattern: "^(?:" + [
+            #"total \d+$"#,                                         // ls -l header
+            #"[-dlcbps][rwxsStT-]{9}[@+.]?\s+\d+\s"#,                 // ls -l entry
+            #"\[?\d{4}[-/]\d{2}[-/]\d{2}[T ]\d{2}:\d{2}"#,           // 2026-11-25 10:14 / [2026-11-25T08:12
+            #"\[?\d{2}:\d{2}:\d{2}[.,\]\s]"#,                       // 10:14:03.123
+            #"[A-Z][a-z]{2} [ \d]\d \d{2}:\d{2}:\d{2} "#,             // syslog: Nov 25 09:41:12
+            #"(?=[0-9a-f]*\d)[0-9a-f]{7,12} \S"#,                    // git log --oneline
+            #" \S+\s+\|\s+\d+ [+-]*$"#,                              // git diff --stat entry
+            #"(added|removed|changed|audited) \d+ packages?"#,       // npm/yarn summaries
+            #"found \d+ vulnerabilit"#,
+            #"\s+at \S[^\n]*[(\s]\S*:\d+(:\d+)?\)?$"#,             // JS/Java stack frame
+            #"\s+File "[^"]+", line \d+"#,                          // Python frame
+            #"\d+\s+\S+\s+0x[0-9a-fA-F]+ "#,                        // crash report frame
+            #"Author: [^\n]+<[^\n]+>"#,
+            #"Date: {3}"#,
+            #"\s*(PID|USER|Filesystem|NAME|CONTAINER ID|REPOSITORY|COMMAND)\s{2,}"#, // CLI table headers
+            #"\d+ bytes from "#,
+            #"PING "#,
+            #"\[\d+/\d+\] "#,                                      // build progress
+            #"#{10,}"#,                                             // progress bars
+            #"\s+(modified|new file|deleted|renamed):\s+\S"#          // git status entries
+        ].joined(separator: "|") + ")",
+        options: [.anchorsMatchLines]
+    )
+
+    static func signal(in sample: String) -> Signal {
+        let range = NSRange(sample.startIndex..., in: sample)
+        if strongPattern.firstMatch(in: sample, range: range) != nil { return .strong }
+        let matchingLines = weakLinePattern.numberOfMatches(in: sample, range: range)
+        guard matchingLines > 0 else { return .none }
+        let lineCount = sample.split(separator: "\n", omittingEmptySubsequences: true).count
+        return Double(matchingLines) / Double(max(lineCount, 1)) >= 0.4 ? .likely : .weak
     }
 }
 
 extension ClipboardItem {
     var contentKind: ClipboardContentKind {
-        ClipboardContentClassifier.kind(for: payload)
+        guard case .text = payload else {
+            return ClipboardContentClassifier.kind(for: payload)
+        }
+        // Cards ask for their kind on every render; an item's payload and source never change.
+        let key = id as NSUUID
+        if let cached = ClipboardContentKindCache.shared.object(forKey: key),
+           let kind = ClipboardContentKind(rawValue: cached as String) {
+            return kind
+        }
+        let kind = ClipboardContentClassifier.kind(
+            for: payload,
+            sourceBundleIdentifier: sourceApplication?.bundleIdentifier
+        )
+        ClipboardContentKindCache.shared.setObject(kind.rawValue as NSString, forKey: key)
+        return kind
     }
 
     var linkURL: URL? {
@@ -207,4 +353,12 @@ extension ClipboardItem {
         guard case let .text(text) = payload else { return nil }
         return ClipboardContentClassifier.color(in: text.trimmingCharacters(in: .whitespacesAndNewlines))
     }
+}
+
+private enum ClipboardContentKindCache {
+    static let shared: NSCache<NSUUID, NSString> = {
+        let cache = NSCache<NSUUID, NSString>()
+        cache.countLimit = 2_000
+        return cache
+    }()
 }
