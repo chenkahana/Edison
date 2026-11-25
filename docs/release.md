@@ -56,19 +56,21 @@ The workflow stops before building, listing any that are missing:
 
 | Secret | What it is |
 |---|---|
-| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` | An App Store Connect team API key (Users and Access › Integrations › Team Keys) with the Admin role. `ASC_KEY_P8` is the text of the downloaded `AuthKey_KEYID.p8`. It finds the certificate and notarizes |
+| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` | An App Store Connect team API key (Users and Access › Integrations › Team Keys) with the App Manager role or higher. `ASC_KEY_P8` is the text of the downloaded `AuthKey_KEYID.p8` (Apple allows one download). It finds the certificate and notarizes |
 | `DEVELOPER_ID_KEY` | The unencrypted PEM private key of a Developer ID Application certificate on team `DPF8459C2J`. [`scripts/developer-id.py`](../scripts/developer-id.py) finds the certificate whose public key matches, so no certificate ID is configured |
 | `SPARKLE_ED_PRIVATE_KEY` | Sparkle's EdDSA private key, as `generate_keys -x` writes it. The workflow checks the DMG's signature against `SUPublicEDKey` |
 
 Set them from the maintainer's Mac with [`scripts/set-release-secrets.sh`](../scripts/set-release-secrets.sh):
 
 ```sh
-scripts/set-release-secrets.sh --issuer ISSUER_ID [--asc-key ~/Downloads/AuthKey_KEYID.p8] [--developer-id-key KEY.pem]
+scripts/set-release-secrets.sh --issuer ISSUER_ID [--asc-key ~/Downloads/AuthKey_KEYID.p8] (--developer-id-key KEY.pem | --new-developer-id)
 ```
 
 It takes the API key from `--asc-key`, or the one `AuthKey_*.p8` in `~/Downloads` or `~/.appstoreconnect/private_keys`.
-Without `--developer-id-key` it makes a new private key and has Apple issue a Developer ID Application certificate
-for it through the API key; if Apple refuses, it keeps the request and says where to upload it. It exports the Sparkle
+With `--developer-id-key` it uses the private key of an existing Developer ID Application certificate, after checking
+the team has that certificate. With `--new-developer-id` it makes a new private key and has Apple issue a certificate
+for it through the API key, refusing when the team already has Apple's maximum of 5; if Apple refuses, it keeps the
+request and says where to upload it. With neither, it lists the team's certificates and sets nothing. It exports the Sparkle
 key from the login keychain after checking it is the one behind `SUPublicEDKey` (macOS may ask to allow that). It
 never prints a key, and deletes the copies it made. When the certificate expires or is revoked, run it again.
 
