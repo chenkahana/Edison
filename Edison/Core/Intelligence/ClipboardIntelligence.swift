@@ -9,9 +9,24 @@ struct ClipboardIntelligence: Codable, Hashable {
     var modelKind: ClipboardContentKind?
     /// One to three short, lowercase topic tags.
     var topics: [String]?
-    /// The text-model pass that last ran on this item, whether or not it produced anything
-    /// (unsupported language, refusal); nil until it has run.
+    /// The text-model pass that last ran on this item (on its text, or an image's recognised
+    /// text), whether or not it produced anything (unsupported language, refusal); nil until it has run.
     var textModelPass: Int?
+
+    /// Text recognised in an image by Vision, capped at a few thousand characters.
+    var recognizedText: String?
+    /// Vision's scene labels for an image ("document", "screenshot", "outdoor"…).
+    var imageLabels: [String]?
+    /// The payload of the first barcode or QR code found in an image.
+    var barcodePayload: String?
+    /// A one-line description from the on-device model's image input (macOS 27+).
+    var caption: String?
+    /// An older image this one looks almost exactly like (by Vision feature print).
+    var nearDuplicateOf: UUID?
+    /// The Vision pass that last ran on this image; nil until it has run.
+    var visionPass: Int?
+    /// The image-model pass that last ran on this image; nil until it has run.
+    var imageModelPass: Int?
 
     static func resolvedKind(
         classified: ClipboardContentKind,
@@ -40,4 +55,19 @@ struct ClipboardIntelligence: Codable, Hashable {
 
 extension ClipboardItem {
     var topics: [String] { intelligence?.topics ?? [] }
+
+    /// A web link read from a QR code or barcode in an image, to open from the card.
+    var barcodeURL: URL? {
+        guard case .image = payload,
+              let payload = intelligence?.barcodePayload else { return nil }
+        return ClipboardContentClassifier.link(in: payload.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Words that describe an image for search and VoiceOver: caption, recognised text, labels and
+    /// barcode content. Empty for other items.
+    var imageSearchText: [String] {
+        guard case .image = payload, let intelligence else { return [] }
+        return [intelligence.caption, intelligence.recognizedText, intelligence.barcodePayload].compactMap { $0 }
+            + (intelligence.imageLabels ?? [])
+    }
 }

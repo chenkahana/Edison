@@ -2,15 +2,18 @@ import Combine
 import Foundation
 import OSLog
 
-/// Runs on-device analysis over clipboard history, one item at a time, off the main thread.
+/// Runs on-device analysis over clipboard history (language model on text; Vision and, on macOS 27,
+/// the language model on images), one item at a time, off the main thread.
 ///
 /// New items go first; the rest of history is backfilled newest-first with a pause between
 /// items, so it never competes with what you're doing. Nothing runs while Intelligence is off or
 /// Low Power Mode is on. Results are written back as `ClipboardIntelligence` metadata only.
 @MainActor
 final class IntelligenceCoordinator: ObservableObject {
-    /// Bump to re-run the text model over items processed by an older pass.
+    /// Bump one of these to re-run that stage over items processed by an older pass.
     static let textModelPass = 1
+    static let visionPass = 1
+    static let imageModelPass = 1
     /// Text shorter than this has too little to label or tag.
     static let minimumTextLength = 12
 
@@ -24,7 +27,13 @@ final class IntelligenceCoordinator: ObservableObject {
     var applyUpdate: (_ itemID: UUID, _ update: (inout ClipboardIntelligence) -> Void) -> Void = { _, _ in }
 
     private let textModel: @Sendable (String) async throws -> OnDeviceTextModel.Result?
+    private let imageModel: @Sendable (URL) async throws -> OnDeviceImageModel.Result?
     private let availabilityProvider: () -> OnDeviceTextModel.Availability
+    private let imageModelAvailabilityProvider: () -> Bool
+    private let vectorStore: IntelligenceVectorStore
+    private var imageModelAvailable = false
+    /// Items whose analysis couldn't complete this launch, so the backlog doesn't spin on them.
+    private var failedIDs: Set<UUID> = []
     private let isLowPowerMode: () -> Bool
     private let backlogPause: Duration
     private var priorityIDs: [UUID] = []
@@ -38,12 +47,18 @@ final class IntelligenceCoordinator: ObservableObject {
 
     init(
         textModel: @escaping @Sendable (String) async throws -> OnDeviceTextModel.Result? = { try await OnDeviceTextModel.analyze($0) },
+        imageModel: @escaping @Sendable (URL) async throws -> OnDeviceImageModel.Result? = { try await OnDeviceImageModel.describe(imageURL: $0) },
         availabilityProvider: @escaping () -> OnDeviceTextModel.Availability = { OnDeviceTextModel.availability },
+        imageModelAvailabilityProvider: @escaping () -> Bool = { OnDeviceImageModel.isAvailable },
+        vectorStore: IntelligenceVectorStore = .shared,
         isLowPowerMode: @escaping () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled },
         backlogPause: Duration = .seconds(1)
     ) {
         self.textModel = textModel
+        self.imageModel = imageModel
         self.availabilityProvider = availabilityProvider
+        self.imageModelAvailabilityProvider = imageModelAvailabilityProvider
+        self.vectorStore = vectorStore
         self.isLowPowerMode = isLowPowerMode
         self.backlogPause = backlogPause
     }
@@ -62,8 +77,7 @@ final class IntelligenceCoordinator: ObservableObject {
                 }
             }
         }
-        textModelAvailability = availabilityProvider()
-        Log.intelligence.info("Text model availability: \(String(describing: self.textModelAvailability), privacy: .public)")
+        refreshAvailability()
         let items = historyItems()
         Task { [weak self] in
             // Classifying a whole history takes tens of milliseconds; do it off the main thread so
@@ -95,9 +109,15 @@ final class IntelligenceCoordinator: ObservableObject {
     /// Settings › Process Existing History: works through the backlog without pausing between items.
     func processExistingHistory() {
         isBacklogThrottled = false
-        textModelAvailability = availabilityProvider()
+        refreshAvailability()
         refreshProgress()
         kick()
+    }
+
+    private func refreshAvailability() {
+        textModelAvailability = availabilityProvider()
+        imageModelAvailable = imageModelAvailabilityProvider()
+        Log.intelligence.info("Text model: \(String(describing: self.textModelAvailability), privacy: .public); image model: \(self.imageModelAvailable ? "available" : "unavailable", privacy: .public)")
     }
 
     func refreshProgress() {
@@ -110,15 +130,51 @@ final class IntelligenceCoordinator: ObservableObject {
 
     private var canRun: Bool { isEnabled() && !isLowPowerMode() }
 
+    private enum Stage {
+        /// The language model on an item's text: kind and topics.
+        case textModel
+        /// Vision on an image: recognised text, labels, barcodes, feature print.
+        case vision
+        /// The language model on an image (macOS 27+): caption and topics.
+        case imageModel
+        /// The language model on an image's recognised text, for topics, where it can't read images.
+        case recognizedTextModel
+    }
+
+    /// Every stage that applies to the item on this Mac, done or not.
+    private func stages(for item: ClipboardItem) -> [Stage] {
+        switch item.payload {
+        case let .text(text):
+            guard textModelAvailability == .available,
+                  [.text, .code, .terminal].contains(item.contentKind),
+                  text.trimmingCharacters(in: .whitespacesAndNewlines).count >= Self.minimumTextLength else { return [] }
+            return [.textModel]
+        case .image:
+            if imageModelAvailable { return [.vision, .imageModel] }
+            // Until Vision has run, whether there's enough recognised text to tag isn't known.
+            let recognized = item.intelligence?.recognizedText ?? ""
+            let hasText = item.intelligence?.visionPass == nil || recognized.count >= Self.minimumTextLength
+            return textModelAvailability == .available && hasText ? [.vision, .recognizedTextModel] : [.vision]
+        case .fileURL:
+            return []
+        }
+    }
+
+    private func isDone(_ stage: Stage, _ item: ClipboardItem) -> Bool {
+        let intelligence = item.intelligence
+        switch stage {
+        case .textModel, .recognizedTextModel: return (intelligence?.textModelPass ?? 0) >= Self.textModelPass
+        case .vision: return (intelligence?.visionPass ?? 0) >= Self.visionPass
+        case .imageModel: return (intelligence?.imageModelPass ?? 0) >= Self.imageModelPass
+        }
+    }
+
     private func isEligible(_ item: ClipboardItem) -> Bool {
-        guard textModelAvailability == .available,
-              case let .text(text) = item.payload,
-              [.text, .code, .terminal].contains(item.contentKind) else { return false }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines).count >= Self.minimumTextLength
+        !stages(for: item).isEmpty
     }
 
     private func needsWork(_ item: ClipboardItem) -> Bool {
-        isEligible(item) && (item.intelligence?.textModelPass ?? 0) < Self.textModelPass
+        !failedIDs.contains(item.id) && stages(for: item).contains { !isDone($0, item) }
     }
 
     /// The next item to analyse and whether it came from the backlog.
@@ -157,6 +213,10 @@ final class IntelligenceCoordinator: ObservableObject {
         }
         while !Task.isCancelled, canRun, let (item, isBacklog) = nextItem() {
             await analyze(item)
+            // An item a stage couldn't finish (unreadable image file) isn't picked again this launch.
+            if let current = historyItems().first(where: { $0.id == item.id }), needsWork(current) {
+                failedIDs.insert(item.id)
+            }
             refreshProgress()
             if isBacklog && isBacklogThrottled {
                 try? await Task.sleep(for: backlogPause)
@@ -164,10 +224,33 @@ final class IntelligenceCoordinator: ObservableObject {
         }
     }
 
+    /// Runs the item's pending stages in order, one model call at a time, each off the main actor.
     private func analyze(_ item: ClipboardItem) async {
-        guard case let .text(text) = item.payload else { return }
+        for stage in stages(for: item) {
+            guard !Task.isCancelled,
+                  let current = historyItems().first(where: { $0.id == item.id }),
+                  stages(for: current).contains(where: { $0 == stage }),
+                  !isDone(stage, current) else { continue }
+            let started = ContinuousClock.now
+            switch stage {
+            case .textModel:
+                guard case let .text(text) = current.payload else { continue }
+                await runTextModel(on: text, itemID: current.id, keepKind: true)
+            case .recognizedTextModel:
+                guard let text = current.intelligence?.recognizedText else { continue }
+                await runTextModel(on: text, itemID: current.id, keepKind: false)
+            case .vision:
+                await runVision(on: current)
+            case .imageModel:
+                await runImageModel(on: current)
+            }
+            let elapsed = ContinuousClock.now - started
+            Log.intelligence.debug("\(String(describing: stage), privacy: .public): \(elapsed.formatted(.units(allowed: [.milliseconds])), privacy: .public)")
+        }
+    }
+
+    private func runTextModel(on text: String, itemID: UUID, keepKind: Bool) async {
         let textModel = self.textModel
-        let started = ContinuousClock.now
         // Detached so the model call and its prompt building never run on the main actor.
         let outcome = await Task.detached(priority: .utility) { () -> Result<OnDeviceTextModel.Result?, Error> in
             do {
@@ -177,12 +260,66 @@ final class IntelligenceCoordinator: ObservableObject {
             }
         }.value
         guard case let .success(result) = outcome else { return }
-        let elapsed = ContinuousClock.now - started
-        Log.intelligence.debug("Text model: \(elapsed.formatted(.units(allowed: [.milliseconds])), privacy: .public)")
-        applyUpdate(item.id) { intelligence in
-            intelligence.modelKind = result?.kind
+        applyUpdate(itemID) { intelligence in
+            if keepKind { intelligence.modelKind = result?.kind }
             intelligence.topics = result.map { ClipboardIntelligence.normalizedTopics($0.topics) }
             intelligence.textModelPass = Self.textModelPass
+        }
+    }
+
+    private func runVision(on item: ClipboardItem) async {
+        guard case let .image(image) = item.payload else { return }
+        let imageURL = ImageStore.imagesDirectoryURL.appendingPathComponent(image.imagePath)
+        let vectorStore = self.vectorStore
+        // Earlier images' feature prints, to find one this image nearly duplicates.
+        let candidates: [UUID] = historyItems().compactMap { other in
+            guard other.id != item.id, case .image = other.payload,
+                  other.createdAt <= item.createdAt, other.intelligence?.visionPass != nil else { return nil }
+            return other.id
+        }
+        let analysis = await Task.detached(priority: .utility) { () -> (OnDeviceImageAnalyzer.Result, UUID?)? in
+            guard let result = OnDeviceImageAnalyzer.analyze(imageURL: imageURL) else { return nil }
+            var nearest: (UUID, Float)?
+            if let print = result.featurePrint {
+                for id in candidates {
+                    guard let other = vectorStore.load(kind: .featurePrint, itemID: id),
+                          let distance = OnDeviceImageAnalyzer.distance(between: print, and: other),
+                          distance < OnDeviceImageAnalyzer.nearDuplicateDistance,
+                          distance < (nearest?.1 ?? .infinity) else { continue }
+                    nearest = (id, distance)
+                }
+            }
+            return (result, nearest?.0)
+        }.value
+        guard let (result, nearDuplicateOf) = analysis else { return }
+        if let print = result.featurePrint {
+            vectorStore.save(print, kind: .featurePrint, itemID: item.id)
+        }
+        applyUpdate(item.id) { intelligence in
+            intelligence.recognizedText = result.recognizedText
+            intelligence.imageLabels = result.labels
+            intelligence.barcodePayload = result.barcodePayload
+            intelligence.nearDuplicateOf = nearDuplicateOf
+            intelligence.visionPass = Self.visionPass
+        }
+    }
+
+    private func runImageModel(on item: ClipboardItem) async {
+        guard case let .image(image) = item.payload else { return }
+        let imageURL = ImageStore.imagesDirectoryURL.appendingPathComponent(image.imagePath)
+        let imageModel = self.imageModel
+        let outcome = await Task.detached(priority: .utility) { () -> Result<OnDeviceImageModel.Result?, Error> in
+            do {
+                return .success(try await imageModel(imageURL))
+            } catch {
+                return .failure(error)
+            }
+        }.value
+        guard case let .success(result) = outcome else { return }
+        applyUpdate(item.id) { intelligence in
+            intelligence.caption = result?.caption
+            intelligence.topics = result.map { ClipboardIntelligence.normalizedTopics($0.topics) }
+            intelligence.imageModelPass = Self.imageModelPass
         }
     }
 }

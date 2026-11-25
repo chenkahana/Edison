@@ -254,6 +254,9 @@ struct HubItemActionMenu: View {
             Button("Annotate Image…", action: onEditImage)
                 .keyboardShortcut("e", modifiers: [.command])
         }
+        if let url = item.barcodeURL {
+            Button("Open QR Code Link") { NSWorkspace.shared.open(url) }
+        }
         if item.contentKind == .link, let onOpen {
             Button("Open Link", action: onOpen)
                 .keyboardShortcut("o", modifiers: [.command])

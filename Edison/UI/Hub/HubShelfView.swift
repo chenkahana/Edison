@@ -478,6 +478,39 @@ struct HubCardFooter: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            HubImageInsightBadges(item: item)
+        }
+    }
+}
+
+/// Small marks on image cards for what Vision found: a QR code link (click to open) and a
+/// near-duplicate of an earlier image. Nothing for other items.
+struct HubImageInsightBadges: View {
+    let item: ClipboardItem
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        HStack(spacing: HubTheme.Space.x1) {
+            if item.intelligence?.nearDuplicateOf != nil {
+                Image(systemName: "square.on.square")
+                    .font(HubTheme.TypeRamp.size11Bold)
+                    .foregroundStyle(HubTheme.textSecondary)
+                    .help("Looks almost the same as an earlier image")
+                    .accessibilityHidden(true)
+            }
+            if let url = item.barcodeURL {
+                Button {
+                    openURL(url)
+                } label: {
+                    Image(systemName: "qrcode")
+                        .font(HubTheme.TypeRamp.size11Bold)
+                        .foregroundStyle(HubTheme.accentBrand)
+                }
+                .buttonStyle(.plain)
+                .help("Open \(url.host() ?? url.absoluteString) from the QR code")
+                .accessibilityLabel("Open QR Code Link")
+            }
         }
     }
 }

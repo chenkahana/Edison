@@ -106,6 +106,7 @@ struct HistorySearchEngine {
             return url.lastPathComponent.localizedCaseInsensitiveContains(term)
         case .image:
             return "image screenshot".localizedCaseInsensitiveContains(term)
+                || item.imageSearchText.contains { $0.localizedCaseInsensitiveContains(term) }
         }
     }
 }

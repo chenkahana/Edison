@@ -37,6 +37,7 @@ final class ClipboardCoordinator: ObservableObject {
     private let historyStore: HistoryStore
     private let clipboardMonitor: ClipboardMonitor
     private let representationStore: ClipboardRepresentationStore
+    private let vectorStore: IntelligenceVectorStore
     private let pasteboard: NSPasteboard
 
     // Collections are owned by AppState (they are a view-model concern that
@@ -60,11 +61,13 @@ final class ClipboardCoordinator: ObservableObject {
         historyStore: HistoryStore,
         clipboardMonitor: ClipboardMonitor,
         representationStore: ClipboardRepresentationStore? = nil,
+        vectorStore: IntelligenceVectorStore? = nil,
         pasteboard: NSPasteboard? = nil
     ) {
         self.historyStore = historyStore
         self.clipboardMonitor = clipboardMonitor
         self.representationStore = representationStore ?? .shared
+        self.vectorStore = vectorStore ?? .shared
         self.pasteboard = pasteboard ?? .general
     }
 
@@ -96,8 +99,9 @@ final class ClipboardCoordinator: ObservableObject {
         var item = item
         let replacedItems = historyItems.filter { $0.hasSameClipboardIdentity(as: item) }
         // Copying the same thing again keeps what was already worked out about it.
-        if item.intelligence == nil {
-            item.intelligence = replacedItems.first(where: { $0.intelligence != nil })?.intelligence
+        if item.intelligence == nil, let earlier = replacedItems.first(where: { $0.intelligence != nil }) {
+            item.intelligence = earlier.intelligence
+            vectorStore.copy(from: earlier.id, to: item.id)
         }
         historyItems.removeAll { $0.hasSameClipboardIdentity(as: item) }
         replacedItems.filter { $0.id != item.id }.forEach(deleteAssets)
@@ -423,6 +427,11 @@ final class ClipboardCoordinator: ObservableObject {
             ImageStore.delete(relativePath: imageData.thumbnailPath)
         }
         representationStore.delete(item.textRepresentations)
+        vectorStore.delete(itemID: item.id)
+    }
+
+    func reconcileIntelligenceVectors() {
+        vectorStore.reconcile(liveItemIDs: Set(historyItems.map(\.id)))
     }
 }
 

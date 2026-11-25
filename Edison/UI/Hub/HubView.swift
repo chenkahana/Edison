@@ -684,6 +684,10 @@ extension ClipboardItem {
             let compact = text.trimmingCharacters(in: .whitespacesAndNewlines)
             return compact.isEmpty ? "Text" : compact
         case .image:
+            if let caption = intelligence?.caption { return caption }
+            if let text = intelligence?.recognizedText {
+                return "Image with text: \(text.prefix(120).replacingOccurrences(of: "\n", with: " "))"
+            }
             return "Image"
         case let .fileURL(url):
             return url.lastPathComponent
@@ -697,6 +701,8 @@ extension ClipboardItem {
         var parts = [relative]
         if let appName = sourceApplication?.localizedName { parts.append("from \(appName)") }
         if !topics.isEmpty { parts.append("topics: \(topics.joined(separator: ", "))") }
+        if barcodeURL != nil { parts.append("contains a QR code link") }
+        if intelligence?.nearDuplicateOf != nil { parts.append("looks like an earlier image") }
         return parts.joined(separator: ", ")
     }
 }
