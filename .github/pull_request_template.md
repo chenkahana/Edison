@@ -19,4 +19,4 @@
 - [ ] Stored clipboard text is never altered (display-only transforms stay in `UI`)
 - [ ] Nothing new is logged, stored or sent that could contain clipboard or screenshot content
 - [ ] VoiceOver labels, keyboard access, Reduce Transparency and Reduce Motion handled for new UI
-- [ ] CHANGELOG.md updated under "unreleased" for user-visible changes
+- [ ] User-visible changes add a new top `## X.Y.Z — YYYY-MM-DD` section to CHANGELOG.md (merging releases it)

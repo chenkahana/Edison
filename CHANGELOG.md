@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.2 — unreleased
+## 2.2 — 2026-11-25
 
 ### Hub
 - Closing the Hub with Esc or its shortcut gives focus back to the app you were in, and so does cancelling a capture

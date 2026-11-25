@@ -69,6 +69,11 @@ swift build && swift test
 CI builds Debug and Release, runs the tests and produces an unsigned archive on every pull request; it must pass
 before review.
 
+Every merge that changes the app publishes a release: a notarized `Edison.dmg` that installed copies update to.
+For user-visible changes, add a new section at the top of [CHANGELOG.md](CHANGELOG.md), `## X.Y.Z — YYYY-MM-DD`
+(the next patch, or a minor version for a feature); it becomes the release notes. Without one, the release is the
+next patch with your commit's subject as its notes. See [docs/release.md](docs/release.md).
+
 ## Code of conduct
 
 Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
