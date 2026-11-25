@@ -51,6 +51,7 @@ signing key before they're installed.
 | **Keyboard first** | Arrow keys move, **Return** pastes into the app you were using, **⇧Return** pastes as plain text, and holding **⌘** reveals **⌘1–⌘9** to paste one of the first nine items instantly. Start typing anywhere to search. |
 | **Paste exactly what you copied** | Edison keeps the original rich-text, RTF, RTFD and HTML representations byte for byte, so formatted text pastes back formatted. Plain-text paste writes exactly the plain string, never trimmed or re-wrapped. |
 | **Search that understands you** | Every word you type must match. Narrow results with `app:Safari` or `type:link` (also `image`, `file`, `colour`, `text`), or use the type filter. |
+| **Knows what you copied** | Terminal output, code, links and colours each get their own label, and on a Mac with Apple Intelligence every text item gets a few topic tags you can search for. It all runs on your Mac; turn it off in **Settings › Intelligence**. |
 | **Organize** | Favourite items, group them into collections, drag cards into other apps, preview with **Space** (Quick Look), and undo an accidental delete. |
 | **Private by default** | Items marked concealed or transient by password managers are never stored. Pause history from the menu bar whenever you're handling something sensitive; nothing copied in the meantime is captured on resume. |
 
@@ -192,6 +193,7 @@ Edison/
 Edison collects nothing. There are no accounts, analytics or crash reporters, and the only network request is the
 update check, which sends nothing about you or your clipboard. Your history,
 screenshots and settings stay in Edison's sandboxed container on your Mac, and deleting an item deletes its files.
+Labels and topic tags are worked out on your Mac by Apple's on-device model; nothing is sent anywhere.
 The full policy is in [docs/privacy.md](docs/privacy.md).
 
 ## Contributing

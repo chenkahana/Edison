@@ -58,6 +58,11 @@ struct PrivacySettings: Codable, Hashable {
     var retentionDays: Int?
 }
 
+struct IntelligenceSettings: Codable, Hashable {
+    /// Labels, tags and (on newer macOS) captions worked out on this Mac. On by default.
+    var isEnabled = true
+}
+
 struct AppSettings: Codable, Hashable {
     static let currentSchemaVersion = 1
 
@@ -66,6 +71,7 @@ struct AppSettings: Codable, Hashable {
     var capture = CaptureSettings()
     var editor = EditorSettings()
     var privacy = PrivacySettings()
+    var intelligence = IntelligenceSettings()
 
     static let `default` = AppSettings()
 
@@ -84,5 +90,21 @@ struct AppSettings: Codable, Hashable {
 
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "Edison Screenshot \(formatter.string(from: date)) \(timeFormatter.string(from: date))" : trimmed
+    }
+}
+
+extension AppSettings {
+    /// Settings saved before a section existed lack its key; that section takes its defaults
+    /// instead of the whole decode failing and every setting resetting.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = AppSettings()
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? defaults.schemaVersion
+        general = try container.decodeIfPresent(GeneralSettings.self, forKey: .general) ?? defaults.general
+        capture = try container.decodeIfPresent(CaptureSettings.self, forKey: .capture) ?? defaults.capture
+        editor = try container.decodeIfPresent(EditorSettings.self, forKey: .editor) ?? defaults.editor
+        privacy = try container.decodeIfPresent(PrivacySettings.self, forKey: .privacy) ?? defaults.privacy
+        intelligence = try container.decodeIfPresent(IntelligenceSettings.self, forKey: .intelligence)
+            ?? defaults.intelligence
     }
 }

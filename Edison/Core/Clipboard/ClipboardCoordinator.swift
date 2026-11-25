@@ -93,7 +93,12 @@ final class ClipboardCoordinator: ObservableObject {
             return
         }
 
+        var item = item
         let replacedItems = historyItems.filter { $0.hasSameClipboardIdentity(as: item) }
+        // Copying the same thing again keeps what was already worked out about it.
+        if item.intelligence == nil {
+            item.intelligence = replacedItems.first(where: { $0.intelligence != nil })?.intelligence
+        }
         historyItems.removeAll { $0.hasSameClipboardIdentity(as: item) }
         replacedItems.filter { $0.id != item.id }.forEach(deleteAssets)
         historyItems.insert(item, at: 0)
@@ -109,7 +114,29 @@ final class ClipboardCoordinator: ObservableObject {
         onHistoryChanged?(liveItemIDs)
 
         persistHistory()
+        onItemAdded?(item)
     }
+
+    /// Called after an item lands in history, for on-device analysis to pick it up.
+    var onItemAdded: ((ClipboardItem) -> Void)?
+
+    /// Writes derived metadata onto an item. Only `intelligence` changes — never the payload — and
+    /// the save is coalesced, since a backfill updates items about once a second.
+    func updateIntelligence(itemID: UUID, _ update: (inout ClipboardIntelligence) -> Void) {
+        guard let index = historyItems.firstIndex(where: { $0.id == itemID }) else { return }
+        var intelligence = historyItems[index].intelligence ?? ClipboardIntelligence()
+        update(&intelligence)
+        guard intelligence != historyItems[index].intelligence else { return }
+        historyItems[index].intelligence = intelligence
+        intelligencePersistWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.persistHistory()
+        }
+        intelligencePersistWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: workItem)
+    }
+
+    private var intelligencePersistWorkItem: DispatchWorkItem?
 
     func persistHistory() {
         // Collections are passed in by AppState via the save closure.

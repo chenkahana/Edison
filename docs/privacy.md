@@ -16,6 +16,14 @@ All of it is stored on your Mac, inside Edison's sandboxed container
 (`~/Library/Containers/<Edison's bundle ID>/Data/Library/Application Support/Edison`). Nothing is synced or
 uploaded.
 
+## On-device intelligence
+
+Edison labels items (text, code, terminal output, links, colours) and, on a Mac with Apple Intelligence turned on,
+adds a few topic tags to text, using Apple's on-device language model (Foundation Models). This runs entirely on
+your Mac: no item, label or tag is sent to Apple, the developer or anyone else, and Edison has no network code for
+it. The labels and tags are stored with your history and deleted with it. Items marked concealed or transient are
+never stored, so they are never analysed either. Turn it off in Settings › Intelligence.
+
 ## What Edison does not store
 
 - Items that password managers and other apps mark as concealed or transient on the pasteboard.

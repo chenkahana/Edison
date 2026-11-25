@@ -62,23 +62,38 @@ enum ClipboardContentClassifier {
         }
     }
 
+    static func kind(forText text: String, sourceBundleIdentifier: String? = nil) -> ClipboardContentKind {
+        classify(text: text, sourceBundleIdentifier: sourceBundleIdentifier).kind
+    }
+
     /// Links and colours are recognised first, whatever the source. Text copied from a terminal
     /// app is terminal output unless it reads as source code with no shell output in it (`cat`
     /// of a file); elsewhere, prompts, logs, stack traces and command output make it terminal.
-    static func kind(forText text: String, sourceBundleIdentifier: String? = nil) -> ClipboardContentKind {
+    ///
+    /// `isConfident` is false where the text has some code or terminal features but not enough to
+    /// be sure; only there may the on-device model's label replace this one.
+    static func classify(
+        text: String,
+        sourceBundleIdentifier: String? = nil
+    ) -> (kind: ClipboardContentKind, isConfident: Bool) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= 20_000 else { return .text }
-        if link(in: trimmed) != nil { return .link }
-        if color(in: trimmed) != nil { return .color }
+        guard !trimmed.isEmpty, trimmed.count <= 20_000 else { return (.text, true) }
+        if link(in: trimmed) != nil { return (.link, true) }
+        if color(in: trimmed) != nil { return (.color, true) }
         // The heuristics only need the start of the text; this bounds their cost on long items.
         let sample = String(trimmed.prefix(4_000))
         let terminal = TerminalOutputHeuristic.signal(in: sample)
+        let code = codeEvidence(sample)
         if TerminalOutputHeuristic.isTerminalApplication(sourceBundleIdentifier) {
-            return terminal == .none && looksLikeCode(sample) ? .code : .terminal
+            return (terminal == .none && code >= .likely ? .code : .terminal, true)
         }
-        if terminal == .strong || terminal == .likely { return .terminal }
-        if looksLikeCode(sample) { return .code }
-        return .text
+        if terminal == .strong || terminal == .likely { return (.terminal, true) }
+        switch code {
+        case .strong: return (.code, true)
+        case .likely: return (.code, false)
+        case .hint: return (.text, looksLikeSentence(trimmed))
+        case .none: return (.text, terminal == .none)
+        }
     }
 
     /// A single web or mail URL with nothing else around it.
@@ -191,7 +206,23 @@ enum ClipboardContentClassifier {
     ]
     private static let codeOperators = ["->", "=>", "==", "!=", "&&", "||", "+=", "</", "/>", "::", "${", ":="]
 
+    /// "Works for me -> merging now." is a sentence that happens to contain an arrow, not code.
+    private static func looksLikeSentence(_ trimmed: String) -> Bool {
+        guard let first = trimmed.first, let last = trimmed.last else { return false }
+        return first.isUppercase && ".!?".contains(last) && trimmed.filter { $0 == " " }.count >= 3
+    }
+
+    enum CodeEvidence: Int, Comparable {
+        case none, hint, likely, strong
+
+        static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+
     static func looksLikeCode(_ trimmed: String) -> Bool {
+        codeEvidence(trimmed) >= .likely
+    }
+
+    static func codeEvidence(_ trimmed: String) -> CodeEvidence {
         let lines = trimmed.split(separator: "\n", omittingEmptySubsequences: true)
         let symbolCount = trimmed.reduce(into: 0) { count, character in
             if "{};=<>[]".contains(character) { count += 1 }
@@ -213,16 +244,21 @@ enum ClipboardContentClassifier {
             return ";{}".contains(last)
         }.count
 
-        if trimmed.hasPrefix("#!/") { return true }
+        if trimmed.hasPrefix("#!/") { return .strong }
         if lines.count >= 2 {
             let structural = endsWithCodePunctuation + indentedLines
-            if keywordLines > 0 && (structural > 0 || density > 0.04) { return true }
-            if Double(keywordLines + endsWithCodePunctuation) / Double(lines.count) >= 0.3 { return true }
-            return Double(structural) / Double(lines.count) >= 0.4
+            if keywordLines > 0 && (structural > 0 || density > 0.04) { return .strong }
+            if Double(keywordLines + endsWithCodePunctuation) / Double(lines.count) >= 0.3 { return .strong }
+            if Double(structural) / Double(lines.count) >= 0.4 { return .strong }
+        } else {
+            let endsLikeCode = endsWithCodePunctuation > 0 && density > 0.04
+            if (keywordLines > 0 && (operatorCount > 0 || density > 0.04)) || endsLikeCode
+                || (operatorCount >= 2 && density > 0.06) {
+                return .likely
+            }
         }
-        let endsLikeCode = endsWithCodePunctuation > 0 && density > 0.04
-        return (keywordLines > 0 && (operatorCount > 0 || density > 0.04)) || endsLikeCode
-            || (operatorCount >= 2 && density > 0.06)
+        let hasCodeFeatures = keywordLines > 0 || operatorCount > 0 || endsWithCodePunctuation > 0 || density > 0.04
+        return hasCodeFeatures ? .hint : .none
     }
 }
 
@@ -327,21 +363,27 @@ enum TerminalOutputHeuristic {
 
 extension ClipboardItem {
     var contentKind: ClipboardContentKind {
-        guard case .text = payload else {
+        guard case let .text(text) = payload else {
             return ClipboardContentClassifier.kind(for: payload)
         }
         // Cards ask for their kind on every render; an item's payload and source never change.
         let key = id as NSUUID
-        if let cached = ClipboardContentKindCache.shared.object(forKey: key),
-           let kind = ClipboardContentKind(rawValue: cached as String) {
-            return kind
+        let classified: ClipboardContentKindCache.Entry
+        if let cached = ClipboardContentKindCache.shared.object(forKey: key) {
+            classified = cached
+        } else {
+            let result = ClipboardContentClassifier.classify(
+                text: text,
+                sourceBundleIdentifier: sourceApplication?.bundleIdentifier
+            )
+            classified = ClipboardContentKindCache.Entry(kind: result.kind, isConfident: result.isConfident)
+            ClipboardContentKindCache.shared.setObject(classified, forKey: key)
         }
-        let kind = ClipboardContentClassifier.kind(
-            for: payload,
-            sourceBundleIdentifier: sourceApplication?.bundleIdentifier
+        return ClipboardIntelligence.resolvedKind(
+            classified: classified.kind,
+            isConfident: classified.isConfident,
+            modelKind: intelligence?.modelKind
         )
-        ClipboardContentKindCache.shared.setObject(kind.rawValue as NSString, forKey: key)
-        return kind
     }
 
     var linkURL: URL? {
@@ -356,8 +398,18 @@ extension ClipboardItem {
 }
 
 private enum ClipboardContentKindCache {
-    static let shared: NSCache<NSUUID, NSString> = {
-        let cache = NSCache<NSUUID, NSString>()
+    final class Entry {
+        let kind: ClipboardContentKind
+        let isConfident: Bool
+
+        init(kind: ClipboardContentKind, isConfident: Bool) {
+            self.kind = kind
+            self.isConfident = isConfident
+        }
+    }
+
+    static let shared: NSCache<NSUUID, Entry> = {
+        let cache = NSCache<NSUUID, Entry>()
         cache.countLimit = 2_000
         return cache
     }()

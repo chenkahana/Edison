@@ -7,6 +7,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
     case capture
     case editor
     case privacy
+    case intelligence
     case permissions
     case about
 
@@ -19,6 +20,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .capture: return "Capture"
         case .editor: return "Editor"
         case .privacy: return "Storage & Privacy"
+        case .intelligence: return "Intelligence"
         case .permissions: return "Permissions & Support"
         case .about: return "About"
         }
@@ -31,6 +33,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .capture: return "camera.viewfinder"
         case .editor: return "slider.horizontal.3"
         case .privacy: return "externaldrive"
+        case .intelligence: return "sparkles"
         case .permissions: return "hand.raised"
         case .about: return "info.circle"
         }
@@ -43,6 +46,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .capture: return ["screenshot", "save folder", "filename"]
         case .editor: return ["annotation", "blur", "style", "window size"]
         case .privacy: return ["history", "storage", "clear", "local"]
+        case .intelligence: return ["apple intelligence", "ai", "labels", "topics", "tags", "on-device"]
         case .permissions: return ["screen recording", "accessibility", "diagnostics", "support"]
         case .about: return ["version", "build", "bundle"]
         }
@@ -169,6 +173,14 @@ struct SettingsView: View {
                 editorPane
             case .privacy:
                 privacyPane
+            case .intelligence:
+                IntelligenceSettingsPane(
+                    intelligence: appState.intelligence,
+                    isEnabled: Binding(
+                        get: { editableSettings.intelligence.isEnabled },
+                        set: { editableSettings.intelligence.isEnabled = $0 }
+                    )
+                )
             case .permissions:
                 permissionsPane
             case .about:
@@ -469,6 +481,8 @@ struct SettingsView: View {
                 historyLimit: AppSettings.default.privacy.historyLimit,
                 retentionDays: AppSettings.default.privacy.retentionDays
             )
+        case .intelligence:
+            editableSettings.intelligence = AppSettings.default.intelligence
         case .permissions:
             appState.refreshPermissionStatuses()
         case .about:
@@ -576,5 +590,68 @@ private extension Bundle {
 
     var edisonBuildNumber: String {
         object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String ?? "Unknown"
+    }
+}
+
+/// Settings › Intelligence. Observes the coordinator directly so progress updates as items finish.
+struct IntelligenceSettingsPane: View {
+    @ObservedObject var intelligence: IntelligenceCoordinator
+    @Binding var isEnabled: Bool
+
+    var body: some View {
+        Form {
+            Toggle("Label and tag items", isOn: $isEnabled)
+            Text("Edison works out what each item is and adds a few topic tags you can search for. Turning this off stops new processing; labels already added stay.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            LabeledContent("Apple Intelligence", value: availabilityDescription)
+            if intelligence.textModelAvailability != .available {
+                Text("Without Apple Intelligence, Edison still labels items with its own rules; topic tags need it.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if intelligence.eligibleCount > 0 {
+                LabeledContent("Existing History") {
+                    VStack(alignment: .trailing, spacing: HubTheme.Space.x1) {
+                        ProgressView(
+                            value: Double(intelligence.processedCount),
+                            total: Double(max(intelligence.eligibleCount, 1))
+                        )
+                        .frame(width: 180)
+                        .accessibilityLabel("Existing history processed")
+                        .accessibilityValue("\(intelligence.processedCount) of \(intelligence.eligibleCount) items")
+                        Text("\(intelligence.processedCount) of \(intelligence.eligibleCount) items")
+                            .font(.footnote.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Button("Process Existing History") {
+                intelligence.processExistingHistory()
+            }
+            .disabled(!isEnabled || intelligence.isWorking || intelligence.textModelAvailability != .available
+                || intelligence.processedCount >= intelligence.eligibleCount)
+            .help("Works through older items now instead of a few at a time in the background.")
+
+            Text("It all happens on this Mac. Nothing you copy is sent anywhere.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .formStyle(.grouped)
+        .onAppear { intelligence.refreshProgress() }
+    }
+
+    private var availabilityDescription: String {
+        switch intelligence.textModelAvailability {
+        case .available: return "On"
+        case .appleIntelligenceOff: return "Off in System Settings"
+        case .modelNotReady: return "Downloading…"
+        case .deviceNotEligible: return "Not supported on this Mac"
+        case .needsNewerMacOS: return "Needs macOS 26"
+        case .unavailable: return "Unavailable"
+        }
     }
 }
