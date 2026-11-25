@@ -23,8 +23,8 @@ with Apple's Vision framework, and, on a Mac with Apple Intelligence turned on, 
 macOS 27, a one-line image caption) using Apple's on-device language model (Foundation Models). This runs entirely
 on your Mac: no item, label or tag is sent to Apple, the developer or anyone else, and Edison has no network code for
 it. Edison never opens a link it finds in a QR code by itself; only when you click it. The labels, tags,
-recognised text and image fingerprints (used to spot near-duplicate screenshots) are stored with your history and
-deleted with it. Items marked concealed or transient are
+recognised text, image fingerprints (used to spot near-duplicate screenshots) and search vectors (built on your Mac
+with Apple's NaturalLanguage framework, for search by meaning) are stored with your history and deleted with it. Items marked concealed or transient are
 never stored, so they are never analysed either. Turn it off in Settings › Intelligence.
 
 ## What Edison does not store

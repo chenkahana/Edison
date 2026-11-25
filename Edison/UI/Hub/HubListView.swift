@@ -117,7 +117,7 @@ struct HubListRowView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                HubCardFooter(item: item)
+                HubCardFooter(item: item, showsTopics: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

@@ -96,6 +96,14 @@
 - A screenshot that looks almost the same as an earlier one shows a "similar" mark, so repeats are easy to spot.
 - With Apple Intelligence on, screenshots get topic tags from their text. On macOS 27 the on-device model reads
   the image itself and writes a one-line caption, which VoiceOver reads and search finds.
+- Search by meaning: a moment after you stop typing, items related to your words (by their topic tags, captions
+  and text) are listed after the items that contain them. "airport" finds a flight confirmation, "building
+  entrance" the office notice. Exact matches still come first, and still highlight.
+- Among exact matches, items whose own text matches come before those matched only by a topic tag.
+- The type filter has Code and Terminal (and `type:code`, `type:terminal` in search; `type:code` used to mean all
+  text).
+- A Topics menu next to Collections lists your most common topic tags; choosing one adds `topic:name` to the search.
+  List rows show each item's tags.
 
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens

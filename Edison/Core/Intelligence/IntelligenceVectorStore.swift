@@ -1,13 +1,15 @@
 import Foundation
 import OSLog
 
-/// Binary sidecars for per-item vectors (image feature prints, and later text embeddings), kept out
+/// Binary sidecars for per-item vectors (image feature prints and search vectors), kept out
 /// of history.json so saving history stays cheap. One file per item and vector kind, in
 /// `{AppSupport}/Edison/intelligence/`. Deleted with the item, and orphans are removed at launch.
 final class IntelligenceVectorStore: @unchecked Sendable {
     enum Kind: String, CaseIterable {
         /// An archived `VNFeaturePrintObservation`.
         case featurePrint = "featureprint"
+        /// A `SemanticSearchIndex` vector: Float32 values, native byte order.
+        case searchVector = "searchvector"
     }
 
     static let shared = IntelligenceVectorStore()
