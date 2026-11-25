@@ -146,6 +146,7 @@ enum HubTheme {
         case .text: return Color(hex: 0x34C759)
         case .link: return Color(hex: 0x0A84FF)
         case .code: return Color(hex: 0xBF5AF2)
+        case .terminal: return Color(hex: 0x5E5CE6)
         case .image: return Color(hex: 0xFF375F)
         case .file: return Color(hex: 0x8E8E93)
         case .color:

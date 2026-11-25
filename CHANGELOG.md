@@ -70,6 +70,17 @@
   Two sites moved to the nearest step (code preview 11.5→11pt, link preview title 17→18pt); the other 32
   were already on a step and are pixel-identical to before.
 
+### Intelligence
+- Text copied from a terminal gets its own Terminal label instead of Code. Text from Terminal, iTerm2, Ghostty,
+  Warp, kitty, Alacritty, WezTerm, Hyper, Tabby and Rio is Terminal unless it's plain source code (say, a file you
+  `cat`). From other apps, shell prompts, `ls -l` listings, timestamped logs, stack traces, compiler errors and git
+  output mark it as Terminal. Terminal cards are monospaced, like Code.
+- Code detection reads less into prose: a list with "->" in it, or a sentence with "return" in it, stays Text.
+  Shell scripts with a `#!` line are Code.
+- On a sample of 84 real clips, 81 now get the right label, up from 43. No terminal output is labelled Code any more
+  (9 were before).
+- Search highlights matches on Code and Terminal cards too, and list rows tell VoiceOver the item's kind.
+
 ### Capture
 - After a capture is refused for lack of Screen Recording access, the alert's Open System Settings button opens
   Privacy & Security › Screen Recording. Before, it did nothing after the first system prompt.

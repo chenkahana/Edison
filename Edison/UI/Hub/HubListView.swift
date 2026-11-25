@@ -172,7 +172,7 @@ struct HubListRowView: View {
             )
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.accessibilityTitle)
+        .accessibilityLabel("\(item.contentKind.title): \(item.accessibilityTitle)")
         .accessibilityValue(item.accessibilityTimestampAndSource)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         .accessibilityActions {
