@@ -43,6 +43,8 @@ struct HubView: View {
     @State private var quickLookFileURL: URL?
     @State private var hubOpenSequence = 0
     @State private var showAccessibilityAlert = false
+    /// Dismissing the banner hides it until Accessibility has been granted and lost again.
+    @AppStorage("hub.accessibilityBannerDismissed") private var accessibilityBannerDismissed = false
     @State private var showsQuickPasteBadges = false
 
     private var items: [ClipboardItem] {
@@ -136,15 +138,7 @@ struct HubView: View {
                     focusedField = nil
                     appState.dismissHub()
                 },
-                onCancel: {
-                    // Esc clears the search first, then closes.
-                    if appState.activeQuery.isEmpty {
-                        focusedField = nil
-                        appState.dismissHub()
-                    } else {
-                        appState.activeQuery = ""
-                    }
-                },
+                onCancel: cancelOrClose,
                 onFocusSearch: {
                     focusedField = .search
                 },
@@ -192,6 +186,7 @@ struct HubView: View {
         .ignoresSafeArea()
         .onAppear {
             focusedField = nil
+            appState.refreshAccessibilityTrust()
             syncSelection()
         }
         .onReceive(NotificationCenter.default.publisher(for: .edisonHubWillOpen)) { _ in
@@ -200,6 +195,10 @@ struct HubView: View {
             // shelf/list/grid choice does.
             appState.activeQuery = ""
             appState.selectedCollectionID = nil
+            appState.refreshAccessibilityTrust()
+            if appState.isAccessibilityTrusted {
+                accessibilityBannerDismissed = false
+            }
             focusedField = nil
             showQuickLook = false
             showsQuickPasteBadges = false
@@ -257,8 +256,18 @@ struct HubView: View {
                 layoutMode: $layoutMode,
                 newCollectionName: $newCollectionName,
                 focusedField: $focusedField,
-                resultCount: items.count
+                resultCount: items.count,
+                onConfirm: { pasteSelectedItem(mode: $0) },
+                onMove: handleMoveCommand,
+                onCancel: cancelOrClose
             )
+
+            if !appState.isAccessibilityTrusted && !accessibilityBannerDismissed {
+                HubAccessibilityBanner(
+                    onOpenSettings: { appState.requestAccessibilityAccess() },
+                    onDismiss: { accessibilityBannerDismissed = true }
+                )
+            }
 
             if items.isEmpty {
                 emptyState
@@ -481,6 +490,16 @@ struct HubView: View {
         let nextIndex = max(0, min(items.count - 1, currentIndex + step))
         guard nextIndex != currentIndex else { return }
         selectedItemID = items[nextIndex].id
+    }
+
+    /// Esc clears the search first, then closes.
+    private func cancelOrClose() {
+        if appState.activeQuery.isEmpty {
+            focusedField = nil
+            appState.dismissHub()
+        } else {
+            appState.activeQuery = ""
+        }
     }
 
     private func pasteSelectedItem(

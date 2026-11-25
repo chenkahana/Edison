@@ -11,6 +11,11 @@ struct HubHeaderView: View {
     /// The count after both the search/type/app/collection filters and the Hub's own All/Favorites
     /// toggle — shown next to the search field so a query's result count doesn't need counting cards.
     let resultCount: Int
+    /// The Hub's keyboard actions, for while the search field has focus: its field editor gets the
+    /// keys then, not the Hub's key handler, so Return, ↑/↓ and Esc did nothing there.
+    let onConfirm: (ClipboardWriteMode) -> Void
+    let onMove: (MoveCommandDirection) -> Void
+    let onCancel: () -> Void
     @State private var collectionPendingDeletion: ItemCollection?
 
     var body: some View {
@@ -96,6 +101,7 @@ struct HubHeaderView: View {
                 .textFieldStyle(.plain)
                 .font(HubTheme.TypeRamp.size13Regular)
                 .focused($focusedField, equals: .search)
+                .onKeyPress(keys: [.return, .upArrow, .downArrow, .escape], action: handleSearchFieldKey)
             if !appState.activeQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(resultCount == 1 ? "1 result" : "\(resultCount) results")
                     .font(HubTheme.TypeRamp.size12Medium)
@@ -110,6 +116,27 @@ struct HubHeaderView: View {
                 .fill(HubTheme.cardFillMuted)
         )
         .frame(maxWidth: .infinity)
+    }
+
+    /// Return pastes (⇧Return as plain text), ↑/↓ move the selection and Esc clears or closes, as
+    /// they do when the search field isn't focused. ←/→ and typing stay with the text.
+    private func handleSearchFieldKey(_ press: KeyPress) -> KeyPress.Result {
+        let modifiers = press.modifiers.intersection([.command, .option, .control, .shift])
+        switch press.key {
+        case .return where modifiers.isEmpty:
+            onConfirm(.sourceFormatting)
+        case .return where modifiers == .shift:
+            onConfirm(.plainText)
+        case .upArrow where modifiers.isEmpty:
+            onMove(.up)
+        case .downArrow where modifiers.isEmpty:
+            onMove(.down)
+        case .escape where modifiers.isEmpty:
+            onCancel()
+        default:
+            return .ignored
+        }
+        return .handled
     }
 
     @ViewBuilder
