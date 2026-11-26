@@ -1,0 +1,150 @@
+# R0 Baseline
+
+**Summary.** `swift build` and `swift test` (44 tests) pass on `origin/main` `f59abfe`. The installed copy (build 4)
+matches the `v2.1` UI code and is running in Chen's session, so this pass did not launch a second Edison or drive the
+UI: recordings (R0.3), the display pass (R0.4) and Instruments traces (R0.5) are written as exact scripts with a
+code-traced prediction per take, ready for one Chen session of about 45 minutes. The code sweep (R0.2) confirms the
+stale handoff numbers and adds new leads. Strongest predictions to confirm first: Esc leaves focus on Edison instead
+of the source app (F1); the shelf reopens on the last display rather than the pointer's (D1); drag-out offers plain
+text first for every item, images included (F5); Space can't be typed into search (F3); Clear History and collection
+delete have no confirmation or undo (F4, F8); the Screen Recording alert button doesn't open Settings after the first
+prompt (F9).
+
+Base: `origin/main` `f59abfe` (7 commits after tag `v2.1`, none touching app UI code: README, CI, Sparkle exclusion
+for the App Store build, agent-file ignores). Raw logs live outside git in `~/tmp/codex/edison-craft/`.
+
+## R0.1 Build and run
+
+| Check | Result | Evidence |
+|---|---|---|
+| `swift build` (debug) | Pass, 22 s, 0 warnings | `~/tmp/codex/edison-craft/swift-build.log` |
+| `swift test` | Pass, 44 tests in 10 suites | `~/tmp/codex/edison-craft/swift-test.log` |
+| Installed copy | `/Applications/Edison - Clipboard Manager.app`, `com.chenkahana.Edison`, `CFBundleShortVersionString` 2.0, build 4, dated 2026-11-12, running (pid 27866) | `defaults read .../Info`, `pgrep` |
+| Live run of a fresh build | **Not run: needs Chen session** (see below) | |
+
+The installed build 4 matches the `v2.1` UI code, so observations of the installed app are representative of
+`origin/main`. Its marketing version still reads 2.0 although `CHANGELOG.md` and the tag say 2.1
+(`Edison.xcodeproj/project.pbxproj` `MARKETING_VERSION = 2.0`): an About/Settings version mismatch to check in R2.
+
+### Why no live run in this pass
+
+Chen's copy is running. A second Edison would register the same Carbon hotkeys (⇧⌘V and the capture keys), poll
+the same pasteboard into a second history, and need its own Screen Recording and Accessibility grants. Driving the
+Hub means sending global keystrokes into Chen's active session, which `~/.codex/memories/lessons.md` (2026-11-14)
+forbids without checking the frontmost window. Every runtime step below is therefore written as an exact script for
+a Chen session, and R2 findings from this pass carry code evidence (`file:line`) plus a "verify live" note.
+
+### Needs Chen session: runtime capture script
+
+Prereqs: a quiet desktop, Light then Dark appearance, ProMotion built-in display plus one external display.
+
+1. Quit nothing. Use the installed app (build 4 = `v2.1` UI). Record with ⇧⌘5 → Record Entire Screen (or
+   QuickTime at 120 Hz on the built-in display). Save to `~/tmp/codex/edison-craft/rec/<flow>-<light|dark>-<display>.mov`.
+2. Flows, one recording each (see R0.3 table for the exact steps per flow).
+3. Instruments: `xcrun xctrace record --template 'Animation Hitches' --attach 'Edison - Clipboard Manager' --time-limit 20s --output ~/tmp/codex/edison-craft/trace/hub-summon.trace`
+   while pressing ⇧⌘V / Esc ten times; repeat with `Time Profiler` for search (type 20 characters) and
+   `Allocations` for scrolling 250 items, and for one area capture.
+
+## R0.2 Code-sweep signals (`origin/main` `f59abfe`, app code only, tests excluded)
+
+These point at where to look; they are not findings until R2 confirms them.
+
+| Signal | Count | Where / lead |
+|---|---|---|
+| `withAnimation` / `.animation(` | 4 | `HubShelfView.swift:149` (quick-paste badge), `HubView.swift:220,239` (toasts), `HubView.swift:485` (one `easeInOut 0.16`). Selection, card insert/delete, filter changes snap. |
+| Named curves | 2 tokens + 3 literals | `HubTheme.Anim.spring` (0.32/0.82) and `.fastSpring` (0.22/0.80) at `HubTheme.swift:30-31`; toasts use an untokenised `spring(0.3, 0.8)` twice; shelf show/hide is AppKit `easeInEaseOut` at `WindowRouter.swift:248,267`. Three voices. |
+| `NSHapticFeedbackManager` | 0 | Editor snapping (Shift 45° lines, crop) has no trackpad feedback. |
+| `accessibilityReduceMotion` | 0 | Shelf slide and toasts ignore Reduce Motion. |
+| `accessibilityReduceTransparency` | 1 | `HubTheme.swift:140` only (Hub glass); editor and toasts not covered. |
+| Increase Contrast (`colorSchemeContrast`) | 0 | |
+| `accessibilityLabel` | 10 | `accessibilityAction` 0: no custom actions (paste, plain paste, favorite, delete) for VoiceOver. |
+| `.font(.system(size:))` | 35 | Up from 17 in the stale sweep: editor toolbar added fixed sizes. Check against the style guide ramp. |
+| `keyboardShortcut` | 9 | Most Hub keys go through the `HubWindowAccessor` bridge instead, so they are not discoverable in a menu. |
+| `ContentUnavailableView` | 1 | Editor only (`EditorWindowView.swift:15`); Hub empty/no-results states are custom. |
+| App Intents / `NSUserActivity` / Services | 0 / 0 / 0 | No Shortcuts, Spotlight or Services menu. |
+| `NSPanel` / `.nonactivatingPanel` | 0 / 0 | Hub is a plain `NSWindow` subclass; check focus handling in R2. |
+| `String(localized:)` / String Catalog | 0 / none | No `.xcstrings`; all copy is literal. |
+| `asyncAfter` / `Task.sleep` | 2 / 0 | Both in `PasteBackCoordinator.swift:56,89` (focus-return delay before ⌘V). |
+| `cornerRadius: <literal>` / `.padding(<literal>)` | 10 / 2 | Most geometry goes through `HubTheme`; editor uses literals. |
+| `monospacedDigit` | 4 | Quick-paste badge, size labels, editor zoom. |
+| `SMAppService` | 4 | Launch at login is modern (`LaunchAtLoginController.swift`). |
+| Concealed type handling | 1 (+ Transient, AutoGenerated) | `ClipboardMonitor.swift:6`. |
+| Drag out / drop in | 5 / 0 | `.draggable(item)` on cards, `.onDrag` in the editor; nothing accepts drops (no drag into collections or files in). |
+| `contextMenu` | 2 | Shelf card and list row. |
+| `.help(` tooltips | 11 | |
+| `NSCursor` | 2 | Editor sets arrow/crosshair only; no resize cursors on handles. |
+| `NSSound` / capture sound | 0 | No shutter sound; check against system "Play sound" behavior. |
+| `FormatStyle` / formatters | 2 | `ByteCountFormatter` in Settings, `.formatted()` for char count; plurals hand-rolled (`"1 char"`). |
+
+## R0.3 Flow recordings (script for a Chen session, with code-traced predictions)
+
+Status: **recordings pending a Chen session.** Each row is the exact take to record and what the code says should
+happen, so the recording confirms or refutes a specific prediction. File names go under
+`~/tmp/codex/edison-craft/rec/`. Record each in Light and Dark.
+
+| # | Flow | Steps to record | Code-traced prediction to confirm |
+|---|---|---|---|
+| F1 | Hotkey summon/dismiss | In TextEdit with a word selected: ⇧⌘V, wait, Esc. Repeat 5×. Then ⇧⌘V, ⇧⌘V. Then first ⇧⌘V right after login. | Shelf slides up 0.20 s `easeInEaseOut` from below the visible frame (`WindowRouter.swift:233-253`) and only becomes key when the slide ends, so keys typed in the first 200 ms are lost. Esc slides out 0.18 s but nothing re-activates TextEdit (`AppState.swift:443-447`, `WindowRouter.swift:138-149`; only paste calls `NSApp.hide`), so focus likely stays on an Edison with no window. First open after launch builds the window lazily (`AppDelegate.swift:83-93`). |
+| F2 | Focus return + paste | TextEdit: ⇧⌘V, →, Return. Then ⇧Return on a rich-text item. Then ⌘3. Then with Accessibility off. | Hub orders out instantly, `NSApp.hide`, TextEdit re-activated, ⌘V posted after 120 ms then 40 ms retries up to 600 ms (`PasteBackCoordinator.swift:43-45,151-176`). No exit motion on paste. With Accessibility off: item is copied, alert "Allow Accessibility Access" appears and the user must repeat the paste (`HubView.swift:178-185`). ⇧Return on an image does nothing and gives no feedback (`HubView.swift:452-460`). |
+| F3 | Search | ⇧⌘V, type `foo bar`, Backspace ×3, Esc. Then ⌘F, type, Esc. | Type-to-search drops whitespace, and Space opens Quick Look instead (`HubSupportViews.swift:427,457`), so multi-word queries can't be typed without ⌘F. Esc closes the Hub instead of clearing the query (`HubSupportViews.swift:445`). Results swap with no motion. |
+| F4 | Collections | Create collection "Work" from the header field, add an item via right-click → Collections, switch to it, then empty it, then trash it. | Composer is a permanent text field in the header (`HubHeaderView.swift:142-160`). Empty collection shows "No Matching Items / Try a different search query…". Trash deletes the collection at once with no confirmation or undo (`HubHeaderView.swift:177-183`, `AppState.swift:371-377`). Favorites tab with no favorites shows "No History Yet" (`HubView.swift:59-63,243-262`). |
+| F5 | Drag out | Drag a rich-text item to TextEdit, an image to Finder and to Slack, a file item to Finder. | Drag offers `.utf8PlainText` first for every payload, including images (empty data), then PNG, then file URL (`ClipboardItem.swift:180-216`): rich text arrives plain, images may drop as empty text, files may drop as a path string. No lift/scale. |
+| F6 | Capture area / window / full | ⇧⌘S; drag an area; Esc. ⇧⌘S, Space to window mode, hover 3 windows, click. Menu → Capture Full Screen. | Default arrow cursor, no crosshair or magnifier; dimmed frozen snapshot; persistent instruction text at the top of every display (`CaptureEngine.swift:537-604`). Every mouse move calls `CGWindowListCopyWindowInfo` and redraws every display's full snapshot (`CaptureEngine.swift:439-449,456-484`). No sound, no flash. After Esc, focus stays on Edison (`CaptureEngine.swift:285`). |
+| F7 | Editor tools | After a capture: each tool by key (V A L R O P H T N B C), Shift-drag a line, ⌘Z ×3, ⇧⌘Z, arrow-nudge, ⌘S, ⌘↩. | Cursor is arrow or crosshair only (`EditorWindowView.swift:330-336`); no zoom; no haptic at 45° snap; ⌘S opens an app-modal save panel, not a sheet (`AppState.swift:594`). |
+| F8 | Settings | Status menu → Settings, visit each pane, close, reopen. Toggle a setting with a large history. | 960×720 split view with search field; always reopens on General (`SettingsView.swift:55`); storage size recalculated on the main thread after every change (`SettingsView.swift:116-120,429-447`); Clear History has no confirmation (`SettingsView.swift:302-305`). |
+| F9 | Permissions onboarding | Fresh user (or `tccutil reset ScreenCapture com.chenkahana.Edison` in a test account only): first launch, first capture, first paste. | No onboarding at all. First capture: alert "Allow Screen Recording" → "Open System Settings" calls `CGRequestScreenCaptureAccess()`, which does not open Settings after the first prompt (`CaptureCoordinator.swift:212-223`). No relaunch prompt after granting. |
+| F10 | Status item | Click the menu-bar icon; pause history; resume. | Menu, not the Hub, on click; no shortcuts shown next to Open Hub or the capture items (`StatusBarController.swift:57-76`); paused icon dims (`StatusBarController.swift:44`). |
+
+## R0.4 External display pass
+
+Current setup (`system_profiler SPDisplaysDataType`, read-only): two DELL P2419H at 1920×1080, 1× scale, 60 Hz,
+the left-hand one is main; the built-in ProMotion panel is not active (lid closed). So a live pass today covers
+multi-display and 1× rendering but not 120 Hz or Retina; the Retina/120 Hz takes need the lid open.
+
+Script (Chen session), recording both displays:
+
+| # | Take | Code-traced prediction |
+|---|---|---|
+| D1 | Pointer on display B, key window on display A: ⇧⌘V. Then move the pointer to A, ⇧⌘V again. | The shelf frame is computed from `window.screen ?? NSScreen.main` (`HubTheme.swift:200`, `WindowRouter.swift:234`): it reopens on whatever display it was last on, not the pointer's display or the key window's. Likely wrong-display summon after the first use. |
+| D2 | Full-screen Safari on B: ⇧⌘V. | `.floating` + `.fullScreenAuxiliary` + `.moveToActiveSpace` (`HubTheme.swift:188-191`) should show over the full-screen Space; confirm it does not jump Spaces. |
+| D3 | Stage Manager on: ⇧⌘V, paste into a staged window. | Not handled explicitly; check the shelf does not get its own stage and that the paste target is restored. |
+| D4 | ⇧⌘S, drag an area that crosses from A to B. | One overlay window per display (`CaptureEngine.swift:299-330`). The capture goes to the display that contains the rect's midpoint (`CaptureEngine.swift:384`), so the part on the other display is cut off. Measurement badge shows points. |
+| D5 | Window mode on B, hover windows on A and B quickly. | Highlight follows via a global mouse monitor plus `Task` hop (`CaptureEngine.swift:357-362`); check lag on the non-key display. |
+| D6 | Unplug/replug B while the Hub is open, then ⇧⌘V. | Shelf frame is re-applied on each open (`WindowRouter.swift:73`), so it should recover; confirm no off-screen shelf. |
+| D7 | Retina (lid open): capture an area, paste into Preview, check pixel size. | `pointPixelScale(for:)` (`CaptureEngine.swift:196`) should give 2× pixels on Retina and 1× on the Dells. |
+
+## R0.5 Instruments traces
+
+Status: **traces pending a Chen session** (they need the Hub driven by hand). Edison already emits signposts on
+`com.chenkahana.Edison` / Points of Interest via `Log.performance` (`Core/Log.swift:12`): `Hub Toggle`
+(`AppState.swift:652`), `Search Filter` (`AppState.swift:59`), `Capture` (`CaptureEngine.swift:32`) and
+`History Load` (`HistoryStore.swift:36`). Add the Points of Interest instrument to every trace so these line up
+with hitches.
+
+```sh
+mkdir -p ~/tmp/codex/edison-craft/trace
+APP='Edison - Clipboard Manager'
+# T1 Hub summon: press ⇧⌘V / Esc ten times during the 20 s
+xcrun xctrace record --template 'Animation Hitches' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t1-hub-summon.trace
+# T2 Scroll: open Hub with ≥250 items, scroll the shelf end to end with the trackpad, then arrow-key through 50 cards
+xcrun xctrace record --template 'Animation Hitches' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t2-scroll.trace
+# T3 Search: ⌘F, type 20 characters at normal speed, delete them
+xcrun xctrace record --template 'Time Profiler' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t3-search.trace
+# T4 Capture: ⇧⌘S, move the pointer in circles 5 s, drag an area, wait for the editor
+xcrun xctrace record --template 'Time Profiler' --attach "$APP" --time-limit 20s --output ~/tmp/codex/edison-craft/trace/t4-capture.trace
+# T5 Memory: Allocations while opening the Hub and scrolling 250 items three times
+xcrun xctrace record --template 'Allocations' --attach "$APP" --time-limit 30s --output ~/tmp/codex/edison-craft/trace/t5-memory.trace
+```
+
+Hotspots to look for (from the code, so the trace confirms or clears each one):
+
+| Trace | Suspect | Why |
+|---|---|---|
+| T1 | Window becomes key only after the 200 ms slide | `WindowRouter.swift:250-252` |
+| T2 | Two blurred shadows per card (radius 10 and 28) over a behind-window material | `HubShelfView.swift:147-148` |
+| T2 | A file-system `resourceValues` stat for every visible thumbnail on every render | `HubShelfView.swift:391-401` |
+| T2/T3 | JSON and Markdown parsing of the full text in every card's initializer on every render | `HubSupportViews.swift:87-92`, `HubView.swift:525-539` |
+| T2/T3 | `text.count` and a full `split("\n")` per text card per render | `HubShelfView.swift:475-478` |
+| T3 | `filteredItems` is computed, read several times per `HubView` render (`items`, `selectedItem`, `onChange(of: items.map(\.id))`), each a full `localizedCaseInsensitiveContains` pass | `AppState.swift:58-72`, `HubView.swift:44-57,170`, `HistorySearchEngine.swift:100-107`. Count `Search Filter` intervals per keystroke. |
+| T4 | `CGWindowListCopyWindowInfo` plus a full-display snapshot redraw on every overlay for every mouse move | `CaptureEngine.swift:439-449,460-484,537-547` |
+| T4 | Synchronous main-thread file reads for export and image open | `AppState.swift:534,736-741` |

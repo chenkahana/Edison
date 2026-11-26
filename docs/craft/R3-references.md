@@ -1,0 +1,85 @@
+# R3 References
+
+Mechanics, not looks: how each reference summons, holds focus, moves, takes keys and handles states, and what Edison
+should take from it. Sources are marked: **src** read from the app's source code, **bundle** read from the installed
+bundle, **known** documented or long-standing public behaviour, **measure** a number to capture in the R0 Chen
+session (durations and curves need a 120 Hz recording; nothing here was recorded in this pass).
+
+Installed on Chen's Mac: Raycast 2.12.1 only (`/Applications`). Maccy is open source (read at
+`github.com/p0deje/Maccy` `master`, copies in `~/tmp/codex/edison-craft/ref/maccy/`). Paste and CleanShot X are not
+installed; their rows are **known** and need a trial install (needs Chen) to measure.
+
+## R3.1 Paste (pasteapp.io)
+
+| Mechanic | Paste | Edison today | Take |
+|---|---|---|---|
+| Summon | Global ⇧⌘V; full-width shelf slides up from the bottom edge of the screen (**known**); duration and curve **measure** | Same shape and hotkey; 0.20 s `easeInEaseOut` frame slide, key only after the slide (E08) | Keep the shape. Make the shelf key on the first frame and animate content, not the window frame. |
+| Display | Opens on the active screen (**known**, **measure** with pointer vs key window split) | Last display used (E09) | Pointer's display. |
+| Keyboard | ←/→ move, Return paste, ⇧Return paste as plain text, ⌘1–9 quick paste, Space preview, type or ⌘F to search, ⌘⌫ delete, ⌘C copy, ⇧⌘C Paste Stack (**known**; the style guide's shortcut table is taken from it) | ←/→, Return, ⇧Return, ⌘1–9, Space, type/⌘F, ⌘⌫ (`HubSupportViews.swift:371-451`); no ⌘C, ⌘R, ⌘N, Paste Stack | Close the gap on ⌘C and ⌘Z; leave Paste Stack and rename for later (2.0 plan P2). |
+| Esc | Clears the search first, then closes (**known**; matches the style guide's state map) | Always closes (E15) | Two-step Esc. |
+| Search state on reopen | Reopens unfiltered at the newest item (**known**, **measure**) | Keeps the old query and filters (E31) | Reset query, type filter and collection on open. |
+| Selection | One consistent highlight, moves with the keys (**measure** whether it animates) | Per-type colour stroke, snaps (E10, E11) | One system-accent ring; short `quick` move. |
+| Pinboards | Tabs in the header, assign by drag or menu, keyboard switch (**known**) | Picker + permanent name field + trash (E36–E39) | Pinboards as header tabs; "New Collection…" in a menu. |
+| Drag | Drag a card out (keeps formats) or onto a pinboard; multi-select drags (**known**) | Plain text first, no drop targets (E73, E38) | Drag offers the same representations as paste. |
+| Paste fallback | Without Accessibility, copies and tells you to press ⌘V (**known**) | Alert, retry required (E69) | Copy + one-line inline note. |
+
+## R3.2 Raycast clipboard history
+
+Raycast 2.12.1, `LSUIElement = 1` (**bundle**), running in Chen's session; not driven in this pass.
+
+| Mechanic | Raycast | Edison today | Take |
+|---|---|---|---|
+| Window | Centred floating window, appears at once with a short fade, no slide (**known**, **measure**) | Bottom shelf, frame slide | Edison's shelf is a different shape on purpose; borrow the instant key-ready appearance. |
+| Display | Setting: screen with the pointer or with the active window (**known**) | Last display (E09) | Default to the pointer's display. |
+| Focus | Takes focus while open; Esc or paste hides it and the previous app is frontmost again with its selection intact (**known**, **measure** with TextEdit selection) | Esc leaves Edison active (E07) | Every exit path returns focus: hide the app or re-activate the source. |
+| Search field | Always focused; typing, Space, ⌥-characters and input methods all work because it's a real text field (**known**) | Bridge view appends characters; Space opens Quick Look (E32, E33) | Keep the search field the first responder and route only navigation keys (arrows, Return, ⌘-keys) to the list. |
+| Esc ladder | Clears text, then leaves the sub-view, then closes (**known**) | Always closes (E15) | Same ladder. |
+| Actions | ↩ paste to the frontmost app (named in the button), ⌘↩ copy, ⌘K opens an action panel listing every action with its shortcut (**known**) | Context menu only, few shortcuts shown (E01) | One discoverable action list (context menu with every shortcut, or a ⌘K panel). |
+| Detail pane | Right-hand preview of the selected item with metadata (source app, size, date) (**known**) | Quick Look only (E27–E29) | A detail pane is optional; metadata belongs in the card's accessibility value at least. |
+| Paste fallback | Without Accessibility, copies and shows a toast saying it was copied (**known**) | Alert (E69) | Toast. |
+| Haptics | None in clipboard history (**known**) | None | No haptics in the Hub; keep them for the editor. |
+
+## R3.3 Maccy (source read)
+
+| Mechanic | Maccy (**src**) | Edison today | Take |
+|---|---|---|---|
+| Panel type | `NSPanel` with `.nonactivatingPanel`, `isFloatingPanel`, level `.statusBar`, `collectionBehavior [.auxiliary, .stationary, .moveToActiveSpace, .fullScreenAuxiliary]`, `hidesOnDeactivate = false` (`FloatingPanel.swift:27-46`) | Titled `NSWindow`, `.floating`, activates Edison (E13) | The source app stays active, so paste needs no re-activation and Esc needs no focus return. This is the structural fix for E07, E08 and E13 together. |
+| Open | `orderFrontRegardless()` then `makeKey()` in the same turn; `animationBehavior = .none` (`FloatingPanel.swift:38,85-93`) | Key only after a 200 ms slide (E08) | Key on frame one; animate content opacity/offset inside the panel instead of the window frame. |
+| Position | User choice: cursor (default), status item, active window, centre, last position; screen chooser falls back to `NSScreen.main` (`PopupPosition.swift`, `NSScreen+ForPopup.swift`) | Last display only (E09) | For a bottom shelf: the pointer's screen, with a setting for "screen with the active window". |
+| Close | `resignKey()` closes unless an alert is up; `close()` resets search and selection (`FloatingPanel.swift:209-226`, `Popup.swift:89-91`) | Closes on resign key; never resets query (E31) | Reset state on close. |
+| Esc | Closes, whatever the query (`KeyChord.swift:124-125`); ⌃U clears search, ⌃W deletes a word, ⌃H deletes a char (`KeyChord.swift:73-84`) | Closes (E15) | Maccy and Edison share the one-step Esc; Paste and Raycast use the ladder. Take the ladder, plus ⌃U. |
+| Hold-to-cycle | Opened with a held modifier, releasing it pastes the selection, like ⌘Tab (`Popup.swift:11`) | No | Worth evaluating for ⇧⌘V-hold-V-release; needs Chen. |
+| Paste | Writes the item, then posts ⌘V to the session tap with local keyboard events suppressed during the paste, and maps "V" through the current keyboard layout, including layouts that switch to QWERTY under ⌘ (`Clipboard.swift:123-149`) | Posts virtual key 9 (`kVK_ANSI_V`) to the target pid after a 120 ms wait (`PasteBackCoordinator.swift:139-149`) | Map the key through the layout (new finding E83) and suppress local keys during the paste. |
+| Ignored types | Concealed/transient/auto-generated plus user-defined types, apps and regexes (`Clipboard.swift:27,243-262`) | Concealed/transient/auto-generated only | Per-app exclusions are already 2.0 plan P1. |
+| Animation | Only a resize animation for height changes (`FloatingPanel.swift:111`) | Window-frame slide | Proof that "no window animation, instant key" reads as fast. |
+
+## R3.4 CleanShot X
+
+Not installed; all rows **known** from public behaviour and need a trial install to **measure** (needs Chen).
+
+| Mechanic | CleanShot X | Edison today | Take |
+|---|---|---|---|
+| Area cursor | Crosshair with a magnifier loupe (pixel grid) and live W×H next to the pointer; crosshair guide lines across the screen (optional) | Arrow cursor, no loupe, badge only once dragging (E41, E42) | Crosshair + loupe + live dimensions; drop the persistent instruction banner once the cursor teaches the mode. |
+| Adjusting a selection | Space while dragging moves it; after release, handles resize it, arrow keys nudge by 1 px (⇧ by 10), Return confirms | Captures on mouse-up; Space switches mode and drops the drag (E47) | Match macOS for Space/Shift/Option during the drag first; post-release handles are a later, larger slice. |
+| Freeze | Optional "freeze screen" while selecting, and the captured image is that frozen frame | Always shows a frozen snapshot, then captures a fresh frame (E48) | Capture from the frame the user saw, or don't freeze. |
+| After capture | Quick Access Overlay: a thumbnail in a screen corner with Copy, Save, Annotate, Drag, Pin and Close; it can be dragged straight into another app; swipe away to dismiss | Opens the full editor window by default, or nothing at all (E45) | A small post-capture thumbnail is the system idiom (⇧⌘5 does it too); the editor opens from it. Product change, needs Chen. |
+| Sound and feedback | Shutter sound following the system "Play sound effects" setting; optional | Silent (E45) | Play the system capture sound when sound effects are on. |
+| Window capture | Hover highlight in the system's translucent blue; adds a background/shadow option; Option toggles the shadow | Orange 3 pt stroke (E49); shadow behaviour **measure** | Use the system highlight; include the window shadow by default like macOS, ⌥ to omit. |
+| Editor | Zoom (pinch, ⌘+/⌘−), canvas pans, smart snapping guides, step counters, pixelate/blur, crop with aspect presets, "Done" copies and closes | Fit-only canvas, no guides (E57) | Zoom is the editor's largest missing mechanic. |
+| Speed | Overlay tracks the pointer at display refresh (**measure** on 120 Hz) | Per-move window-list query and full redraw (E43) | Cache the window list per session; redraw only the dirty rect. |
+
+## R3.5 macOS screenshot tool (⇧⌘3, ⇧⌘4, ⇧⌘5)
+
+The baseline Edison's overlay is compared against; all **known** system behaviour. Take timings with the same 120 Hz
+recording as F6 so the two can be overlaid frame by frame.
+
+| Mechanic | macOS | Edison today | Take |
+|---|---|---|---|
+| Area cursor | Crosshair showing the pointer's coordinates; W×H replaces them while dragging | Arrow (E41) | Same. |
+| During the drag | Space moves the selection, Shift locks one axis, Option resizes from the centre; releasing captures | Space switches to window mode and drops the drag (E47) | Same modifiers; move the area/window toggle off Space mid-drag (keep Space before the drag starts, as macOS does). |
+| Window mode | Space before dragging: camera cursor, translucent blue fill over the hovered window; capture includes the window shadow, ⌥-click omits it | Orange stroke, arrow cursor (E49) | Camera cursor, system highlight, shadow default. |
+| Cancel | Esc cancels at any point and focus stays with the app you were in (the tool never activates) | Edison activates itself; focus isn't returned (E44) | Don't activate for capture, or hand focus back on every exit. |
+| Feedback | Shutter sound (honours "Play user interface sound effects"); floating thumbnail bottom-right for about 5 s (click to Markup, drag to place, swipe to dismiss) | Silent; editor or nothing (E45) | Sound plus a thumbnail is what Mac users expect; the editor can be one click away. |
+| ⇧⌘5 panel | Toolbar with capture modes, Options (save to, timer, show thumbnail, remember last selection, show pointer); remembers the last area | Settings toggles; "Capture Previous Area" exists (good) | A small capture toolbar is optional; "remember last selection" maps to Edison's existing setting. |
+| Multiple displays | Selection is per display; the crosshair moves freely across displays; full-screen capture on ⇧⌘3 writes one image per display | One overlay per display; area clipped to the midpoint's display (E50) | Clamp the drag to its start display so the result matches what the user drew. |
+| Retina | Pixel-accurate output at the display's scale | Uses the display's pixel scale (`CaptureEngine.swift:196-201`) | Confirm on the built-in panel (D7). |
