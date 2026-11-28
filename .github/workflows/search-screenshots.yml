@@ -1,0 +1,36 @@
+name: Search screenshots
+
+# Renders the real Hub at three search steps for a seeded screenshot ("meet Edison") and uploads the PNGs.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "Edison/Tests/SiteScreenshotSearchTests.swift"
+      - ".github/workflows/search-screenshots.yml"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  render:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Render the Hub at each search step
+        env:
+          EDISON_UI_ARTIFACTS: ${{ runner.temp }}/search-shots
+        run: swift test --filter SiteScreenshotSearchTests
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: search-screenshots
+          path: ${{ runner.temp }}/search-shots/*.png
+          if-no-files-found: warn
