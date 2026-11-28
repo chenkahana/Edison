@@ -3,6 +3,21 @@
 ## Purpose
 This document captures the UI changes Edison should make so the clipboard experience feels very close to Paste while reading as even more native to modern macOS. It is adapted from the external deep-research report and rewritten into repo-friendly implementation guidance.
 
+## The optical bar (standing standard, Chen 2026-11-28)
+
+Chen's bar for every product he ships (Boaz, Jimmy, Edison, the site): "This is the level of details we need to
+achieve." All UI work and UI reviews in this repo check against it:
+
+- **Optical spacing over equal-number padding.** Equal pixel values rarely look equal; adjust per side until the
+  visual weight is balanced.
+- **Concentric border radii.** Nested rounded elements share a center: outer radius = inner radius + the gap
+  between them.
+- **Icons sized relative to text.** Size icons in line-height units (lh/em), aligned optically to cap height and
+  baseline, never in absolute pixels that ignore the text they sit next to.
+- **Balanced visual gaps.** Judge whitespace by eye: gaps between groups read larger than gaps within them.
+
+Reviews are screenshot reviews, not code-value reviews: numerically equal but optically off is a reject.
+
 ## Product intent
 Edison should feel like:
 - A native macOS utility first
